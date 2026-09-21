@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>疑心暗鬼</title>
+<title>ギシンアンキ</title>
 <style>
   * { box-sizing: border-box; }
   html, body {
@@ -24,8 +24,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    width: 560px;
+    gap: 10px;
+    width: 640px;
     max-width: 94vw;
   }
   #topbar { display: flex; justify-content: space-between; align-items: center; width: 100%; }
@@ -40,47 +40,65 @@
   #back-btn:hover, #hub-link:hover { border-color: #b79fff; color: #fff; }
   #topbar-right { display: flex; gap: 8px; }
 
-  #timer-bar { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
+  #timer-bar { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 100%; }
   #timer-label { font-size: 11px; color: #9a8fc2; }
-  #timer-value { font-size: 28px; font-weight: 800; color: #ffd27a; text-shadow: 0 0 12px rgba(255,180,100,0.4); font-variant-numeric: tabular-nums; }
+  #timer-value { font-size: 26px; font-weight: 800; color: #ffd27a; text-shadow: 0 0 12px rgba(255,180,100,0.4); font-variant-numeric: tabular-nums; }
   #timer-bar.hidden { display: none; }
 
-  #arena { display: flex; gap: 14px; width: 100%; }
+  #notice-banner {
+    width: 100%; text-align: center; font-size: 12px; color: #ffd27a; min-height: 18px;
+    background: rgba(255,180,100,0.08); border: 1px solid rgba(255,180,100,0.3); border-radius: 8px;
+    padding: 6px; opacity: 0; transition: opacity 0.2s;
+  }
+  #notice-banner.show { opacity: 1; }
+  #notice-banner:empty, #notice-banner.blank { opacity: 0; }
+
+  #arena { display: flex; gap: 10px; width: 100%; }
   .ppanel {
-    flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 14px;
+    flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 12px;
     border-radius: 14px; background: rgba(255,255,255,0.03); border: 1px solid #3a3260;
+    min-height: 200px;
   }
   .ppanel-head { display: flex; justify-content: space-between; align-items: center; }
   .ppanel-name { font-size: 14px; font-weight: 700; color: #d8cfff; }
-  .ppanel-role { font-size: 11px; color: #9a8fc2; min-height: 14px; }
-  .card-backs { display: flex; gap: 6px; justify-content: center; min-height: 40px; align-items: center; }
+  .ppanel-role { font-size: 12px; color: #9a8fc2; min-height: 15px; }
+  .card-backs { display: flex; gap: 6px; justify-content: center; min-height: 56px; align-items: center; flex-wrap: wrap; }
   .card-back {
-    width: 30px; height: 42px; border-radius: 5px;
+    width: 38px; height: 53px; border-radius: 6px;
     background: linear-gradient(135deg, #5a4a9a, #362a5e);
     border: 1px solid #7a68c0; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
   }
-  .card-slot-empty { width: 30px; height: 42px; border-radius: 5px; border: 1px dashed #3a3260; }
+  .card-slot-empty { width: 38px; height: 53px; border-radius: 6px; border: 1px dashed #3a3260; }
+  .card-known {
+    width: 38px; height: 53px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    text-align: center; font-size: 10px; font-weight: 700; line-height: 1.2; padding: 2px;
+    background: linear-gradient(135deg, #8a6fff, #4c37a8); border: 1px solid #b79fff; color: #fff;
+    box-shadow: 0 2px 6px rgba(120,80,255,0.4);
+  }
   .ppanel-actions { display: flex; flex-direction: column; gap: 6px; }
   .ppanel button.mini {
     background: linear-gradient(180deg, #7a5cff, #4c37a8); color: #fff; border: none; padding: 8px 10px;
-    font-size: 12px; border-radius: 999px; cursor: pointer; box-shadow: 0 3px 10px rgba(120,80,255,0.4);
+    font-size: 12px; border-radius: 999px; cursor: pointer; box-shadow: 0 2px 8px rgba(120,80,255,0.4);
   }
   .ppanel button.mini:disabled { opacity: 0.3; cursor: default; box-shadow: none; }
   .ppanel button.mini.secondary { background: transparent; border: 1px solid #7a68c0; box-shadow: none; }
+  .ppanel button.mini.voted { background: transparent; border: 1px solid #8fffb0; color: #8fffb0; box-shadow: none; }
   .pending-request {
     font-size: 12px; background: rgba(255,180,100,0.1); border: 1px solid rgba(255,180,100,0.4);
     border-radius: 8px; padding: 8px; text-align: center; color: #ffd27a;
   }
   .pending-request .btnrow { display: flex; gap: 6px; margin-top: 6px; }
   .decision-mark { font-size: 12px; color: #8fffb0; text-align: center; }
+  .end-vote-note { font-size: 11px; color: #857aa8; text-align: center; }
 
   #discuss-note { font-size: 12px; color: #9a8fc2; text-align: center; }
 
   #overlay {
-    position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
-    gap: 16px; background: rgba(8,6,16,0.94); border-radius: 14px; text-align: center; padding: 24px; z-index: 5;
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(8,6,16,0.94); text-align: center; padding: 24px; z-index: 50; overflow-y: auto;
   }
   #overlay.show { display: flex; }
+  #overlay-box { display: flex; flex-direction: column; align-items: center; gap: 16px; max-width: 480px; margin: auto; }
   #overlay h2 { margin: 0; font-size: 22px; color: #ffd27a; text-shadow: 0 0 14px rgba(255,180,100,0.5); }
   #overlay p { margin: 0; font-size: 14px; color: #c6bce8; white-space: pre-line; }
   #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
@@ -108,14 +126,14 @@
     padding: 10px; border-radius: 10px; border: 1px solid #423a68; background: rgba(255,255,255,0.05); color: #ece8fa;
   }
   #code-input:focus { outline: none; border-color: #b79fff; }
-  .result-table { font-size: 13px; color: #c6bce8; text-align: left; line-height: 1.8; }
-  #hint-text { font-size: 12px; color: #857aa8; text-align: center; }
+  .result-table { font-size: 15px; color: #c6bce8; text-align: left; line-height: 1.8; }
+  #hint-text { font-size: 13px; color: #857aa8; text-align: center; }
 </style>
 </head>
 <body>
   <div id="wrap">
     <div id="topbar">
-      <h1>疑心暗鬼</h1>
+      <h1>ギシンアンキ</h1>
       <div id="topbar-right">
         <button id="back-btn">モード選択</button>
         <a id="hub-link" href="../index.html">← ハブへ</a>
@@ -126,6 +144,7 @@
       <span id="timer-label">議論フェーズ 残り時間</span>
       <span id="timer-value">3:00</span>
     </div>
+    <div id="notice-banner"></div>
 
     <div id="arena">
       <div class="ppanel" id="panel-0">
@@ -146,16 +165,16 @@
       </div>
     </div>
     <div id="discuss-note"></div>
-
-    <div id="overlay-area" style="position:relative; width:100%;">
-      <div id="overlay">
-        <h2 id="overlay-title">疑心暗鬼</h2>
-        <p id="overlay-text">2人用の人狼推理ゲームです</p>
-        <div id="overlay-extra"></div>
-        <div id="overlay-buttons"></div>
-      </div>
-    </div>
     <div id="hint-text"></div>
+  </div>
+
+  <div id="overlay">
+    <div id="overlay-box">
+      <h2 id="overlay-title">ギシンアンキ</h2>
+      <p id="overlay-text">2人用の人狼推理ゲームです</p>
+      <div id="overlay-extra"></div>
+      <div id="overlay-buttons"></div>
+    </div>
   </div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -219,6 +238,7 @@
   let cpuTickHandle = null;
   let pendingOutgoingRequest = null; // { slot } awaiting response, when I am requester
   let pendingIncomingRequest = null; // { slot } awaiting my response, when I am target
+  let endVotes = [false, false]; // both true => discuss phase ends immediately, skipping the timer
   let localGateQueue = [];  // for local pass-play: sequence of gate steps to run
   let peer = null, conn = null, roomCode = null;
 
@@ -250,6 +270,7 @@
   const timerBar = document.getElementById('timer-bar');
   const timerValue = document.getElementById('timer-value');
   const discussNote = document.getElementById('discuss-note');
+  const noticeBanner = document.getElementById('notice-banner');
   const nameEls = [document.getElementById('name-0'), document.getElementById('name-1')];
   const roleEls = [document.getElementById('role-0'), document.getElementById('role-1')];
   const cardsEls = [document.getElementById('cards-0'), document.getElementById('cards-1')];
@@ -280,7 +301,7 @@
     discussNote.textContent = '';
     hintText.textContent = '';
     resetPanelsBlank();
-    showOverlay('疑心暗鬼', '2人用の人狼推理ゲームです。留まるか立ち去るか、相手の反応を読み合いましょう。', [
+    showOverlay('ギシンアンキ', '2人用の人狼推理ゲームです。留まるか立ち去るか、相手の反応を読み合いましょう。', [
       { label: '対人戦（同じ画面）', primary: true, onClick: () => showVariantSelect('local') },
       { label: 'CPU戦', primary: true, onClick: () => showVariantSelect('cpu') },
       { label: 'オンライン対戦（別のPC）', primary: true, onClick: () => showVariantSelect('online') }
@@ -345,8 +366,13 @@
   function beginDiscussPhase() {
     phase = 'discuss';
     timeLeft = DISCUSS_SECONDS;
+    endVotes = [false, false];
+    pendingIncomingRequest = null;
+    pendingOutgoingRequest = null;
+    localPendingRequest = null;
     timerBar.classList.remove('hidden');
     discussNote.textContent = '「引く」でカードを補充、「要求する」で相手のカードを1枚指定して求められます（拒否されることもあります）。中身は自分だけが見られます。';
+    noticeBanner.classList.remove('show');
     hideOverlay();
     renderDiscuss();
     clearAllTimers();
@@ -393,15 +419,42 @@
       const p = game.players[i];
       const count = i===0 ? p.infoCards.length : (mode==='online' ? (p.infoCount||0) : p.infoCards.length);
       cardsEls[i].innerHTML = '';
+      // In cpu/online modes, panel 0 is always "me" (only I ever view this screen), so my own
+      // drawn cards are shown with their real value instead of a face-down back that must be
+      // remembered. Panel 1 (opponent/CPU) always stays face-down. Local mode keeps both panels
+      // face-down on the shared screen; each player can privately re-check their own hand via a gate.
+      const showKnown = i === 0 && mode !== 'local';
       for (let k=0;k<2;k++) {
         const d = document.createElement('div');
-        d.className = k < count ? 'card-back' : 'card-slot-empty';
+        if (k < count) {
+          if (showKnown) { d.className = 'card-known'; d.textContent = ROLE_NAME[p.infoCards[k]]; }
+          else { d.className = 'card-back'; }
+        } else {
+          d.className = 'card-slot-empty';
+        }
         cardsEls[i].appendChild(d);
       }
-      roleEls[i].textContent = '';
+      // My own role stays visible at all times so I don't have to remember it from the initial
+      // reveal. In local pass-and-play both panels share one screen, so this is left blank there;
+      // each player can instead check their role privately via the hand-view gate.
+      roleEls[i].textContent = (i === 0 && mode !== 'local') ? roleStatusTextFor(0) : '';
     }
     renderActionsFor(0);
     renderActionsFor(1);
+  }
+
+  function roleStatusTextFor(idx) {
+    const p = game.players[idx];
+    if (!p || !p.role) return '';
+    if (p.role === 'fool' && p.resolvedRole === 'fool') return '役職: 愚者（未確定）';
+    return '役職: ' + ROLE_NAME[p.resolvedRole];
+  }
+
+  function showNotice(text, ms) {
+    noticeBanner.textContent = text;
+    noticeBanner.classList.add('show');
+    clearTimeout(noticeBanner._timer);
+    noticeBanner._timer = setTimeout(() => noticeBanner.classList.remove('show'), ms || 2600);
   }
 
   function myCount() { return game.players[0].infoCards.length; }
@@ -435,6 +488,18 @@
     reqBtn.addEventListener('click', () => promptRequestSlot(1));
     el.appendChild(reqBtn);
 
+    const endBtn = document.createElement('button');
+    endBtn.className = 'mini secondary' + (endVotes[0] ? ' voted' : '');
+    endBtn.textContent = endVotes[0] ? '提案を取り消す' : '議論を終了する提案';
+    endBtn.addEventListener('click', () => toggleMyEndVote());
+    el.appendChild(endBtn);
+    if (endVotes[0] || endVotes[1]) {
+      const note = document.createElement('div');
+      note.className = 'end-vote-note';
+      note.textContent = (endVotes[0] && endVotes[1]) ? '両者同意、終了します…' : (endVotes[0] ? 'あなたは終了に賛成しました（相手の同意待ち）' : '相手が終了を提案しています');
+      el.appendChild(note);
+    }
+
     if (pendingIncomingRequest) {
       const box = document.createElement('div');
       box.className = 'pending-request';
@@ -466,6 +531,25 @@
     reqBtn.addEventListener('click', () => promptRequestSlotLocal(idx, other));
     el.appendChild(reqBtn);
 
+    const viewBtn = document.createElement('button');
+    viewBtn.className = 'mini secondary';
+    viewBtn.textContent = '自分の手札を見る';
+    viewBtn.disabled = game.players[idx].infoCards.length === 0;
+    viewBtn.addEventListener('click', () => viewMyHandLocal(idx));
+    el.appendChild(viewBtn);
+
+    const endBtn = document.createElement('button');
+    endBtn.className = 'mini secondary' + (endVotes[idx] ? ' voted' : '');
+    endBtn.textContent = endVotes[idx] ? '提案を取り消す' : '議論を終了する提案';
+    endBtn.addEventListener('click', () => toggleLocalEndVote(idx));
+    el.appendChild(endBtn);
+    if (endVotes[0] || endVotes[1]) {
+      const note = document.createElement('div');
+      note.className = 'end-vote-note';
+      note.textContent = (endVotes[0] && endVotes[1]) ? '両者同意、終了します…' : (endVotes[idx] ? 'あなたは終了に賛成しました（相手の同意待ち）' : 'もう一方が終了を提案しています');
+      el.appendChild(note);
+    }
+
     if (localPendingRequest && localPendingRequest.target === idx) {
       const box = document.createElement('div');
       box.className = 'pending-request';
@@ -479,6 +563,11 @@
       el.appendChild(box);
     }
   }
+  function toggleLocalEndVote(idx) {
+    endVotes[idx] = !endVotes[idx];
+    checkEndVotes();
+    renderDiscuss();
+  }
 
   function localDraw(idx) {
     if (!(game.players[idx].infoCards.length < 2 && game.drawPile.length > 0)) return;
@@ -486,10 +575,19 @@
     game.drawPileCount = game.drawPile.length;
     game.players[idx].infoCards.push(card);
     maybeResolveFoolLocal(idx);
-    const label = mode==='local' ? (idx===0?'プレイヤー1':'プレイヤー2') : 'あなた';
-    showOverlay(label + '専用', 'もう一方の人は見ないでください', [
-      { label: '確認した、閉じる', primary: true, onClick: () => { hideOverlay(); renderDiscuss(); } }
-    ], `<div class="role-reveal-card">引いたカード: ${ROLE_NAME[card]}</div>`);
+    viewMyHandLocal(idx);
+  }
+
+  function viewMyHandLocal(idx) {
+    const label = idx===0 ? 'プレイヤー1' : 'プレイヤー2';
+    const cards = game.players[idx].infoCards;
+    const roleLine = `<div style="font-size:13px;color:#9a8fc2;">${roleStatusTextFor(idx)}</div>`;
+    const html = cards.length
+      ? `<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">${cards.map(c => `<div class="card-known">${ROLE_NAME[c]}</div>`).join('')}</div>`
+      : '<span style="color:#857aa8;font-size:13px;">まだ情報カードを持っていません</span>';
+    showOverlay(label + '専用の手札', 'もう一方の人は見ないでください', [
+      { label: '閉じる', primary: true, onClick: () => { hideOverlay(); renderDiscuss(); } }
+    ], roleLine + html);
   }
 
   let localPendingRequest = null;
@@ -504,9 +602,13 @@
     const { requester, target, slot } = localPendingRequest;
     localPendingRequest = null;
     if (game.players[target].resolvedRole === 'misanthrope') comply = false;
+    const targetLabel = target===0 ? 'プレイヤー1' : 'プレイヤー2';
     if (comply) {
       const [card] = game.players[target].infoCards.splice(slot, 1);
       game.players[requester].infoCards.push(card);
+      showNotice(targetLabel + 'が要求に応じました');
+    } else {
+      showNotice(targetLabel + 'に拒否されました');
     }
     renderDiscuss();
   }
@@ -534,6 +636,9 @@
       if (comply) {
         const [card] = cpu.infoCards.splice(slot, 1);
         game.players[0].infoCards.push(card);
+        showNotice('CPUが要求に応じました');
+      } else {
+        showNotice('CPUに拒否されました');
       }
       renderDiscuss();
     }, 700);
@@ -559,12 +664,27 @@
       game.players[0].infoCards.push(card);
       maybeResolveFoolLocal(0);
       if (mode === 'online' && conn) conn.send({ type:'drawn' });
-      showOverlay('あなた専用', '相手には見えていません', [
-        { label: '確認した、閉じる', primary: true, onClick: () => { hideOverlay(); renderDiscuss(); } }
-      ], `<div class="role-reveal-card">引いたカード: ${ROLE_NAME[card]}</div>`);
     } else if (mode === 'online' && !iAmDealer) {
       conn.send({ type:'drawRequestToHost' });
     }
+    renderDiscuss();
+  }
+
+  function checkEndVotes() {
+    if (phase === 'discuss' && endVotes[0] && endVotes[1]) endDiscussPhase();
+  }
+  function toggleMyEndVote() {
+    endVotes[0] = !endVotes[0];
+    if (mode === 'cpu') {
+      if (endVotes[0]) {
+        setTimeout(() => { if (phase === 'discuss' && endVotes[0]) { endVotes[1] = true; checkEndVotes(); renderDiscuss(); } }, 900);
+      } else {
+        endVotes[1] = false;
+      }
+    } else if (mode === 'online' && conn) {
+      conn.send({ type:'endVote', value: endVotes[0] });
+    }
+    checkEndVotes();
     renderDiscuss();
   }
 
@@ -745,10 +865,8 @@
       } else {
         game.players[0].infoCards.push(data.card);
         maybeResolveFoolLocal(0);
-        showOverlay('あなた専用', '相手には見えていません', [
-          { label: '確認した、閉じる', primary: true, onClick: () => { hideOverlay(); renderDiscuss(); } }
-        ], `<div class="role-reveal-card">引いたカード: ${ROLE_NAME[data.card]}</div>`);
       }
+      renderDiscuss();
     } else if (data.type === 'requestCard') {
       pendingIncomingRequest = { slot: data.slot };
       renderDiscuss();
@@ -756,9 +874,16 @@
       if (data.comply && data.card) {
         game.players[0].infoCards.push(data.card);
         maybeResolveFoolLocal(0);
+        showNotice('相手が要求に応じました');
+      } else {
+        showNotice('相手に拒否されました');
       }
       game.players[1].infoCount = Math.max(0, (game.players[1].infoCount||0) - (data.comply?1:0));
       pendingOutgoingRequest = null;
+      renderDiscuss();
+    } else if (data.type === 'endVote') {
+      endVotes[1] = data.value;
+      checkEndVotes();
       renderDiscuss();
     } else if (data.type === 'phaseEnd') {
       endDiscussPhase();
