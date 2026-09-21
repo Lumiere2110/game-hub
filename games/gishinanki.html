@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>疑心暗鬼</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1c1830 0%, #08070f 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #ece8fa;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 560px;
+    max-width: 94vw;
+  }
+  #topbar { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 {
+    margin: 0; font-size: 22px; letter-spacing: 4px; font-weight: 600;
+    color: #b79fff; text-shadow: 0 0 12px rgba(150,110,255,0.5);
+  }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #423a68; color: #c6bce8;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #b79fff; color: #fff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #timer-bar { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
+  #timer-label { font-size: 11px; color: #9a8fc2; }
+  #timer-value { font-size: 28px; font-weight: 800; color: #ffd27a; text-shadow: 0 0 12px rgba(255,180,100,0.4); font-variant-numeric: tabular-nums; }
+  #timer-bar.hidden { display: none; }
+
+  #arena { display: flex; gap: 14px; width: 100%; }
+  .ppanel {
+    flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 14px;
+    border-radius: 14px; background: rgba(255,255,255,0.03); border: 1px solid #3a3260;
+  }
+  .ppanel-head { display: flex; justify-content: space-between; align-items: center; }
+  .ppanel-name { font-size: 14px; font-weight: 700; color: #d8cfff; }
+  .ppanel-role { font-size: 11px; color: #9a8fc2; min-height: 14px; }
+  .card-backs { display: flex; gap: 6px; justify-content: center; min-height: 40px; align-items: center; }
+  .card-back {
+    width: 30px; height: 42px; border-radius: 5px;
+    background: linear-gradient(135deg, #5a4a9a, #362a5e);
+    border: 1px solid #7a68c0; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .card-slot-empty { width: 30px; height: 42px; border-radius: 5px; border: 1px dashed #3a3260; }
+  .ppanel-actions { display: flex; flex-direction: column; gap: 6px; }
+  .ppanel button.mini {
+    background: linear-gradient(180deg, #7a5cff, #4c37a8); color: #fff; border: none; padding: 8px 10px;
+    font-size: 12px; border-radius: 999px; cursor: pointer; box-shadow: 0 3px 10px rgba(120,80,255,0.4);
+  }
+  .ppanel button.mini:disabled { opacity: 0.3; cursor: default; box-shadow: none; }
+  .ppanel button.mini.secondary { background: transparent; border: 1px solid #7a68c0; box-shadow: none; }
+  .pending-request {
+    font-size: 12px; background: rgba(255,180,100,0.1); border: 1px solid rgba(255,180,100,0.4);
+    border-radius: 8px; padding: 8px; text-align: center; color: #ffd27a;
+  }
+  .pending-request .btnrow { display: flex; gap: 6px; margin-top: 6px; }
+  .decision-mark { font-size: 12px; color: #8fffb0; text-align: center; }
+
+  #discuss-note { font-size: 12px; color: #9a8fc2; text-align: center; }
+
+  #overlay {
+    position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; background: rgba(8,6,16,0.94); border-radius: 14px; text-align: center; padding: 24px; z-index: 5;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { margin: 0; font-size: 22px; color: #ffd27a; text-shadow: 0 0 14px rgba(255,180,100,0.5); }
+  #overlay p { margin: 0; font-size: 14px; color: #c6bce8; white-space: pre-line; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  button.choice {
+    background: linear-gradient(180deg, #7a5cff, #4c37a8); color: #fff; border: none; padding: 10px 24px;
+    font-size: 14px; border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(120,80,255,0.5);
+    transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #b79fff; box-shadow: none; }
+  button.choice:active { transform: scale(0.95); }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #overlay-extra:empty { display: none; }
+  .role-reveal-card {
+    font-size: 20px; font-weight: 800; color: #ffd27a; background: rgba(255,255,255,0.06);
+    border: 1px solid #7a68c0; border-radius: 12px; padding: 16px 30px;
+  }
+  #room-code {
+    font-size: 40px; font-weight: 800; letter-spacing: 8px; color: #ffd27a;
+    background: rgba(255,180,100,0.08); border: 1px solid rgba(255,180,100,0.4);
+    padding: 10px 26px; border-radius: 12px; text-shadow: 0 0 14px rgba(255,180,100,0.5);
+  }
+  #conn-status { font-size: 13px; color: #9a8fc2; }
+  #code-input {
+    width: 160px; font-size: 22px; letter-spacing: 6px; text-align: center; text-transform: uppercase;
+    padding: 10px; border-radius: 10px; border: 1px solid #423a68; background: rgba(255,255,255,0.05); color: #ece8fa;
+  }
+  #code-input:focus { outline: none; border-color: #b79fff; }
+  .result-table { font-size: 13px; color: #c6bce8; text-align: left; line-height: 1.8; }
+  #hint-text { font-size: 12px; color: #857aa8; text-align: center; }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>疑心暗鬼</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+
+    <div id="timer-bar" class="hidden">
+      <span id="timer-label">議論フェーズ 残り時間</span>
+      <span id="timer-value">3:00</span>
+    </div>
+
+    <div id="arena">
+      <div class="ppanel" id="panel-0">
+        <div class="ppanel-head">
+          <span class="ppanel-name" id="name-0">あなた</span>
+        </div>
+        <span class="ppanel-role" id="role-0"></span>
+        <div class="card-backs" id="cards-0"></div>
+        <div class="ppanel-actions" id="actions-0"></div>
+      </div>
+      <div class="ppanel" id="panel-1">
+        <div class="ppanel-head">
+          <span class="ppanel-name" id="name-1">相手</span>
+        </div>
+        <span class="ppanel-role" id="role-1"></span>
+        <div class="card-backs" id="cards-1"></div>
+        <div class="ppanel-actions" id="actions-1"></div>
+      </div>
+    </div>
+    <div id="discuss-note"></div>
+
+    <div id="overlay-area" style="position:relative; width:100%;">
+      <div id="overlay">
+        <h2 id="overlay-title">疑心暗鬼</h2>
+        <p id="overlay-text">2人用の人狼推理ゲームです</p>
+        <div id="overlay-extra"></div>
+        <div id="overlay-buttons"></div>
+      </div>
+    </div>
+    <div id="hint-text"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  // ================= Core engine (validated: win table, request eligibility, fool resolution) =================
+  const TEAM = { survivor: 'human', misanthrope: 'human', werewolf: 'werewolf', fool: 'unresolved', ghost: 'ghost' };
+  const ROLE_NAME = { survivor:'生存者', misanthrope:'人間不信', werewolf:'人狼', fool:'愚者', ghost:'幽霊' };
+
+  function buildDeck(variant) {
+    const base = ['survivor','survivor','survivor','misanthrope','misanthrope','werewolf','werewolf'];
+    if (variant === 'fool') base.push('fool');
+    if (variant === 'ghost') base.push('ghost');
+    return base;
+  }
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i=a.length-1;i>0;i--) { const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; }
+    return a;
+  }
+  function canRequestEligible(myCount, targetCount, myResolvedRole) {
+    if (myResolvedRole === 'misanthrope') return false;
+    if (myCount > 1) return false;
+    if (targetCount < 1) return false;
+    return true;
+  }
+  function resolveGame(p0, p1) {
+    const t0 = TEAM[p0.resolvedRole], t1 = TEAM[p1.resolvedRole];
+    if (t0 === 'ghost' || t1 === 'ghost') {
+      const ghostIdx = t0 === 'ghost' ? 0 : 1;
+      const otherIdx = 1 - ghostIdx;
+      const other = otherIdx===0?p0:p1;
+      const otherTeam = TEAM[other.resolvedRole];
+      let ghostWins;
+      if (otherTeam === 'human' && other.decision === 'leave') ghostWins = true;
+      else if (otherTeam === 'werewolf' && other.decision === 'stay') ghostWins = true;
+      else ghostWins = false;
+      return ghostWins ? { winners:[ghostIdx], losers:[otherIdx] } : { winners:[otherIdx], losers:[ghostIdx] };
+    }
+    const d0 = p0.decision, d1 = p1.decision;
+    if (t0 === 'human' && t1 === 'human') {
+      return (d0==='stay' && d1==='stay') ? { winners:[0,1], losers:[] } : { winners:[], losers:[0,1] };
+    }
+    if (t0 === 'werewolf' && t1 === 'werewolf') {
+      return (d0==='leave' && d1==='leave') ? { winners:[0,1], losers:[] } : { winners:[], losers:[0,1] };
+    }
+    const same = d0 === d1;
+    const wolfIdx = t0==='werewolf' ? 0 : 1;
+    const humanIdx = 1 - wolfIdx;
+    return same ? { winners:[wolfIdx], losers:[humanIdx] } : { winners:[humanIdx], losers:[wolfIdx] };
+  }
+
+  // ================= Game state =================
+  const DISCUSS_SECONDS = 180;
+  let variant = null;      // null | 'fool' | 'ghost'
+  let mode = null;         // 'local' | 'cpu' | 'online'
+  let iAmDealer = true;    // online: host=true, joiner=false. local/cpu: always true (single authoritative context)
+  let game = null;         // { players:[{role,resolvedRole,infoCards:[],infoCount,decision}], drawPile:[], drawPileCount }
+  let phase = null;
+  let timerHandle = null, timeLeft = DISCUSS_SECONDS;
+  let cpuTickHandle = null;
+  let pendingOutgoingRequest = null; // { slot } awaiting response, when I am requester
+  let pendingIncomingRequest = null; // { slot } awaiting my response, when I am target
+  let localGateQueue = [];  // for local pass-play: sequence of gate steps to run
+  let peer = null, conn = null, roomCode = null;
+
+  function freshPlayer(role) { return { role, resolvedRole: role, infoCards: [], infoCount: 0, decision: null }; }
+
+  function maybeResolveFoolLocal(idx) {
+    const p = game.players[idx];
+    if (p.role === 'fool' && p.resolvedRole === 'fool' && p.infoCards.length >= 2 && game.drawPile.length > 0) {
+      p.resolvedRole = game.drawPile.pop();
+      game.drawPileCount = game.drawPile.length;
+    }
+  }
+  function forceResolveFoolLocal(idx) {
+    const p = game.players[idx];
+    if (p.role === 'fool' && p.resolvedRole === 'fool' && game.drawPile.length > 0) {
+      p.resolvedRole = game.drawPile.pop();
+      game.drawPileCount = game.drawPile.length;
+    }
+  }
+
+  // ================= DOM refs =================
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlayText = document.getElementById('overlay-text');
+  const overlayButtons = document.getElementById('overlay-buttons');
+  const overlayExtra = document.getElementById('overlay-extra');
+  const backBtn = document.getElementById('back-btn');
+  const hintText = document.getElementById('hint-text');
+  const timerBar = document.getElementById('timer-bar');
+  const timerValue = document.getElementById('timer-value');
+  const discussNote = document.getElementById('discuss-note');
+  const nameEls = [document.getElementById('name-0'), document.getElementById('name-1')];
+  const roleEls = [document.getElementById('role-0'), document.getElementById('role-1')];
+  const cardsEls = [document.getElementById('cards-0'), document.getElementById('cards-1')];
+  const actionsEls = [document.getElementById('actions-0'), document.getElementById('actions-1')];
+
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  // ================= Mode / variant select =================
+  function showModeSelect() {
+    cleanupPeer();
+    clearAllTimers();
+    phase = 'setup';
+    timerBar.classList.add('hidden');
+    discussNote.textContent = '';
+    hintText.textContent = '';
+    resetPanelsBlank();
+    showOverlay('疑心暗鬼', '2人用の人狼推理ゲームです。留まるか立ち去るか、相手の反応を読み合いましょう。', [
+      { label: '対人戦（同じ画面）', primary: true, onClick: () => showVariantSelect('local') },
+      { label: 'CPU戦', primary: true, onClick: () => showVariantSelect('cpu') },
+      { label: 'オンライン対戦（別のPC）', primary: true, onClick: () => showVariantSelect('online') }
+    ]);
+  }
+  function showVariantSelect(selectedMode) {
+    showOverlay('役職セット', '使用する役職セットを選んでください', [
+      { label: '基本セット（7枚）', primary: true, onClick: () => afterVariant(selectedMode, null) },
+      { label: '愚者を追加（8枚）', primary: true, onClick: () => afterVariant(selectedMode, 'fool') },
+      { label: '幽霊を追加（8枚）', primary: true, onClick: () => afterVariant(selectedMode, 'ghost') },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function afterVariant(selectedMode, chosenVariant) {
+    variant = chosenVariant;
+    if (selectedMode === 'online') { mode = 'online'; showOnlineMenu(); return; }
+    mode = selectedMode;
+    startLocalOrCpuGame();
+  }
+  function resetPanelsBlank() {
+    for (let i=0;i<2;i++) { roleEls[i].textContent=''; cardsEls[i].innerHTML=''; actionsEls[i].innerHTML=''; }
+    nameEls[0].textContent = 'あなた'; nameEls[1].textContent = '相手';
+  }
+
+  // ================= Local / CPU setup =================
+  function startLocalOrCpuGame() {
+    const deck = shuffle(buildDeck(variant));
+    game = {
+      players: [ freshPlayer(deck[0]), freshPlayer(deck[1]) ],
+      drawPile: deck.slice(2)
+    };
+    game.drawPileCount = game.drawPile.length;
+    iAmDealer = true;
+    nameEls[0].textContent = mode === 'local' ? 'プレイヤー1' : 'あなた';
+    nameEls[1].textContent = mode === 'local' ? 'プレイヤー2' : 'CPU';
+    if (mode === 'local') {
+      gateRevealRole(0, () => gateRevealRole(1, beginDiscussPhase));
+    } else {
+      gateRevealRole(0, beginDiscussPhase);
+    }
+  }
+
+  function gateRevealRole(idx, next) {
+    const label = mode === 'local' ? (idx===0?'プレイヤー1':'プレイヤー2') : 'あなた';
+    if (mode === 'local') {
+      showOverlay('つぎの番', `端末を「${label}」さんに渡してください`, [
+        { label: '自分の役職を見る', primary: true, onClick: () => showRoleThenNext(idx, next) }
+      ]);
+    } else {
+      showRoleThenNext(idx, next);
+    }
+  }
+  function showRoleThenNext(idx, next) {
+    const role = game.players[idx].role;
+    const roleText = role === 'fool' ? '愚者（情報カードを2枚集めると本当の役職が決まります）' : ROLE_NAME[role];
+    showOverlay('あなたの役職', '', [
+      { label: '確認した、閉じる', primary: true, onClick: () => { hideOverlay(); next(); } }
+    ], `<div class="role-reveal-card">${roleText}</div>`);
+  }
+
+  // ================= Discuss phase =================
+  function beginDiscussPhase() {
+    phase = 'discuss';
+    timeLeft = DISCUSS_SECONDS;
+    timerBar.classList.remove('hidden');
+    discussNote.textContent = '「引く」でカードを補充、「要求する」で相手のカードを1枚指定して求められます（拒否されることもあります）。中身は自分だけが見られます。';
+    hideOverlay();
+    renderDiscuss();
+    clearAllTimers();
+    timerHandle = setInterval(tickTimer, 1000);
+    if (mode === 'cpu') cpuTickHandle = setInterval(cpuTick, 2200);
+  }
+  function tickTimer() {
+    timeLeft--;
+    const m = Math.floor(timeLeft/60), s = timeLeft%60;
+    timerValue.textContent = m + ':' + String(s).padStart(2,'0');
+    if (timeLeft <= 0) {
+      clearInterval(timerHandle); timerHandle = null;
+      if (mode === 'online' && conn) conn.send({ type:'phaseEnd' });
+      endDiscussPhase();
+    }
+  }
+  function clearAllTimers() {
+    if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
+    if (cpuTickHandle) { clearInterval(cpuTickHandle); cpuTickHandle = null; }
+  }
+  function endDiscussPhase() {
+    if (phase !== 'discuss') return;
+    clearAllTimers();
+    timerBar.classList.add('hidden');
+    discussNote.textContent = '';
+    if (mode === 'local') {
+      forceResolveFoolLocal(0); forceResolveFoolLocal(1);
+      phase = 'decision';
+      gateDecision(0, () => gateDecision(1, () => finishAndReveal()));
+    } else if (mode === 'cpu') {
+      forceResolveFoolLocal(0); forceResolveFoolLocal(1);
+      const cpuAction = cpuChooseDecision();
+      game.players[1].decision = cpuAction;
+      phase = 'decision';
+      gateDecision(0, () => finishAndReveal());
+    } else {
+      phase = 'decision';
+      onlineForceResolveThenDecide();
+    }
+  }
+
+  function renderDiscuss() {
+    for (let i=0;i<2;i++) {
+      const p = game.players[i];
+      const count = i===0 ? p.infoCards.length : (mode==='online' ? (p.infoCount||0) : p.infoCards.length);
+      cardsEls[i].innerHTML = '';
+      for (let k=0;k<2;k++) {
+        const d = document.createElement('div');
+        d.className = k < count ? 'card-back' : 'card-slot-empty';
+        cardsEls[i].appendChild(d);
+      }
+      roleEls[i].textContent = '';
+    }
+    renderActionsFor(0);
+    renderActionsFor(1);
+  }
+
+  function myCount() { return game.players[0].infoCards.length; }
+  function oppCount() { return mode==='online' ? (game.players[1].infoCount||0) : game.players[1].infoCards.length; }
+
+  function renderActionsFor(idx) {
+    const el = actionsEls[idx];
+    el.innerHTML = '';
+    if (phase !== 'discuss') return;
+    if (mode === 'cpu' && idx === 1) { el.innerHTML = '<span style="font-size:12px;color:#857aa8;">CPUが考え中…</span>'; return; }
+    if (mode === 'online' && idx === 1) { return; } // opponent's actions happen on their own client; nothing to show here
+    if (idx !== 0 && mode !== 'local') return;
+
+    if (mode === 'local') {
+      // both panels get their own draw/request buttons; honor system + gates handle secrecy
+      renderLocalPanelActions(idx);
+      return;
+    }
+    // cpu mode, idx===0 (human)
+    const drawBtn = document.createElement('button');
+    drawBtn.className = 'mini';
+    drawBtn.textContent = '山札から引く（残り' + game.drawPileCount + '）';
+    drawBtn.disabled = !(myCount() < 2 && game.drawPileCount > 0);
+    drawBtn.addEventListener('click', () => doMyDraw());
+    el.appendChild(drawBtn);
+
+    const reqBtn = document.createElement('button');
+    reqBtn.className = 'mini secondary';
+    reqBtn.textContent = pendingOutgoingRequest ? '相手の返答待ち…' : '相手に要求する';
+    reqBtn.disabled = !!pendingOutgoingRequest || !canRequestEligible(myCount(), oppCount(), game.players[0].resolvedRole);
+    reqBtn.addEventListener('click', () => promptRequestSlot(1));
+    el.appendChild(reqBtn);
+
+    if (pendingIncomingRequest) {
+      const box = document.createElement('div');
+      box.className = 'pending-request';
+      box.innerHTML = `相手があなたの${pendingIncomingRequest.slot+1}枚目を要求しています`;
+      const row = document.createElement('div'); row.className='btnrow';
+      const yes = document.createElement('button'); yes.className='mini'; yes.textContent='渡す';
+      yes.addEventListener('click', () => respondToRequest(true));
+      const no = document.createElement('button'); no.className='mini secondary'; no.textContent='拒否する';
+      no.addEventListener('click', () => respondToRequest(false));
+      row.appendChild(yes); row.appendChild(no); box.appendChild(row);
+      el.appendChild(box);
+    }
+  }
+
+  function renderLocalPanelActions(idx) {
+    const el = actionsEls[idx];
+    const other = 1 - idx;
+    const drawBtn = document.createElement('button');
+    drawBtn.className = 'mini';
+    drawBtn.textContent = '山札から引く（残り' + game.drawPileCount + '）';
+    drawBtn.disabled = !(game.players[idx].infoCards.length < 2 && game.drawPileCount > 0);
+    drawBtn.addEventListener('click', () => localDraw(idx));
+    el.appendChild(drawBtn);
+
+    const reqBtn = document.createElement('button');
+    reqBtn.className = 'mini secondary';
+    reqBtn.textContent = '相手に要求する';
+    reqBtn.disabled = !canRequestEligible(game.players[idx].infoCards.length, game.players[other].infoCards.length, game.players[idx].resolvedRole);
+    reqBtn.addEventListener('click', () => promptRequestSlotLocal(idx, other));
+    el.appendChild(reqBtn);
+
+    if (localPendingRequest && localPendingRequest.target === idx) {
+      const box = document.createElement('div');
+      box.className = 'pending-request';
+      box.innerHTML = `もう一方のプレイヤーがあなたの${localPendingRequest.slot+1}枚目を要求しています`;
+      const row = document.createElement('div'); row.className='btnrow';
+      const yes = document.createElement('button'); yes.className='mini'; yes.textContent='渡す';
+      yes.addEventListener('click', () => resolveLocalRequest(true));
+      const no = document.createElement('button'); no.className='mini secondary'; no.textContent='拒否する';
+      no.addEventListener('click', () => resolveLocalRequest(false));
+      row.appendChild(yes); row.appendChild(no); box.appendChild(row);
+      el.appendChild(box);
+    }
+  }
+
+  function localDraw(idx) {
+    if (!(game.players[idx].infoCards.length < 2 && game.drawPile.length > 0)) return;
+    const card = game.drawPile.pop();
+    game.drawPileCount = game.drawPile.length;
+    game.players[idx].infoCards.push(card);
+    maybeResolveFoolLocal(idx);
+    const label = mode==='local' ? (idx===0?'プレイヤー1':'プレイヤー2') : 'あなた';
+    showOverlay(label + '専用', 'もう一方の人は見ないでください', [
+      { label: '確認した、閉じる', primary: true, onClick: () => { hideOverlay(); renderDiscuss(); } }
+    ], `<div class="role-reveal-card">引いたカード: ${ROLE_NAME[card]}</div>`);
+  }
+
+  let localPendingRequest = null;
+  function promptRequestSlotLocal(requesterIdx, targetIdx) {
+    const n = game.players[targetIdx].infoCards.length;
+    const buttons = [];
+    for (let s=0;s<n;s++) buttons.push({ label: (s+1)+'枚目を要求', onClick: () => { hideOverlay(); localPendingRequest = { requester: requesterIdx, target: targetIdx, slot: s }; renderDiscuss(); } });
+    buttons.push({ label:'キャンセル', primary:false, onClick: hideOverlay });
+    showOverlay('要求するカードを選択', '相手のどのカードを要求しますか（中身は見えません）', buttons);
+  }
+  function resolveLocalRequest(comply) {
+    const { requester, target, slot } = localPendingRequest;
+    localPendingRequest = null;
+    if (game.players[target].resolvedRole === 'misanthrope') comply = false;
+    if (comply) {
+      const [card] = game.players[target].infoCards.splice(slot, 1);
+      game.players[requester].infoCards.push(card);
+    }
+    renderDiscuss();
+  }
+
+  function promptRequestSlot(targetIdx) {
+    const n = oppCount();
+    const buttons = [];
+    for (let s=0;s<n;s++) buttons.push({ label: (s+1)+'枚目を要求', onClick: () => { hideOverlay(); sendRequest(s); } });
+    buttons.push({ label:'キャンセル', primary:false, onClick: hideOverlay });
+    showOverlay('要求するカードを選択', '相手のどのカードを要求しますか（中身は見えません）', buttons);
+  }
+  function sendRequest(slot) {
+    if (mode === 'cpu') {
+      cpuRespondToRequest(slot);
+    } else if (mode === 'online') {
+      pendingOutgoingRequest = { slot };
+      conn.send({ type:'requestCard', slot });
+    }
+    renderDiscuss();
+  }
+  function cpuRespondToRequest(slot) {
+    const cpu = game.players[1];
+    let comply = cpu.resolvedRole === 'misanthrope' ? false : Math.random() < 0.55;
+    setTimeout(() => {
+      if (comply) {
+        const [card] = cpu.infoCards.splice(slot, 1);
+        game.players[0].infoCards.push(card);
+      }
+      renderDiscuss();
+    }, 700);
+  }
+  function respondToRequest(comply) {
+    const slot = pendingIncomingRequest.slot;
+    pendingIncomingRequest = null;
+    if (game.players[0].resolvedRole === 'misanthrope') comply = false;
+    let card = null;
+    if (comply) {
+      [card] = game.players[0].infoCards.splice(slot, 1);
+      if (mode === 'cpu') { game.players[1].infoCards.push(card); maybeResolveFoolLocal(1); }
+    }
+    if (mode === 'online') conn.send({ type:'requestResponse', comply, card });
+    renderDiscuss();
+  }
+
+  function doMyDraw() {
+    if (!(myCount() < 2 && game.drawPileCount > 0)) return;
+    if (mode === 'cpu' || (mode === 'online' && iAmDealer)) {
+      const card = game.drawPile.pop();
+      game.drawPileCount = game.drawPile.length;
+      game.players[0].infoCards.push(card);
+      maybeResolveFoolLocal(0);
+      if (mode === 'online' && conn) conn.send({ type:'drawn' });
+      showOverlay('あなた専用', '相手には見えていません', [
+        { label: '確認した、閉じる', primary: true, onClick: () => { hideOverlay(); renderDiscuss(); } }
+      ], `<div class="role-reveal-card">引いたカード: ${ROLE_NAME[card]}</div>`);
+    } else if (mode === 'online' && !iAmDealer) {
+      conn.send({ type:'drawRequestToHost' });
+    }
+    renderDiscuss();
+  }
+
+  // ---------- CPU discuss-phase heuristic ----------
+  function cpuTick() {
+    if (phase !== 'discuss') return;
+    const cpu = game.players[1];
+    if (pendingIncomingRequest) return; // handled via human clicking, CPU is requester side already resolved elsewhere
+    const r = Math.random();
+    if (cpu.infoCards.length < 2 && game.drawPileCount > 0 && r < 0.5) {
+      const card = game.drawPile.pop();
+      game.drawPileCount = game.drawPile.length;
+      cpu.infoCards.push(card);
+      maybeResolveFoolLocal(1);
+      renderDiscuss();
+    } else if (canRequestEligible(cpu.infoCards.length, game.players[0].infoCards.length, cpu.resolvedRole) && r < 0.75) {
+      const slot = Math.floor(Math.random() * game.players[0].infoCards.length);
+      pendingIncomingRequest = { slot };
+      renderDiscuss();
+    }
+  }
+  function cpuChooseDecision() {
+    forceResolveFoolLocal(1);
+    const team = TEAM[game.players[1].resolvedRole];
+    if (team === 'ghost') return 'stay';
+    if (team === 'werewolf') return Math.random() < 0.65 ? 'leave' : 'stay';
+    return Math.random() < 0.65 ? 'stay' : 'leave';
+  }
+
+  // ================= Decision phase (local gates) =================
+  function gateDecision(idx, next) {
+    const label = mode === 'local' ? (idx===0?'プレイヤー1':'プレイヤー2') : 'あなた';
+    const role = game.players[idx].resolvedRole;
+    if (role === 'ghost') {
+      game.players[idx].decision = 'stay';
+      if (mode === 'local') {
+        showOverlay(label, 'あなたは「幽霊」なので自動的に「留まる」を選択します', [
+          { label: '次へ', primary: true, onClick: () => { hideOverlay(); next(); } }
+        ]);
+      } else { next(); }
+      return;
+    }
+    const body = mode === 'local'
+      ? () => showOverlay('つぎの番', `端末を「${label}」さんに渡してください`, [
+          { label: '自分の決断を入力する', primary: true, onClick: showDecisionButtons }
+        ])
+      : showDecisionButtons;
+    function showDecisionButtons() {
+      showOverlay(label + 'の決断', '留まりますか？立ち去りますか？', [
+        { label: '留まる', primary: true, onClick: () => { game.players[idx].decision='stay'; hideOverlay(); next(); } },
+        { label: '立ち去る', primary: true, onClick: () => { game.players[idx].decision='leave'; hideOverlay(); next(); } }
+      ]);
+    }
+    body();
+  }
+
+  function onlineForceResolveThenDecide() {
+    // resolve my own fool if needed (locally, using my authoritative pile if dealer, else must request from host)
+    const me = game.players[0];
+    if (me.role === 'fool' && me.resolvedRole === 'fool') {
+      if (iAmDealer) {
+        forceResolveFoolLocal(0);
+        showMyDecisionGate();
+      } else {
+        conn.send({ type:'drawRequestToHost', forResolve:true });
+        pendingFoolForceResolve = true; // wait for drawResponse
+      }
+    } else {
+      showMyDecisionGate();
+    }
+  }
+  let pendingFoolForceResolve = false;
+  function showMyDecisionGate() {
+    const role = game.players[0].resolvedRole;
+    if (role === 'ghost') {
+      game.players[0].decision = 'stay';
+      showOverlay('あなたの決断', 'あなたは「幽霊」なので自動的に「留まる」を選択します', [
+        { label: '決定を送信', primary: true, onClick: sendMyDecision }
+      ]);
+      return;
+    }
+    showOverlay('あなたの決断', '留まりますか？立ち去りますか？', [
+      { label: '留まる', primary: true, onClick: () => { game.players[0].decision='stay'; sendMyDecision(); } },
+      { label: '立ち去る', primary: true, onClick: () => { game.players[0].decision='leave'; sendMyDecision(); } }
+    ]);
+  }
+  let myDecisionSent = false, oppRevealData = null;
+  function sendMyDecision() {
+    myDecisionSent = true;
+    hideOverlay();
+    showOverlay('待機中…', '相手の決断を待っています', []);
+    conn.send({ type:'reveal', role: game.players[0].role, resolvedRole: game.players[0].resolvedRole, decision: game.players[0].decision });
+    tryFinishOnline();
+  }
+  function tryFinishOnline() {
+    if (!myDecisionSent || !oppRevealData) return;
+    game.players[1].role = oppRevealData.role;
+    game.players[1].resolvedRole = oppRevealData.resolvedRole;
+    game.players[1].decision = oppRevealData.decision;
+    finishAndReveal();
+  }
+
+  // ================= Reveal / result =================
+  function finishAndReveal() {
+    phase = 'reveal';
+    const result = resolveGame(game.players[0], game.players[1]);
+    const iWon = result.winners.includes(0);
+    const bothWin = result.winners.length === 2;
+    const bothLose = result.losers.length === 2;
+    let title;
+    if (mode === 'local') {
+      if (bothWin) title = '両者の勝利！';
+      else if (bothLose) title = '両者の敗北…';
+      else title = (result.winners[0]===0?'プレイヤー1':'プレイヤー2') + 'の勝利！';
+    } else {
+      if (bothWin) title = '両者の勝利！';
+      else if (bothLose) title = '両者の敗北…';
+      else title = iWon ? 'あなたの勝利！' : 'あなたの敗北…';
+    }
+    const p0 = game.players[0], p1 = game.players[1];
+    const text = `プレイヤー1: ${ROLE_NAME[p0.resolvedRole]}（${p0.decision==='stay'?'留まる':'立ち去る'}）\n` +
+                 `プレイヤー2: ${ROLE_NAME[p1.resolvedRole]}（${p1.decision==='stay'?'留まる':'立ち去る'}）`;
+    const buttons = mode === 'online'
+      ? [
+          { label: 'もう一度', primary: true, onClick: () => { if (conn) conn.send({type:'rematch'}); startOnlineRematch(); } },
+          { label: 'モード選択に戻る', primary: false, onClick: () => { cleanupPeer(); showModeSelect(); } }
+        ]
+      : [
+          { label: 'もう一度', primary: true, onClick: startLocalOrCpuGame },
+          { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+        ];
+    showOverlay(title, text, buttons);
+  }
+
+  // ================= Online multiplayer =================
+  function cleanupPeer() {
+    if (conn) { try { conn.close(); } catch(e){} conn = null; }
+    if (peer) { try { peer.destroy(); } catch(e){} peer = null; }
+  }
+  function randomCode(len=4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s=''; for (let i=0;i<len;i++) s += chars[Math.floor(Math.random()*chars.length)];
+    return s;
+  }
+  function showOnlineMenu() {
+    showOverlay('オンライン対戦', 'インターネット経由で別のパソコンの人と対戦できます', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: hostRoom },
+      { label: '部屋に入る（参加）', primary: true, onClick: showJoinRoom },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function onPeerDisconnected() {
+    if (mode === 'online' && phase && phase !== 'setup') {
+      clearAllTimers();
+      showOverlay('相手が切断しました', '通信が切れてしまいました', [
+        { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+      ]);
+    }
+  }
+  function handleRemoteData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'drawn') {
+      game.players[1].infoCount = (game.players[1].infoCount||0) + 1;
+      renderDiscuss();
+    } else if (data.type === 'drawRequestToHost') {
+      if (!iAmDealer) return;
+      if (game.drawPile.length === 0) return;
+      const card = game.drawPile.pop();
+      game.drawPileCount = game.drawPile.length;
+      if (!data.forResolve) game.players[1].infoCount = (game.players[1].infoCount||0) + 1;
+      conn.send({ type:'drawResponse', card, forResolve: !!data.forResolve });
+      renderDiscuss();
+    } else if (data.type === 'drawResponse') {
+      game.drawPileCount = Math.max(0, game.drawPileCount - 1);
+      if (data.forResolve) {
+        game.players[0].resolvedRole = data.card;
+        if (pendingFoolForceResolve) { pendingFoolForceResolve = false; showMyDecisionGate(); }
+      } else {
+        game.players[0].infoCards.push(data.card);
+        maybeResolveFoolLocal(0);
+        showOverlay('あなた専用', '相手には見えていません', [
+          { label: '確認した、閉じる', primary: true, onClick: () => { hideOverlay(); renderDiscuss(); } }
+        ], `<div class="role-reveal-card">引いたカード: ${ROLE_NAME[data.card]}</div>`);
+      }
+    } else if (data.type === 'requestCard') {
+      pendingIncomingRequest = { slot: data.slot };
+      renderDiscuss();
+    } else if (data.type === 'requestResponse') {
+      if (data.comply && data.card) {
+        game.players[0].infoCards.push(data.card);
+        maybeResolveFoolLocal(0);
+      }
+      game.players[1].infoCount = Math.max(0, (game.players[1].infoCount||0) - (data.comply?1:0));
+      pendingOutgoingRequest = null;
+      renderDiscuss();
+    } else if (data.type === 'phaseEnd') {
+      endDiscussPhase();
+    } else if (data.type === 'reveal') {
+      oppRevealData = data;
+      tryFinishOnline();
+    } else if (data.type === 'rematch') {
+      startOnlineRematch();
+    }
+  }
+  function startOnlineGameShared() {
+    myDecisionSent = false; oppRevealData = null; pendingFoolForceResolve = false;
+    pendingIncomingRequest = null; pendingOutgoingRequest = null;
+    if (iAmDealer) {
+      const deck = shuffle(buildDeck(variant));
+      game = { players: [ freshPlayer(deck[0]), freshPlayer(deck[1]) ], drawPile: deck.slice(2) };
+      game.drawPileCount = game.drawPile.length;
+      game.players[1].role = null; game.players[1].resolvedRole = null; // unknown to me until reveal
+      game.players[1].infoCount = 0;
+      conn.send({ type:'deal', theirRole: deck[1], drawPileCount: game.drawPileCount, variant });
+      gateRevealRole(0, beginDiscussPhase);
+    }
+    // joiner path is triggered from handleRemoteData 'deal' below
+  }
+  function startOnlineRematch() {
+    hideOverlay();
+    startOnlineGameShared();
+  }
+  // extend handleRemoteData for 'deal' (joiner receiving initial deal from host)
+  const _origHandle = handleRemoteData;
+  function handleRemoteDataWithDeal(data) {
+    if (data && data.type === 'deal') {
+      variant = data.variant;
+      game = { players: [ freshPlayer(data.theirRole), freshPlayer(null) ], drawPile: [] };
+      game.drawPileCount = data.drawPileCount;
+      game.players[1].role = null; game.players[1].resolvedRole = null; game.players[1].infoCount = 0;
+      myDecisionSent = false; oppRevealData = null; pendingFoolForceResolve = false;
+      pendingIncomingRequest = null; pendingOutgoingRequest = null;
+      gateRevealRole(0, beginDiscussPhase);
+      return;
+    }
+    _origHandle(data);
+  }
+
+  function hostRoom() {
+    cleanupPeer();
+    roomCode = randomCode();
+    iAmDealer = true;
+    showOverlay('オンライン対戦', '部屋を準備しています…', [
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ]);
+    peer = new Peer('gishinanki-room-' + roomCode);
+    peer.on('open', () => {
+      showOverlay(
+        'このコードを相手に伝えてください',
+        '相手が「部屋に入る」からコードを入力すると自動で対戦が始まります',
+        [{ label: 'キャンセル', primary: false, onClick: showModeSelect }],
+        `<div id="room-code">${roomCode}</div>
+         <button id="copy-code-btn" class="choice secondary">コードをコピー</button>
+         <div id="conn-status">相手の参加を待っています…</div>`
+      );
+      const copyBtn = document.getElementById('copy-code-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(roomCode).then(() => {
+            copyBtn.textContent = 'コピーしました！';
+            setTimeout(() => { copyBtn.textContent = 'コードをコピー'; }, 1500);
+          });
+        });
+      }
+    });
+    peer.on('connection', (c) => {
+      conn = c;
+      conn.on('data', handleRemoteDataWithDeal);
+      conn.on('close', onPeerDisconnected);
+      conn.on('error', onPeerDisconnected);
+      conn.on('open', () => startOnlineGameShared());
+    });
+    peer.on('error', () => {
+      showOverlay('接続エラー', '部屋を作成できませんでした。もう一度お試しください。', [
+        { label: '戻る', primary: true, onClick: showModeSelect }
+      ]);
+    });
+  }
+  function showJoinRoom() {
+    cleanupPeer();
+    showOverlay('部屋に入る', 'ホストから伝えられた4桁のコードを入力してください', [
+      { label: '接続する', primary: true, onClick: joinRoom },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="code-input" maxlength="4" placeholder="例: A1B2" autocomplete="off" />`);
+    const input = document.getElementById('code-input');
+    if (input) { input.focus(); input.addEventListener('keydown', (e) => { if (e.key==='Enter') joinRoom(); }); }
+  }
+  function joinRoom() {
+    const input = document.getElementById('code-input');
+    const code = input ? input.value.trim().toUpperCase() : '';
+    if (!code) return;
+    cleanupPeer();
+    iAmDealer = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ]);
+    peer = new Peer();
+    peer.on('open', () => {
+      conn = peer.connect('gishinanki-room-' + code, { reliable: true });
+      conn.on('data', handleRemoteDataWithDeal);
+      conn.on('close', onPeerDisconnected);
+      conn.on('error', onPeerDisconnected);
+      conn.on('open', () => { showOverlay('接続しました', 'ホストの準備を待っています…', []); });
+      conn.on('error', () => {
+        showOverlay('接続エラー', 'コードが正しいか、ホストが待機しているか確認してください。', [
+          { label: 'もう一度', primary: true, onClick: showJoinRoom },
+          { label: '戻る', primary: false, onClick: showModeSelect }
+        ]);
+      });
+    });
+    peer.on('error', () => {
+      showOverlay('接続エラー', 'コードが正しいか、ホストが待機しているか確認してください。', [
+        { label: 'もう一度', primary: true, onClick: showJoinRoom },
+        { label: '戻る', primary: false, onClick: showModeSelect }
+      ]);
+    });
+  }
+
+  backBtn.addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+
+  showModeSelect();
+})();
+</script>
+</body>
+</html>

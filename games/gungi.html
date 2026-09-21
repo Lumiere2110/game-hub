@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>軍議</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #2a1520 0%, #0a0808 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #f0e6e6;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 520px;
+    max-width: 94vw;
+  }
+  #topbar { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 {
+    margin: 0; font-size: 22px; letter-spacing: 4px; font-weight: 600;
+    color: #ff8a8a; text-shadow: 0 0 12px rgba(255,80,80,0.5);
+  }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #5a2c34; color: #d9b3b3;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #ff8a8a; color: #fff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #hud { display: flex; justify-content: space-between; width: 100%; gap: 10px; }
+  .player-card {
+    flex: 1; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 10px;
+    background: rgba(255,255,255,0.03); border: 1px solid #3a2028; transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  .player-card.active { border-color: #ff8a8a; box-shadow: 0 0 14px rgba(255,120,120,0.4); }
+  .player-info { display: flex; flex-direction: column; line-height: 1.3; }
+  .player-name { font-size: 12px; color: #cf9fa3; }
+  .player-status { font-size: 11px; color: #ffd27a; min-height: 14px; }
+
+  #board-area { position: relative; width: 100%; }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    grid-template-rows: repeat(9, 1fr);
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #1c1013;
+    border: 4px solid #4a1e26;
+    border-radius: 4px;
+    box-shadow: 0 0 30px rgba(150,40,50,0.25), inset 0 0 40px rgba(0,0,0,0.4);
+    overflow: hidden;
+  }
+  #board.disabled { pointer-events: none; opacity: 0.92; }
+  .cell {
+    position: relative; border: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    font-size: clamp(16px, 5.6vw, 32px); line-height: 1; user-select: none;
+  }
+  .cell.last-from, .cell.last-to { box-shadow: inset 0 0 0 999px rgba(255, 180, 100, 0.18); }
+  .cell.selected { box-shadow: inset 0 0 0 999px rgba(255, 120, 120, 0.35); }
+  .piece { transition: transform 0.1s; font-weight: 700; }
+  .piece.s { color: #f5e6d0; }
+  .piece.g { color: #f5e6d0; transform: rotate(180deg); }
+  .cell:hover .piece { transform: scale(1.08); }
+  .cell:hover .piece.g { transform: rotate(180deg) scale(1.08); }
+  .dot-hint { position:absolute; width:26%; height:26%; border-radius:50%; background: rgba(255,255,255,0.2); pointer-events:none; }
+  .dot-hint.capture { width:100%; height:100%; border-radius:0; background:transparent; box-shadow: inset 0 0 0 4px rgba(255,90,90,0.6); }
+  .stack-badge {
+    position: absolute; top: 2px; right: 2px; min-width: 14px; height: 14px; padding: 0 2px;
+    border-radius: 7px; background: rgba(0,0,0,0.65); border: 1px solid rgba(255,255,255,0.3);
+    font-size: 10px; line-height: 12px; text-align: center; color: #ffd27a;
+  }
+  .buried-bar { position: absolute; bottom: 2px; left: 4px; right: 4px; display: flex; gap: 2px; height: 3px; }
+  .buried-bar span { flex: 1; border-radius: 2px; }
+  .buried-bar span.s { background: #f5e6d0; }
+  .buried-bar span.g { background: #6a3540; }
+
+  #overlay {
+    position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; background: rgba(10,6,8,0.9); border-radius: 10px; text-align: center; padding: 24px; z-index: 5;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffd27a; text-shadow: 0 0 14px rgba(255,180,100,0.5); }
+  #overlay p { margin: 0; font-size: 14px; color: #d9b3b3; white-space: pre-line; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  button.choice {
+    background: linear-gradient(180deg, #c94a5a, #7a2530); color: #fff; border: none; padding: 10px 24px;
+    font-size: 14px; border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(180,40,60,0.5);
+    transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #ff8a8a; box-shadow: none; }
+  button.choice:active { transform: scale(0.95); }
+  #hint-text { font-size: 12px; color: #a3767a; text-align: center; }
+
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #overlay-extra:empty { display: none; }
+  #room-code {
+    font-size: 40px; font-weight: 800; letter-spacing: 8px; color: #ffd27a;
+    background: rgba(255,180,100,0.08); border: 1px solid rgba(255,180,100,0.4);
+    padding: 10px 26px; border-radius: 12px; text-shadow: 0 0 14px rgba(255,180,100,0.5);
+  }
+  #conn-status { font-size: 13px; color: #cf9fa3; }
+  #code-input {
+    width: 160px; font-size: 22px; letter-spacing: 6px; text-align: center; text-transform: uppercase;
+    padding: 10px; border-radius: 10px; border: 1px solid #5a2c34; background: rgba(255,255,255,0.05); color: #f0e6e6;
+  }
+  #code-input:focus { outline: none; border-color: #ff8a8a; }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>軍議</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+
+    <div id="hud">
+      <div class="player-card" id="card-g">
+        <div class="player-info">
+          <span class="player-name" id="name-g">後手</span>
+          <span class="player-status" id="status-g"></span>
+        </div>
+      </div>
+      <div class="player-card" id="card-s">
+        <div class="player-info">
+          <span class="player-name" id="name-s">先手</span>
+          <span class="player-status" id="status-s"></span>
+        </div>
+      </div>
+    </div>
+
+    <div id="board-area">
+      <div id="board"></div>
+      <div id="overlay">
+        <h2 id="overlay-title">軍議</h2>
+        <p id="overlay-text">対戦モードを選んでください</p>
+        <div id="overlay-extra"></div>
+        <div id="overlay-buttons"></div>
+      </div>
+    </div>
+    <div id="hint-text">駒は同じマスに最大3段まで重ねられます。相手の「帥」を取れば勝ちです（一番上の駒しか動かせず、取られません）</div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  // ================= Core engine (original ruleset inspired by the anime's stacking board game) =================
+  const SIZE = 9;
+  function idx(r,c){return r*SIZE+c;}
+  function inB(r,c){return r>=0&&r<SIZE&&c>=0&&c<SIZE;}
+  function fwd(color){ return color==='s' ? -1 : 1; }
+  function enemyOf(color){ return color==='s' ? 'g' : 's'; }
+
+  function newGame() {
+    const cells = Array.from({length: SIZE*SIZE}, () => []);
+    function place(r,c,type,color){ cells[idx(r,c)].push({type,color}); }
+    function setupSide(color, backRow, midRow, frontRow) {
+      const back = ['toride','ninja','samurai','taishou','sui','taishou','samurai','ninja','toride'];
+      for (let c=0;c<9;c++) place(backRow,c,back[c],color);
+      place(midRow,1,'kiba',color); place(midRow,2,'yumi',color);
+      place(midRow,6,'yumi',color); place(midRow,7,'kiba',color);
+      for (let c=0;c<9;c++) place(frontRow,c,'hei',color);
+    }
+    setupSide('s', 8, 7, 6);
+    setupSide('g', 0, 1, 2);
+    return { cells, turn: 's' };
+  }
+  function cloneState(st) {
+    return { cells: st.cells.map(stack => stack.map(p => ({type:p.type, color:p.color}))), turn: st.turn };
+  }
+  function topOf(state, r, c) { const st = state.cells[idx(r,c)]; return st.length ? st[st.length-1] : null; }
+  function heightOf(state, r, c) { return state.cells[idx(r,c)].length; }
+
+  const DIAG = [[-1,-1],[-1,1],[1,-1],[1,1]];
+  const ORTHO = [[-1,0],[1,0],[0,-1],[0,1]];
+  const KING8 = DIAG.concat(ORTHO);
+
+  function pieceDestinations(state, r, c) {
+    const piece = topOf(state, r, c);
+    if (!piece) return [];
+    const f = fwd(piece.color);
+    const enemy = enemyOf(piece.color);
+    const results = [];
+    function canLand(nr, nc) {
+      if (!inB(nr,nc)) return false;
+      const h = heightOf(state, nr, nc);
+      if (h === 0) return true;
+      const t = topOf(state, nr, nc);
+      if (t.color === enemy) return true;
+      return h < 3;
+    }
+    function tryStep(dr, dc) { const nr=r+dr, nc=c+dc; if (canLand(nr,nc)) results.push({r:nr,c:nc}); }
+    function trySlide(dr, dc) {
+      let nr=r+dr, nc=c+dc;
+      while (inB(nr,nc)) {
+        if (heightOf(state,nr,nc) === 0) { results.push({r:nr,c:nc}); }
+        else { if (canLand(nr,nc)) results.push({r:nr,c:nc}); break; }
+        nr+=dr; nc+=dc;
+      }
+    }
+    switch (piece.type) {
+      case 'sui': for (const [dr,dc] of KING8) tryStep(dr,dc); break;
+      case 'taishou': for (const [dr,dc] of ORTHO) trySlide(dr,dc); for (const [dr,dc] of DIAG) tryStep(dr,dc); break;
+      case 'yumi': for (const [dr,dc] of ORTHO) trySlide(dr,dc); break;
+      case 'samurai': for (const [dr,dc] of [[f,-1],[f,0],[f,1],[-f,-1],[-f,1]]) tryStep(dr,dc); break;
+      case 'ninja':
+        for (const [dr,dc] of DIAG) {
+          tryStep(dr,dc);
+          const nr2=r+dr*2, nc2=c+dc*2;
+          if (canLand(nr2,nc2)) results.push({r:nr2,c:nc2});
+        }
+        break;
+      case 'kiba':
+        for (const dcSign of [-1,1]) { const nr=r+2*f, nc=c+dcSign; if (canLand(nr,nc)) results.push({r:nr,c:nc}); }
+        break;
+      case 'hei': tryStep(f,0); break;
+      case 'toride': break;
+    }
+    return results;
+  }
+
+  function applyMove(state, from, to) {
+    const ns = cloneState(state);
+    const fromStack = ns.cells[idx(from.r,from.c)];
+    const moving = fromStack.pop();
+    const toStack = ns.cells[idx(to.r,to.c)];
+    let captured = null;
+    if (toStack.length > 0 && toStack[toStack.length-1].color !== moving.color) captured = toStack.pop();
+    toStack.push(moving);
+    ns.turn = enemyOf(state.turn);
+    return { state: ns, captured };
+  }
+
+  function genLegalMoves(state) {
+    const moves = [];
+    for (let r=0;r<SIZE;r++) for (let c=0;c<SIZE;c++) {
+      const t = topOf(state, r, c);
+      if (!t || t.color !== state.turn) continue;
+      for (const d of pieceDestinations(state, r, c)) moves.push({ from:{r,c}, to:d });
+    }
+    return moves;
+  }
+
+  // ---------- AI ----------
+  const VALUES = { sui:100000, taishou:900, yumi:600, samurai:500, ninja:450, kiba:400, hei:100, toride:200 };
+  function evaluate(state) {
+    let score = 0;
+    for (let i=0;i<SIZE*SIZE;i++) {
+      const stack = state.cells[i];
+      for (let h=0; h<stack.length; h++) {
+        const p = stack[h];
+        let v = VALUES[p.type];
+        if (p.type === 'sui') v = (h === stack.length-1) ? -100 : 350;
+        score += p.color==='s' ? v : -v;
+      }
+    }
+    return score;
+  }
+  function moveScore(state, m) {
+    const t = topOf(state, m.to.r, m.to.c);
+    if (t && t.color !== state.turn) return VALUES[t.type]*10;
+    return 0;
+  }
+  function orderMoves(state, moves) { return moves.slice().sort((a,b) => moveScore(state,b) - moveScore(state,a)); }
+
+  function negamax(state, depth, alpha, beta, colorMul) {
+    const moves = genLegalMoves(state);
+    if (moves.length === 0) return -99000 - depth;
+    if (depth === 0) return colorMul * evaluate(state);
+    const ordered = orderMoves(state, moves);
+    let best = -Infinity;
+    for (const m of ordered) {
+      const { state: ns, captured } = applyMove(state, m.from, m.to);
+      if (captured && captured.type === 'sui') return 99000 + depth;
+      const val = -negamax(ns, depth-1, -beta, -alpha, -colorMul);
+      if (val > best) best = val;
+      if (best > alpha) alpha = best;
+      if (alpha >= beta) break;
+    }
+    return best;
+  }
+  function findBestMove(state, depth) {
+    const moves = orderMoves(state, genLegalMoves(state));
+    if (moves.length === 0) return null;
+    const colorMul = state.turn === 's' ? 1 : -1;
+    let bestMove = moves[0], bestVal = -Infinity, alpha=-Infinity, beta=Infinity;
+    for (const m of moves) {
+      const { state: ns, captured } = applyMove(state, m.from, m.to);
+      if (captured && captured.type === 'sui') return m;
+      const val = -negamax(ns, depth-1, -beta, -alpha, -colorMul);
+      if (val > bestVal) { bestVal = val; bestMove = m; }
+      if (bestVal > alpha) alpha = bestVal;
+    }
+    return bestMove;
+  }
+
+  // ================= UI layer =================
+  const KANJI = { sui:'帥', taishou:'将', samurai:'侍', ninja:'忍', kiba:'馬', yumi:'弓', hei:'兵', toride:'砦' };
+
+  const boardEl = document.getElementById('board');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlayText = document.getElementById('overlay-text');
+  const overlayButtons = document.getElementById('overlay-buttons');
+  const overlayExtra = document.getElementById('overlay-extra');
+  const backBtn = document.getElementById('back-btn');
+  const cardS = document.getElementById('card-s');
+  const cardG = document.getElementById('card-g');
+  const nameS = document.getElementById('name-s');
+  const nameG = document.getElementById('name-g');
+  const statusS = document.getElementById('status-s');
+  const statusG = document.getElementById('status-g');
+
+  let state, mode, humanColor, aiColor, gameActive, selectedSquare, legalTargets, lastMove;
+  let peer = null, conn = null, roomCode = null;
+  const AI_DEPTH = 2;
+
+  function setBoardDisabled(disabled) { boardEl.classList.toggle('disabled', disabled); }
+
+  function renderBoard() {
+    boardEl.innerHTML = '';
+    for (let r=0;r<SIZE;r++) for (let c=0;c<SIZE;c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      if (lastMove) {
+        if (lastMove.from.r===r && lastMove.from.c===c) cell.classList.add('last-from');
+        if (lastMove.to.r===r && lastMove.to.c===c) cell.classList.add('last-to');
+      }
+      if (selectedSquare && selectedSquare.r===r && selectedSquare.c===c) cell.classList.add('selected');
+      const stack = state.cells[idx(r,c)];
+      if (stack.length > 0) {
+        const top = stack[stack.length-1];
+        const span = document.createElement('span');
+        span.className = 'piece ' + top.color;
+        span.textContent = KANJI[top.type];
+        cell.appendChild(span);
+        if (stack.length > 1) {
+          const badge = document.createElement('div');
+          badge.className = 'stack-badge';
+          badge.textContent = String(stack.length);
+          cell.appendChild(badge);
+          const bar = document.createElement('div');
+          bar.className = 'buried-bar';
+          for (let h=0; h<stack.length-1; h++) {
+            const seg = document.createElement('span');
+            seg.className = stack[h].color;
+            bar.appendChild(seg);
+          }
+          cell.appendChild(bar);
+        }
+      }
+      if (legalTargets) {
+        const mv = legalTargets.find(m => m.to.r===r && m.to.c===c);
+        if (mv) {
+          const isCapture = stack.length > 0 && stack[stack.length-1].color !== state.turn;
+          const dot = document.createElement('div');
+          dot.className = 'dot-hint' + (isCapture ? ' capture' : '');
+          cell.appendChild(dot);
+        }
+      }
+      cell.addEventListener('click', () => onCellClick(r,c));
+      boardEl.appendChild(cell);
+    }
+  }
+
+  function updateHUD() {
+    cardS.classList.toggle('active', state.turn === 's' && gameActive);
+    cardG.classList.toggle('active', state.turn === 'g' && gameActive);
+    if (mode === 'cpu') {
+      nameS.textContent = '先手' + (humanColor === 's' ? '(あなた)' : '(CPU)');
+      nameG.textContent = '後手' + (humanColor === 'g' ? '(あなた)' : '(CPU)');
+    } else if (mode === 'online') {
+      nameS.textContent = '先手' + (humanColor === 's' ? '(あなた)' : '(相手)');
+      nameG.textContent = '後手' + (humanColor === 'g' ? '(あなた)' : '(相手)');
+    } else {
+      nameS.textContent = '先手';
+      nameG.textContent = '後手';
+    }
+    statusS.textContent = '';
+    statusG.textContent = '';
+  }
+
+  function clearSelection() { selectedSquare = null; legalTargets = null; }
+
+  function onCellClick(r, c) {
+    if (!gameActive) return;
+    if ((mode === 'cpu' || mode === 'online') && state.turn !== humanColor) return;
+    const top = topOf(state, r, c);
+
+    if (legalTargets) {
+      const mv = legalTargets.find(m => m.to.r===r && m.to.c===c);
+      if (mv) { commitMove(mv); return; }
+    }
+    if (top && top.color === state.turn) {
+      selectedSquare = { r, c };
+      legalTargets = pieceDestinations(state, r, c).map(d => ({ from:{r,c}, to:d }));
+      renderBoard();
+    } else {
+      clearSelection();
+      renderBoard();
+    }
+  }
+
+  function commitMove(move, broadcast = true) {
+    const mover = state.turn;
+    const { state: ns, captured } = applyMove(state, move.from, move.to);
+    state = ns;
+    lastMove = move;
+    clearSelection();
+    if (mode === 'online' && broadcast && mover === humanColor && conn) {
+      conn.send({ type: 'move', from: move.from, to: move.to });
+    }
+    renderBoard();
+    updateHUD();
+    if (captured && captured.type === 'sui') { endGame(mover, 'marshal'); return; }
+    if (gameActive) checkNoMoves();
+    if (gameActive) proceedTurn();
+  }
+
+  function checkNoMoves() {
+    if (genLegalMoves(state).length === 0) { endGame(enemyOf(state.turn), 'nomoves'); }
+  }
+
+  function endGame(winner, reason) {
+    gameActive = false;
+    setBoardDisabled(true);
+    let title;
+    const text = reason === 'marshal' ? '帥を討ち取りました' : '相手が動かせる駒を失いました';
+    if (mode === 'cpu') title = winner === humanColor ? 'あなたの勝ち！' : 'CPUの勝ち';
+    else if (mode === 'online') title = winner === humanColor ? 'あなたの勝ち！' : '相手の勝ち';
+    else title = (winner === 's' ? '先手' : '後手') + 'の勝ち！';
+    const buttons = mode === 'online'
+      ? [
+          { label: 'もう一度', primary: true, onClick: () => { if (conn) conn.send({ type: 'rematch' }); startGame('online', humanColor); } },
+          { label: 'モード選択に戻る', primary: false, onClick: () => { cleanupPeer(); showModeSelect(); } }
+        ]
+      : [
+          { label: 'もう一度', primary: true, onClick: () => startGame(mode, humanColor) },
+          { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+        ];
+    showOverlay(title, text, buttons);
+  }
+
+  function proceedTurn() {
+    if (mode === 'cpu' && state.turn === aiColor) {
+      setBoardDisabled(true);
+      setTimeout(doAIMove, 350);
+    } else if (mode === 'online' && state.turn !== humanColor) {
+      setBoardDisabled(true);
+    } else {
+      setBoardDisabled(false);
+    }
+  }
+
+  function doAIMove() {
+    if (!gameActive) return;
+    const move = findBestMove(state, AI_DEPTH);
+    if (move) commitMove(move);
+  }
+
+  // ---------- overlay screens ----------
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  function showModeSelect() {
+    cleanupPeer();
+    gameActive = false;
+    state = newGame();
+    clearSelection(); lastMove = null;
+    mode = null;
+    renderBoard();
+    updateHUD();
+    cardS.classList.remove('active');
+    cardG.classList.remove('active');
+    showOverlay('軍議', '対戦モードを選んでください', [
+      { label: '対人戦（同じ画面）', primary: true, onClick: () => startGame('pvp', 's') },
+      { label: 'CPU戦', primary: true, onClick: showColorSelect },
+      { label: 'オンライン対戦（別のPC）', primary: true, onClick: showOnlineMenu }
+    ]);
+  }
+
+  function showColorSelect() {
+    showOverlay('CPU戦', 'あなたの手番を選んでください', [
+      { label: '先手で始める', primary: true, onClick: () => startGame('cpu', 's') },
+      { label: '後手で始める', primary: true, onClick: () => startGame('cpu', 'g') },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+
+  // ---------- online multiplayer (WebRTC via PeerJS) ----------
+  function cleanupPeer() {
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function showOnlineMenu() {
+    showOverlay('オンライン対戦', 'インターネット経由で別のパソコンの人と対戦できます', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: hostRoom },
+      { label: '部屋に入る（参加）', primary: true, onClick: showJoinRoom },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function setupConnection() {
+    conn.on('data', handleRemoteData);
+    conn.on('close', onPeerDisconnected);
+    conn.on('error', onPeerDisconnected);
+  }
+  function onPeerDisconnected() {
+    if (mode === 'online' && gameActive) {
+      gameActive = false;
+      setBoardDisabled(true);
+      showOverlay('相手が切断しました', '通信が切れてしまいました', [
+        { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+      ]);
+    }
+  }
+  function handleRemoteData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'move') {
+      const moves = genLegalMoves(state);
+      const m = moves.find(mm => mm.from.r===data.from.r && mm.from.c===data.from.c && mm.to.r===data.to.r && mm.to.c===data.to.c);
+      if (m) commitMove(m, false);
+    } else if (data.type === 'rematch') {
+      startGame('online', humanColor);
+    }
+  }
+  function hostRoom() {
+    cleanupPeer();
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ]);
+    peer = new Peer('gungi-room-' + roomCode);
+    peer.on('open', () => {
+      showOverlay(
+        'このコードを相手に伝えてください',
+        '相手が「部屋に入る」からコードを入力すると自動で対戦が始まります（あなたは先手です）',
+        [{ label: 'キャンセル', primary: false, onClick: showModeSelect }],
+        `<div id="room-code">${roomCode}</div>
+         <button id="copy-code-btn" class="choice secondary">コードをコピー</button>
+         <div id="conn-status">相手の参加を待っています…</div>`
+      );
+      const copyBtn = document.getElementById('copy-code-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(roomCode).then(() => {
+            copyBtn.textContent = 'コピーしました！';
+            setTimeout(() => { copyBtn.textContent = 'コードをコピー'; }, 1500);
+          });
+        });
+      }
+    });
+    peer.on('connection', (c) => {
+      conn = c;
+      setupConnection();
+      conn.on('open', () => startGame('online', 's'));
+    });
+    peer.on('error', () => {
+      showOverlay('接続エラー', '部屋を作成できませんでした。もう一度お試しください。', [
+        { label: '戻る', primary: true, onClick: showModeSelect }
+      ]);
+    });
+  }
+  function showJoinRoom() {
+    cleanupPeer();
+    showOverlay(
+      '部屋に入る',
+      'ホストから伝えられた4桁のコードを入力してください',
+      [
+        { label: '接続する', primary: true, onClick: joinRoom },
+        { label: '戻る', primary: false, onClick: showModeSelect }
+      ],
+      `<input id="code-input" maxlength="4" placeholder="例: A1B2" autocomplete="off" />`
+    );
+    const input = document.getElementById('code-input');
+    if (input) { input.focus(); input.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(); }); }
+  }
+  function joinRoom() {
+    const input = document.getElementById('code-input');
+    const code = input ? input.value.trim().toUpperCase() : '';
+    if (!code) return;
+    cleanupPeer();
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ]);
+    peer = new Peer();
+    peer.on('open', () => {
+      conn = peer.connect('gungi-room-' + code, { reliable: true });
+      setupConnection();
+      conn.on('open', () => startGame('online', 'g'));
+      conn.on('error', () => {
+        showOverlay('接続エラー', 'コードが正しいか、ホストが待機しているか確認してください。', [
+          { label: 'もう一度', primary: true, onClick: showJoinRoom },
+          { label: '戻る', primary: false, onClick: showModeSelect }
+        ]);
+      });
+    });
+    peer.on('error', () => {
+      showOverlay('接続エラー', 'コードが正しいか、ホストが待機しているか確認してください。', [
+        { label: 'もう一度', primary: true, onClick: showJoinRoom },
+        { label: '戻る', primary: false, onClick: showModeSelect }
+      ]);
+    });
+  }
+
+  function startGame(selectedMode, chosenHumanColor) {
+    mode = selectedMode;
+    humanColor = chosenHumanColor;
+    aiColor = enemyOf(humanColor);
+    state = newGame();
+    clearSelection(); lastMove = null;
+    gameActive = true;
+    renderBoard();
+    updateHUD();
+    hideOverlay();
+    proceedTurn();
+  }
+
+  backBtn.addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+
+  showModeSelect();
+})();
+</script>
+</body>
+</html>
