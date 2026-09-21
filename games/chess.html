@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>チェス</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 560px;
+    max-width: 94vw;
+  }
+  #topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  h1 {
+    margin: 0;
+    font-size: 22px;
+    letter-spacing: 4px;
+    font-weight: 600;
+    color: #9fb4ff;
+    text-shadow: 0 0 12px rgba(120,150,255,0.6);
+  }
+  #back-btn, #hub-link {
+    background: transparent;
+    border: 1px solid #3a4278;
+    color: #b9c2f0;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    gap: 10px;
+  }
+  .player-card {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #2a3160;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  .player-card.active {
+    border-color: #6ea8ff;
+    box-shadow: 0 0 14px rgba(110,168,255,0.45);
+  }
+  .swatch { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; }
+  .swatch.w { background: radial-gradient(circle at 35% 30%, #fff, #ccc); }
+  .swatch.b { background: radial-gradient(circle at 35% 30%, #555, #000); }
+  .player-info { display: flex; flex-direction: column; line-height: 1.3; }
+  .player-name { font-size: 12px; color: #9aa3d6; }
+  .player-status { font-size: 11px; color: #ff8a8a; min-height: 14px; }
+
+  #board-area { position: relative; width: 100%; }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border: 4px solid #3a2a18;
+    border-radius: 6px;
+    box-shadow: 0 0 30px rgba(80,100,220,0.25), inset 0 0 40px rgba(0,0,0,0.35);
+    overflow: hidden;
+  }
+  #board.disabled { pointer-events: none; opacity: 0.92; }
+  .cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: clamp(22px, 8vw, 50px);
+    line-height: 1;
+    user-select: none;
+  }
+  .cell.light { background: #ead9b8; }
+  .cell.dark { background: #a9784f; }
+  .cell.last-from, .cell.last-to { box-shadow: inset 0 0 0 999px rgba(255, 224, 102, 0.28); }
+  .cell.selected { box-shadow: inset 0 0 0 999px rgba(110, 168, 255, 0.45); }
+  .cell.check { box-shadow: inset 0 0 0 999px rgba(255, 60, 60, 0.5); }
+  .piece.w { color: #fdfdfd; text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 1px #000; }
+  .piece.b { color: #17171c; text-shadow: 0 1px 1px rgba(255,255,255,0.35); }
+  .piece { transition: transform 0.1s; }
+  .cell:hover .piece { transform: scale(1.08); }
+  .dot-hint {
+    position: absolute;
+    width: 28%;
+    height: 28%;
+    border-radius: 50%;
+    background: rgba(30, 30, 30, 0.35);
+    pointer-events: none;
+  }
+  .dot-hint.capture {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: inset 0 0 0 4px rgba(200, 40, 40, 0.55);
+  }
+
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: rgba(5,7,15,0.85);
+    border-radius: 10px;
+    text-align: center;
+    padding: 24px;
+    z-index: 5;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4);
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    font-size: 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(60,80,255,0.5);
+    transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice:active { transform: scale(0.95); }
+  #hint-text { font-size: 12px; color: #7c86c2; text-align: center; }
+
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #overlay-extra:empty { display: none; }
+  #room-code {
+    font-size: 40px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4);
+    padding: 10px 26px; border-radius: 12px; text-shadow: 0 0 14px rgba(255,224,102,0.5);
+  }
+  #conn-status { font-size: 13px; color: #9aa3d6; }
+  #code-input {
+    width: 160px; font-size: 22px; letter-spacing: 6px; text-align: center; text-transform: uppercase;
+    padding: 10px; border-radius: 10px; border: 1px solid #3a4278; background: rgba(255,255,255,0.05); color: #eef0ff;
+  }
+  #code-input:focus { outline: none; border-color: #6ea8ff; }
+
+  #promo-picker { display: flex; gap: 10px; }
+  .promo-btn {
+    width: 56px; height: 56px; font-size: 34px; border-radius: 10px; cursor: pointer;
+    background: rgba(255,255,255,0.08); border: 1px solid #3a4278; color: #eef0ff;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .promo-btn:hover { border-color: #6ea8ff; }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>チェス</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+
+    <div id="hud">
+      <div class="player-card" id="card-w">
+        <div class="swatch w"></div>
+        <div class="player-info">
+          <span class="player-name" id="name-w">白</span>
+          <span class="player-status" id="status-w"></span>
+        </div>
+      </div>
+      <div class="player-card" id="card-b">
+        <div class="swatch b"></div>
+        <div class="player-info">
+          <span class="player-name" id="name-b">黒</span>
+          <span class="player-status" id="status-b"></span>
+        </div>
+      </div>
+    </div>
+
+    <div id="board-area">
+      <div id="board"></div>
+      <div id="overlay">
+        <h2 id="overlay-title">チェス</h2>
+        <p id="overlay-text">対戦モードを選んでください</p>
+        <div id="overlay-extra"></div>
+        <div id="overlay-buttons"></div>
+      </div>
+    </div>
+    <div id="hint-text">駒をクリックして選択し、移動先をクリックしてください</div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  // ================= Core chess engine (verified via perft) =================
+  function idx(r,c){return r*8+c;}
+  function inB(r,c){return r>=0&&r<8&&c>=0&&c<8;}
+
+  function newGame() {
+    const board = new Array(64).fill(null);
+    const back = ['r','n','b','q','k','b','n','r'];
+    for (let c=0;c<8;c++){
+      board[idx(0,c)] = { type: back[c], color:'b' };
+      board[idx(1,c)] = { type:'p', color:'b' };
+      board[idx(6,c)] = { type:'p', color:'w' };
+      board[idx(7,c)] = { type: back[c], color:'w' };
+    }
+    return { board, turn: 'w', castling: {wk:true, wq:true, bk:true, bq:true}, ep: null, halfmove: 0 };
+  }
+
+  function cloneState(s){
+    return {
+      board: s.board.slice(),
+      turn: s.turn,
+      castling: { wk:s.castling.wk, wq:s.castling.wq, bk:s.castling.bk, bq:s.castling.bq },
+      ep: s.ep ? {r:s.ep.r, c:s.ep.c} : null,
+      halfmove: s.halfmove
+    };
+  }
+
+  const KNIGHT_OFFS = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+  const KING_OFFS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  const BISHOP_DIRS = [[-1,-1],[-1,1],[1,-1],[1,1]];
+  const ROOK_DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
+
+  function isSquareAttacked(board, r, c, byColor) {
+    const pawnDir = byColor === 'w' ? 1 : -1;
+    for (const dc of [-1,1]) {
+      const pr = r + pawnDir, pc = c + dc;
+      if (inB(pr,pc)) { const p = board[idx(pr,pc)]; if (p && p.type==='p' && p.color===byColor) return true; }
+    }
+    for (const [dr,dc] of KNIGHT_OFFS) {
+      const nr=r+dr, nc=c+dc;
+      if (inB(nr,nc)) { const p = board[idx(nr,nc)]; if (p && p.type==='n' && p.color===byColor) return true; }
+    }
+    for (const [dr,dc] of KING_OFFS) {
+      const nr=r+dr, nc=c+dc;
+      if (inB(nr,nc)) { const p = board[idx(nr,nc)]; if (p && p.type==='k' && p.color===byColor) return true; }
+    }
+    for (const [dr,dc] of BISHOP_DIRS) {
+      let nr=r+dr, nc=c+dc;
+      while (inB(nr,nc)) { const p = board[idx(nr,nc)]; if (p) { if (p.color===byColor && (p.type==='b'||p.type==='q')) return true; break; } nr+=dr; nc+=dc; }
+    }
+    for (const [dr,dc] of ROOK_DIRS) {
+      let nr=r+dr, nc=c+dc;
+      while (inB(nr,nc)) { const p = board[idx(nr,nc)]; if (p) { if (p.color===byColor && (p.type==='r'||p.type==='q')) return true; break; } nr+=dr; nc+=dc; }
+    }
+    return false;
+  }
+
+  function findKing(board, color) {
+    for (let i=0;i<64;i++) { const p=board[i]; if (p && p.type==='k' && p.color===color) return {r:(i/8)|0, c:i%8}; }
+    return null;
+  }
+
+  function isInCheck(state, color) {
+    const k = findKing(state.board, color);
+    if (!k) return false;
+    return isSquareAttacked(state.board, k.r, k.c, color==='w'?'b':'w');
+  }
+
+  function genPseudoMoves(s) {
+    const moves = [];
+    const board = s.board;
+    const color = s.turn;
+    const enemy = color === 'w' ? 'b' : 'w';
+    for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
+      const p = board[idx(r,c)];
+      if (!p || p.color !== color) continue;
+      if (p.type === 'p') {
+        const dir = color === 'w' ? -1 : 1;
+        const startRow = color === 'w' ? 6 : 1;
+        const promoRow = color === 'w' ? 0 : 7;
+        const r1 = r+dir;
+        if (inB(r1,c) && !board[idx(r1,c)]) {
+          pushPawnMove(moves, p, r,c,r1,c,null,promoRow);
+          const r2 = r+2*dir;
+          if (r === startRow && !board[idx(r2,c)]) moves.push({from:{r,c}, to:{r:r2,c}, piece:p, doublePush:true});
+        }
+        for (const dc of [-1,1]) {
+          const cc = c+dc;
+          if (!inB(r1,cc)) continue;
+          const target = board[idx(r1,cc)];
+          if (target && target.color === enemy) pushPawnMove(moves, p, r,c,r1,cc,target,promoRow);
+          else if (!target && s.ep && s.ep.r===r1 && s.ep.c===cc) moves.push({from:{r,c}, to:{r:r1,c:cc}, piece:p, isEnPassant:true});
+        }
+      } else if (p.type === 'n') {
+        for (const [dr,dc] of KNIGHT_OFFS) {
+          const nr=r+dr, nc=c+dc;
+          if (!inB(nr,nc)) continue;
+          const t = board[idx(nr,nc)];
+          if (!t || t.color===enemy) moves.push({from:{r,c},to:{r:nr,c:nc},piece:p,captured:t});
+        }
+      } else if (p.type === 'k') {
+        for (const [dr,dc] of KING_OFFS) {
+          const nr=r+dr, nc=c+dc;
+          if (!inB(nr,nc)) continue;
+          const t = board[idx(nr,nc)];
+          if (!t || t.color===enemy) moves.push({from:{r,c},to:{r:nr,c:nc},piece:p,captured:t});
+        }
+        addCastleMoves(s, moves, r, c, color);
+      } else {
+        const dirs = p.type==='b' ? BISHOP_DIRS : p.type==='r' ? ROOK_DIRS : BISHOP_DIRS.concat(ROOK_DIRS);
+        for (const [dr,dc] of dirs) {
+          let nr=r+dr, nc=c+dc;
+          while (inB(nr,nc)) {
+            const t = board[idx(nr,nc)];
+            if (!t) moves.push({from:{r,c},to:{r:nr,c:nc},piece:p});
+            else { if (t.color===enemy) moves.push({from:{r,c},to:{r:nr,c:nc},piece:p,captured:t}); break; }
+            nr+=dr; nc+=dc;
+          }
+        }
+      }
+    }
+    return moves;
+  }
+
+  function pushPawnMove(moves, piece, r,c,r1,c1,captured,promoRow) {
+    if (r1 === promoRow) { for (const promo of ['q','r','b','n']) moves.push({from:{r,c}, to:{r:r1,c:c1}, piece, captured, promotion:promo}); }
+    else moves.push({from:{r,c}, to:{r:r1,c:c1}, piece, captured});
+  }
+
+  function addCastleMoves(s, moves, r, c, color) {
+    if (isInCheck(s, color)) return;
+    const board = s.board;
+    const enemy = color==='w'?'b':'w';
+    const homeRow = color==='w'?7:0;
+    if (r !== homeRow || c !== 4) return;
+    const rights = s.castling;
+    const kingside = color==='w'?rights.wk:rights.bk;
+    const queenside = color==='w'?rights.wq:rights.bq;
+    if (kingside) {
+      if (!board[idx(homeRow,5)] && !board[idx(homeRow,6)] &&
+          board[idx(homeRow,7)] && board[idx(homeRow,7)].type==='r' && board[idx(homeRow,7)].color===color &&
+          !isSquareAttacked(board, homeRow,5, enemy) && !isSquareAttacked(board, homeRow,6, enemy)) {
+        moves.push({from:{r,c}, to:{r:homeRow,c:6}, piece:board[idx(r,c)], castle:'K'});
+      }
+    }
+    if (queenside) {
+      if (!board[idx(homeRow,1)] && !board[idx(homeRow,2)] && !board[idx(homeRow,3)] &&
+          board[idx(homeRow,0)] && board[idx(homeRow,0)].type==='r' && board[idx(homeRow,0)].color===color &&
+          !isSquareAttacked(board, homeRow,3, enemy) && !isSquareAttacked(board, homeRow,2, enemy)) {
+        moves.push({from:{r,c}, to:{r:homeRow,c:2}, piece:board[idx(r,c)], castle:'Q'});
+      }
+    }
+  }
+
+  function applyMove(s, move) {
+    const ns = cloneState(s);
+    const board = ns.board;
+    const { from, to, piece, captured, promotion, isEnPassant, castle, doublePush } = move;
+    board[idx(from.r,from.c)] = null;
+    let placed = piece;
+    if (promotion) placed = { type: promotion, color: piece.color };
+    board[idx(to.r,to.c)] = placed;
+    if (isEnPassant) { const capR = piece.color==='w' ? to.r+1 : to.r-1; board[idx(capR, to.c)] = null; }
+    if (castle === 'K') { const homeRow = piece.color==='w'?7:0; board[idx(homeRow,5)] = board[idx(homeRow,7)]; board[idx(homeRow,7)] = null; }
+    else if (castle === 'Q') { const homeRow = piece.color==='w'?7:0; board[idx(homeRow,3)] = board[idx(homeRow,0)]; board[idx(homeRow,0)] = null; }
+    if (piece.type === 'k') { if (piece.color==='w') { ns.castling.wk=false; ns.castling.wq=false; } else { ns.castling.bk=false; ns.castling.bq=false; } }
+    function clearRookRight(r,c) {
+      if (r===7&&c===0) ns.castling.wq=false;
+      if (r===7&&c===7) ns.castling.wk=false;
+      if (r===0&&c===0) ns.castling.bq=false;
+      if (r===0&&c===7) ns.castling.bk=false;
+    }
+    if (piece.type === 'r') clearRookRight(from.r, from.c);
+    if (captured && captured.type === 'r') clearRookRight(to.r, to.c);
+    ns.ep = doublePush ? { r: (from.r+to.r)/2, c: from.c } : null;
+    ns.halfmove = (captured || piece.type==='p' || isEnPassant) ? 0 : s.halfmove + 1;
+    ns.turn = s.turn === 'w' ? 'b' : 'w';
+    return ns;
+  }
+
+  function genLegalMoves(s) {
+    const pseudo = genPseudoMoves(s);
+    const legal = [];
+    for (const m of pseudo) { const ns = applyMove(s, m); if (!isInCheck(ns, s.turn)) legal.push(m); }
+    return legal;
+  }
+
+  function insufficientMaterial(board) {
+    const pieces = board.filter(p => p);
+    if (pieces.length > 4) return false;
+    const minorOrPawn = pieces.filter(p => p.type !== 'k');
+    if (minorOrPawn.length === 0) return true; // K vs K
+    if (minorOrPawn.length === 1 && (minorOrPawn[0].type === 'b' || minorOrPawn[0].type === 'n')) return true; // K+minor vs K
+    return false;
+  }
+
+  // ---------- Evaluation ----------
+  const VALUES = { p:100, n:320, b:330, r:500, q:900, k:20000 };
+  const PST = {
+    p: [0,0,0,0,0,0,0,0, 50,50,50,50,50,50,50,50, 10,10,20,30,30,20,10,10, 5,5,10,25,25,10,5,5, 0,0,0,20,20,0,0,0, 5,-5,-10,0,0,-10,-5,5, 5,10,10,-20,-20,10,10,5, 0,0,0,0,0,0,0,0],
+    n: [-50,-40,-30,-30,-30,-30,-40,-50, -40,-20,0,0,0,0,-20,-40, -30,0,10,15,15,10,0,-30, -30,5,15,20,20,15,5,-30, -30,0,15,20,20,15,0,-30, -30,5,10,15,15,10,5,-30, -40,-20,0,5,5,0,-20,-40, -50,-40,-30,-30,-30,-30,-40,-50],
+    b: [-20,-10,-10,-10,-10,-10,-10,-20, -10,0,0,0,0,0,0,-10, -10,0,5,10,10,5,0,-10, -10,5,5,10,10,5,5,-10, -10,0,10,10,10,10,0,-10, -10,10,10,10,10,10,10,-10, -10,5,0,0,0,0,5,-10, -20,-10,-10,-10,-10,-10,-10,-20],
+    r: [0,0,0,0,0,0,0,0, 5,10,10,10,10,10,10,5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, 0,0,0,5,5,0,0,0],
+    q: [-20,-10,-10,-5,-5,-10,-10,-20, -10,0,0,0,0,0,0,-10, -10,0,5,5,5,5,0,-10, -5,0,5,5,5,5,0,-5, 0,0,5,5,5,5,0,-5, -10,5,5,5,5,5,0,-10, -10,0,5,0,0,0,0,-10, -20,-10,-10,-5,-5,-10,-10,-20],
+    k: [-30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30, -20,-30,-30,-40,-40,-30,-30,-20, -10,-20,-20,-20,-20,-20,-20,-10, 20,20,0,0,0,0,20,20, 20,30,10,0,0,10,30,20]
+  };
+
+  function evaluate(state) {
+    let score = 0;
+    const board = state.board;
+    for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
+      const p = board[idx(r,c)];
+      if (!p) continue;
+      const table = PST[p.type];
+      const pstIdx = p.color==='w' ? idx(r,c) : idx(7-r,c);
+      const val = VALUES[p.type] + table[pstIdx];
+      score += p.color==='w' ? val : -val;
+    }
+    return score;
+  }
+
+  function moveScore(m) {
+    if (!m.captured) return m.promotion ? 800 : 0;
+    return VALUES[m.captured.type]*10 - VALUES[m.piece.type];
+  }
+  function orderMoves(moves) { return moves.slice().sort((a,b)=>moveScore(b)-moveScore(a)); }
+
+  function negamax(state, depth, alpha, beta, colorMul) {
+    const moves = genLegalMoves(state);
+    if (moves.length === 0) {
+      if (isInCheck(state, state.turn)) return -100000 - depth;
+      return 0;
+    }
+    if (state.halfmove >= 100 || insufficientMaterial(state.board)) return 0;
+    if (depth === 0) return colorMul * evaluate(state);
+    const ordered = orderMoves(moves);
+    let best = -Infinity;
+    for (const m of ordered) {
+      const ns = applyMove(state, m);
+      const val = -negamax(ns, depth-1, -beta, -alpha, -colorMul);
+      if (val > best) best = val;
+      if (best > alpha) alpha = best;
+      if (alpha >= beta) break;
+    }
+    return best;
+  }
+
+  function findBestMove(state, depth) {
+    const moves = orderMoves(genLegalMoves(state));
+    if (moves.length === 0) return null;
+    const colorMul = state.turn === 'w' ? 1 : -1;
+    let bestMove = moves[0], bestVal = -Infinity;
+    let alpha = -Infinity, beta = Infinity;
+    for (const m of moves) {
+      const ns = applyMove(state, m);
+      const val = -negamax(ns, depth-1, -beta, -alpha, -colorMul);
+      if (val > bestVal) { bestVal = val; bestMove = m; }
+      if (bestVal > alpha) alpha = bestVal;
+    }
+    return bestMove;
+  }
+
+  // ================= UI layer =================
+  const PIECE_GLYPH = {
+    w: { k:'♔', q:'♕', r:'♖', b:'♗', n:'♘', p:'♙' },
+    b: { k:'♚', q:'♛', r:'♜', b:'♝', n:'♞', p:'♟' }
+  };
+
+  const boardEl = document.getElementById('board');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlayText = document.getElementById('overlay-text');
+  const overlayButtons = document.getElementById('overlay-buttons');
+  const overlayExtra = document.getElementById('overlay-extra');
+  const backBtn = document.getElementById('back-btn');
+  const cardW = document.getElementById('card-w');
+  const cardB = document.getElementById('card-b');
+  const nameW = document.getElementById('name-w');
+  const nameB = document.getElementById('name-b');
+  const statusW = document.getElementById('status-w');
+  const statusB = document.getElementById('status-b');
+
+  let state, mode, humanColor, aiColor, gameActive, selected, legalFromSelected, lastMove;
+  let peer = null, conn = null, roomCode = null;
+  const AI_DEPTH = 3;
+
+  function opponent(p) { return p === 'w' ? 'b' : 'w'; }
+
+  function setBoardDisabled(disabled) { boardEl.classList.toggle('disabled', disabled); }
+
+  function renderBoard() {
+    boardEl.innerHTML = '';
+    const kingInCheckColor = isInCheck(state, state.turn) ? state.turn : null;
+    for (let r=0;r<8;r++) {
+      for (let c=0;c<8;c++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell ' + ((r+c)%2===0 ? 'light' : 'dark');
+        if (lastMove && ((lastMove.from.r===r && lastMove.from.c===c))) cell.classList.add('last-from');
+        if (lastMove && (lastMove.to.r===r && lastMove.to.c===c)) cell.classList.add('last-to');
+        if (selected && selected.r===r && selected.c===c) cell.classList.add('selected');
+        const p = state.board[idx(r,c)];
+        if (p) {
+          if (kingInCheckColor && p.type==='k' && p.color===kingInCheckColor) cell.classList.add('check');
+          const span = document.createElement('span');
+          span.className = 'piece ' + p.color;
+          span.textContent = PIECE_GLYPH[p.color][p.type];
+          cell.appendChild(span);
+        }
+        if (legalFromSelected) {
+          const mv = legalFromSelected.find(m => m.to.r===r && m.to.c===c);
+          if (mv) {
+            const dot = document.createElement('div');
+            dot.className = 'dot-hint' + (mv.captured ? ' capture' : '');
+            cell.appendChild(dot);
+          }
+        }
+        cell.addEventListener('click', () => onCellClick(r,c));
+        boardEl.appendChild(cell);
+      }
+    }
+  }
+
+  function updateHUD() {
+    cardW.classList.toggle('active', state.turn === 'w' && gameActive);
+    cardB.classList.toggle('active', state.turn === 'b' && gameActive);
+    if (mode === 'cpu') {
+      nameW.textContent = '白' + (humanColor === 'w' ? '(あなた)' : '(CPU)');
+      nameB.textContent = '黒' + (humanColor === 'b' ? '(あなた)' : '(CPU)');
+    } else if (mode === 'online') {
+      nameW.textContent = '白' + (humanColor === 'w' ? '(あなた)' : '(相手)');
+      nameB.textContent = '黒' + (humanColor === 'b' ? '(あなた)' : '(相手)');
+    } else {
+      nameW.textContent = '白';
+      nameB.textContent = '黒';
+    }
+    statusW.textContent = gameActive && state.turn==='w' && isInCheck(state,'w') ? 'チェック！' : '';
+    statusB.textContent = gameActive && state.turn==='b' && isInCheck(state,'b') ? 'チェック！' : '';
+  }
+
+  function onCellClick(r, c) {
+    if (!gameActive) return;
+    if ((mode === 'cpu' || mode === 'online') && state.turn !== humanColor) return;
+    const clickedPiece = state.board[idx(r,c)];
+
+    if (selected && legalFromSelected) {
+      const candidates = legalFromSelected.filter(m => m.to.r===r && m.to.c===c);
+      if (candidates.length > 0) {
+        if (candidates.length > 1) {
+          showPromotionPicker(candidates);
+        } else {
+          commitMove(candidates[0]);
+        }
+        return;
+      }
+    }
+    if (clickedPiece && clickedPiece.color === state.turn) {
+      selected = { r, c };
+      legalFromSelected = genLegalMoves(state).filter(m => m.from.r===r && m.from.c===c);
+      renderBoard();
+    } else {
+      selected = null;
+      legalFromSelected = null;
+      renderBoard();
+    }
+  }
+
+  function showPromotionPicker(candidates) {
+    const order = ['q','r','b','n'];
+    const html = order.map(promo => {
+      const mv = candidates.find(m => m.promotion === promo);
+      return `<button class="promo-btn" data-promo="${promo}">${PIECE_GLYPH[state.turn][promo]}</button>`;
+    }).join('');
+    overlayTitle.textContent = '昇格する駒を選んでください';
+    overlayText.textContent = '';
+    overlayButtons.innerHTML = '';
+    overlayExtra.innerHTML = `<div id="promo-picker">${html}</div>`;
+    overlay.classList.add('show');
+    overlayExtra.querySelectorAll('.promo-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        overlay.classList.remove('show');
+        const mv = candidates.find(m => m.promotion === btn.dataset.promo);
+        commitMove(mv);
+      });
+    });
+  }
+
+  function commitMove(move, broadcast = true) {
+    const mover = state.turn;
+    state = applyMove(state, move);
+    lastMove = move;
+    selected = null;
+    legalFromSelected = null;
+    if (mode === 'online' && broadcast && mover === humanColor && conn) {
+      conn.send({ type: 'move', from: move.from, to: move.to, promotion: move.promotion || null });
+    }
+    renderBoard();
+    updateHUD();
+    checkGameEnd();
+    if (gameActive) proceedTurn();
+  }
+
+  function checkGameEnd() {
+    const moves = genLegalMoves(state);
+    if (moves.length === 0) {
+      gameActive = false;
+      setBoardDisabled(true);
+      const inCheck = isInCheck(state, state.turn);
+      let title, text;
+      if (inCheck) {
+        const winner = opponent(state.turn);
+        text = (winner === 'w' ? '白' : '黒') + 'の勝ち（チェックメイト）';
+        if (mode === 'cpu') title = winner === humanColor ? 'あなたの勝ち！' : 'CPUの勝ち';
+        else if (mode === 'online') title = winner === humanColor ? 'あなたの勝ち！' : '相手の勝ち';
+        else title = (winner === 'w' ? '白' : '黒') + 'の勝ち！';
+      } else {
+        title = '引き分け（ステイルメイト）';
+        text = '動かせる駒がありません';
+      }
+      showResult(title, text);
+      return;
+    }
+    if (state.halfmove >= 100) {
+      gameActive = false;
+      setBoardDisabled(true);
+      showResult('引き分け', '50手ルールにより引き分けです');
+      return;
+    }
+    if (insufficientMaterial(state.board)) {
+      gameActive = false;
+      setBoardDisabled(true);
+      showResult('引き分け', '駒が不足しているため勝敗がつきません');
+      return;
+    }
+  }
+
+  function showResult(title, text) {
+    const buttons = mode === 'online'
+      ? [
+          { label: 'もう一度', primary: true, onClick: () => { if (conn) conn.send({ type: 'rematch' }); startGame('online', humanColor); } },
+          { label: 'モード選択に戻る', primary: false, onClick: () => { cleanupPeer(); showModeSelect(); } }
+        ]
+      : [
+          { label: 'もう一度', primary: true, onClick: () => startGame(mode, humanColor) },
+          { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+        ];
+    showOverlay(title, text, buttons);
+  }
+
+  function proceedTurn() {
+    if (mode === 'cpu' && state.turn === aiColor) {
+      setBoardDisabled(true);
+      setTimeout(doAIMove, 350);
+    } else if (mode === 'online' && state.turn !== humanColor) {
+      setBoardDisabled(true);
+    } else {
+      setBoardDisabled(false);
+    }
+  }
+
+  function doAIMove() {
+    if (!gameActive) return;
+    const move = findBestMove(state, AI_DEPTH);
+    if (move) commitMove(move);
+  }
+
+  // ---------- overlay screens ----------
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  function showModeSelect() {
+    cleanupPeer();
+    gameActive = false;
+    state = newGame();
+    selected = null; legalFromSelected = null; lastMove = null;
+    mode = null;
+    renderBoard();
+    updateHUD();
+    cardW.classList.remove('active');
+    cardB.classList.remove('active');
+    showOverlay('チェス', '対戦モードを選んでください', [
+      { label: '対人戦（同じ画面）', primary: true, onClick: () => startGame('pvp', 'w') },
+      { label: 'CPU戦', primary: true, onClick: showColorSelect },
+      { label: 'オンライン対戦（別のPC）', primary: true, onClick: showOnlineMenu }
+    ]);
+  }
+
+  function showColorSelect() {
+    showOverlay('CPU戦', 'あなたの色を選んでください', [
+      { label: '白（先手）で始める', primary: true, onClick: () => startGame('cpu', 'w') },
+      { label: '黒（後手）で始める', primary: true, onClick: () => startGame('cpu', 'b') },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+
+  // ---------- online multiplayer (WebRTC via PeerJS) ----------
+  function cleanupPeer() {
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+
+  function showOnlineMenu() {
+    showOverlay('オンライン対戦', 'インターネット経由で別のパソコンの人と対戦できます', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: hostRoom },
+      { label: '部屋に入る（参加）', primary: true, onClick: showJoinRoom },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+
+  function setupConnection() {
+    conn.on('data', handleRemoteData);
+    conn.on('close', onPeerDisconnected);
+    conn.on('error', onPeerDisconnected);
+  }
+
+  function onPeerDisconnected() {
+    if (mode === 'online' && gameActive) {
+      gameActive = false;
+      setBoardDisabled(true);
+      showOverlay('相手が切断しました', '通信が切れてしまいました', [
+        { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+      ]);
+    }
+  }
+
+  function handleRemoteData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'move') {
+      const moves = genLegalMoves(state);
+      const m = moves.find(mm => mm.from.r===data.from.r && mm.from.c===data.from.c &&
+                                  mm.to.r===data.to.r && mm.to.c===data.to.c &&
+                                  ((mm.promotion || null) === (data.promotion || null)));
+      if (m) commitMove(m, false);
+    } else if (data.type === 'rematch') {
+      startGame('online', humanColor);
+    }
+  }
+
+  function hostRoom() {
+    cleanupPeer();
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ]);
+    peer = new Peer('chess-room-' + roomCode);
+    peer.on('open', () => {
+      showOverlay(
+        'このコードを相手に伝えてください',
+        '相手が「部屋に入る」からコードを入力すると自動で対戦が始まります（あなたは白番です）',
+        [{ label: 'キャンセル', primary: false, onClick: showModeSelect }],
+        `<div id="room-code">${roomCode}</div>
+         <button id="copy-code-btn" class="choice secondary">コードをコピー</button>
+         <div id="conn-status">相手の参加を待っています…</div>`
+      );
+      const copyBtn = document.getElementById('copy-code-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(roomCode).then(() => {
+            copyBtn.textContent = 'コピーしました！';
+            setTimeout(() => { copyBtn.textContent = 'コードをコピー'; }, 1500);
+          });
+        });
+      }
+    });
+    peer.on('connection', (c) => {
+      conn = c;
+      setupConnection();
+      conn.on('open', () => startGame('online', 'w'));
+    });
+    peer.on('error', () => {
+      showOverlay('接続エラー', '部屋を作成できませんでした。もう一度お試しください。', [
+        { label: '戻る', primary: true, onClick: showModeSelect }
+      ]);
+    });
+  }
+
+  function showJoinRoom() {
+    cleanupPeer();
+    showOverlay(
+      '部屋に入る',
+      'ホストから伝えられた4桁のコードを入力してください',
+      [
+        { label: '接続する', primary: true, onClick: joinRoom },
+        { label: '戻る', primary: false, onClick: showModeSelect }
+      ],
+      `<input id="code-input" maxlength="4" placeholder="例: A1B2" autocomplete="off" />`
+    );
+    const input = document.getElementById('code-input');
+    if (input) {
+      input.focus();
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(); });
+    }
+  }
+
+  function joinRoom() {
+    const input = document.getElementById('code-input');
+    const code = input ? input.value.trim().toUpperCase() : '';
+    if (!code) return;
+    cleanupPeer();
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ]);
+    peer = new Peer();
+    peer.on('open', () => {
+      conn = peer.connect('chess-room-' + code, { reliable: true });
+      setupConnection();
+      conn.on('open', () => startGame('online', 'b'));
+      conn.on('error', () => {
+        showOverlay('接続エラー', 'コードが正しいか、ホストが待機しているか確認してください。', [
+          { label: 'もう一度', primary: true, onClick: showJoinRoom },
+          { label: '戻る', primary: false, onClick: showModeSelect }
+        ]);
+      });
+    });
+    peer.on('error', () => {
+      showOverlay('接続エラー', 'コードが正しいか、ホストが待機しているか確認してください。', [
+        { label: 'もう一度', primary: true, onClick: showJoinRoom },
+        { label: '戻る', primary: false, onClick: showModeSelect }
+      ]);
+    });
+  }
+
+  function startGame(selectedMode, chosenHumanColor) {
+    mode = selectedMode;
+    humanColor = chosenHumanColor;
+    aiColor = opponent(humanColor);
+    state = newGame();
+    selected = null; legalFromSelected = null; lastMove = null;
+    gameActive = true;
+    renderBoard();
+    updateHUD();
+    hideOverlay();
+    proceedTurn();
+  }
+
+  backBtn.addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+
+  showModeSelect();
+})();
+</script>
+</body>
+</html>

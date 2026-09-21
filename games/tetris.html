@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>テトリス</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 760px;
+    max-width: 96vw;
+  }
+  #topbar { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 {
+    margin: 0; font-size: 22px; letter-spacing: 4px; font-weight: 600;
+    color: #9fb4ff; text-shadow: 0 0 12px rgba(120,150,255,0.6);
+  }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #arena { display: flex; justify-content: center; gap: 24px; width: 100%; }
+  .panel { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; max-width: 320px; }
+  .panel.hidden { display: none; }
+  .panel-head { display: flex; justify-content: space-between; width: 100%; align-items: center; }
+  .panel-name { font-size: 13px; color: #9aa3d6; }
+  .panel-stats { font-size: 12px; color: #ffe066; text-align: right; line-height: 1.4; }
+  .board-row { display: flex; gap: 10px; width: 100%; }
+  #board-area-a, #board-area-b { position: relative; }
+  .board-wrap { position: relative; }
+  .tboard {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-template-rows: repeat(20, 1fr);
+    width: 160px;
+    aspect-ratio: 10 / 20;
+    background: #0d0f1c;
+    border: 3px solid #3a4278;
+    border-radius: 6px;
+    box-shadow: 0 0 20px rgba(80,100,220,0.2), inset 0 0 20px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .tcell { border: 1px solid rgba(255,255,255,0.03); }
+  .piece-overlay { position: absolute; inset: 0; pointer-events: none; }
+  .piece-block {
+    position: absolute;
+    box-sizing: border-box;
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.18), inset 0 0 8px rgba(0,0,0,0.25);
+    display: none;
+  }
+  .side-info { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .next-label { font-size: 11px; color: #7c86c2; }
+  .next-box {
+    display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr);
+    width: 64px; height: 64px; background: #0d0f1c; border: 2px solid #3a4278; border-radius: 6px;
+  }
+  .next-cell { border: 1px solid rgba(255,255,255,0.02); }
+
+  #overlay {
+    position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; background: rgba(5,7,15,0.9); border-radius: 10px; text-align: center; padding: 24px; z-index: 5;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; white-space: pre-line; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4); color: #fff; border: none; padding: 10px 24px;
+    font-size: 14px; border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5);
+    transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice:active { transform: scale(0.95); }
+  #hint-text { font-size: 12px; color: #7c86c2; text-align: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #overlay-extra:empty { display: none; }
+  #room-code {
+    font-size: 40px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4);
+    padding: 10px 26px; border-radius: 12px; text-shadow: 0 0 14px rgba(255,224,102,0.5);
+  }
+  #conn-status { font-size: 13px; color: #9aa3d6; }
+  #code-input {
+    width: 160px; font-size: 22px; letter-spacing: 6px; text-align: center; text-transform: uppercase;
+    padding: 10px; border-radius: 10px; border: 1px solid #3a4278; background: rgba(255,255,255,0.05); color: #eef0ff;
+  }
+  #code-input:focus { outline: none; border-color: #6ea8ff; }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>テトリス</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+
+    <div id="arena">
+      <div class="panel" id="panel-a">
+        <div class="panel-head">
+          <span class="panel-name" id="name-a">あなた</span>
+          <span class="panel-stats" id="stats-a">SCORE 0<br>LINES 0</span>
+        </div>
+        <div class="board-row">
+          <div class="board-wrap"><div class="tboard" id="board-a"></div></div>
+          <div class="side-info">
+            <span class="next-label">HOLD</span>
+            <div class="next-box" id="hold-a"></div>
+            <span class="next-label">NEXT</span>
+            <div class="next-box" id="next-a"></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel" id="panel-b">
+        <div class="panel-head">
+          <span class="panel-name" id="name-b">相手</span>
+          <span class="panel-stats" id="stats-b">SCORE 0<br>LINES 0</span>
+        </div>
+        <div class="board-row">
+          <div class="board-wrap"><div class="tboard" id="board-b"></div></div>
+          <div class="side-info">
+            <span class="next-label">HOLD</span>
+            <div class="next-box" id="hold-b"></div>
+            <span class="next-label">NEXT</span>
+            <div class="next-box" id="next-b"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="overlay-area" style="position:relative; width:100%;">
+      <div id="overlay">
+        <h2 id="overlay-title">テトリス</h2>
+        <p id="overlay-text">モードを選んでください</p>
+        <div id="overlay-extra"></div>
+        <div id="overlay-buttons"></div>
+      </div>
+    </div>
+    <div id="hint-text"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  // ================= Core Tetris engine (validated: rotation/kick, collision, clear, garbage, AI) =================
+  const COLS = 10, ROWS = 20;
+  const SHAPES = {
+    I: [ [[1,0],[1,1],[1,2],[1,3]], [[0,2],[1,2],[2,2],[3,2]], [[2,0],[2,1],[2,2],[2,3]], [[0,1],[1,1],[2,1],[3,1]] ],
+    O: [ [[0,0],[0,1],[1,0],[1,1]], [[0,0],[0,1],[1,0],[1,1]], [[0,0],[0,1],[1,0],[1,1]], [[0,0],[0,1],[1,0],[1,1]] ],
+    T: [ [[0,1],[1,0],[1,1],[1,2]], [[0,1],[1,1],[1,2],[2,1]], [[1,0],[1,1],[1,2],[2,1]], [[0,1],[1,0],[1,1],[2,1]] ],
+    S: [ [[0,1],[0,2],[1,0],[1,1]], [[0,1],[1,1],[1,2],[2,2]], [[1,1],[1,2],[2,0],[2,1]], [[0,0],[1,0],[1,1],[2,1]] ],
+    Z: [ [[0,0],[0,1],[1,1],[1,2]], [[0,2],[1,1],[1,2],[2,1]], [[1,0],[1,1],[2,1],[2,2]], [[0,1],[1,0],[1,1],[2,0]] ],
+    J: [ [[0,0],[1,0],[1,1],[1,2]], [[0,1],[0,2],[1,1],[2,1]], [[1,0],[1,1],[1,2],[2,2]], [[0,1],[1,1],[2,0],[2,1]] ],
+    L: [ [[0,2],[1,0],[1,1],[1,2]], [[0,1],[1,1],[2,1],[2,2]], [[1,0],[1,1],[1,2],[2,0]], [[0,0],[0,1],[1,1],[2,1]] ]
+  };
+  const TYPES = Object.keys(SHAPES);
+  const COLOR_ID = { I:1, O:2, T:3, S:4, Z:5, J:6, L:7 };
+  const COLORS = { 0:'transparent', 1:'#4dd8e8', 2:'#e8d24d', 3:'#b04de8', 4:'#4de87a', 5:'#e84d4d', 6:'#4d6fe8', 7:'#e89a4d', 8:'#6a6a78' };
+  const KICKS = [[0,0],[0,-1],[0,1],[0,-2],[0,2],[-1,0]];
+  const SCORE_TABLE = [0,100,300,500,800];
+  const GARBAGE_TABLE = [0,0,1,2,4];
+
+  function emptyBoard() { return Array.from({length:ROWS}, () => Array(COLS).fill(0)); }
+  function cellsFor(type, rotation) { return SHAPES[type][rotation]; }
+  function collides(board, type, rotation, row, col) {
+    for (const [dr,dc] of cellsFor(type, rotation)) {
+      const r = row+dr, c = col+dc;
+      if (c < 0 || c >= COLS || r >= ROWS) return true;
+      if (r >= 0 && board[r][c]) return true;
+    }
+    return false;
+  }
+  function lockPiece(board, piece, colorId) {
+    const nb = board.map(row => row.slice());
+    for (const [dr,dc] of cellsFor(piece.type, piece.rotation)) {
+      const r = piece.row+dr, c = piece.col+dc;
+      if (r >= 0 && r < ROWS) nb[r][c] = colorId;
+    }
+    return nb;
+  }
+  function clearLines(board) {
+    const kept = board.filter(row => row.some(cell => cell === 0));
+    const cleared = ROWS - kept.length;
+    while (kept.length < ROWS) kept.unshift(Array(COLS).fill(0));
+    return { board: kept, cleared };
+  }
+  function garbageFor(lines) { return GARBAGE_TABLE[lines] || 0; }
+  function addGarbage(board, n) {
+    if (n <= 0) return board;
+    let nb = board.slice(n);
+    for (let i=0;i<n;i++) {
+      const gapCol = Math.floor(Math.random()*COLS);
+      const row = Array(COLS).fill(8);
+      row[gapCol] = 0;
+      nb.push(row);
+    }
+    return nb;
+  }
+  function makeBag() {
+    const a = TYPES.slice();
+    for (let i=a.length-1;i>0;i--) { const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; }
+    return a;
+  }
+  function columnHeights(board) {
+    const heights = Array(COLS).fill(0);
+    for (let c=0;c<COLS;c++) for (let r=0;r<ROWS;r++) { if (board[r][c]) { heights[c] = ROWS-r; break; } }
+    return heights;
+  }
+  function countHoles(board) {
+    let holes = 0;
+    for (let c=0;c<COLS;c++) { let seen=false; for (let r=0;r<ROWS;r++) { if (board[r][c]) seen=true; else if (seen) holes++; } }
+    return holes;
+  }
+  function bumpiness(heights) { let b=0; for (let i=0;i<heights.length-1;i++) b += Math.abs(heights[i]-heights[i+1]); return b; }
+  function evalBoard(board, linesCleared) {
+    const heights = columnHeights(board);
+    const aggHeight = heights.reduce((a,b)=>a+b,0);
+    return -0.51*aggHeight + 0.76*linesCleared - 0.36*countHoles(board) - 0.18*bumpiness(heights);
+  }
+  function findBestPlacement(board, type) {
+    let best = null, bestScore = -Infinity;
+    for (let rotation=0; rotation<4; rotation++) {
+      for (let col=-2; col<COLS+2; col++) {
+        if (collides(board, type, rotation, 0, col)) continue;
+        let row = 0;
+        while (!collides(board, type, rotation, row+1, col)) row++;
+        const locked = lockPiece(board, {type,rotation,row,col}, 1);
+        const { board: cleared, cleared: n } = clearLines(locked);
+        const score = evalBoard(cleared, n);
+        if (score > bestScore) { bestScore = score; best = { rotation, col, score }; }
+      }
+    }
+    return best;
+  }
+  function gravityMs(level) { return Math.max(120, 900 - (level-1)*70); }
+
+  // ================= Board state & gameplay =================
+  function createBoardState(isMirror) {
+    return {
+      board: emptyBoard(), current: null, next: null, bag: [],
+      score: 0, lines: 0, level: 1, gameOver: false, pendingGarbage: 0,
+      gravityAcc: 0, aiAcc: 0, aiTarget: null, isMirror: !!isMirror, isAI: false,
+      onLinesCleared: null, justSpawned: true, hold: null, canHold: true
+    };
+  }
+
+  function drawFromBag(bs) {
+    if (bs.bag.length === 0) bs.bag = makeBag();
+    return bs.bag.shift();
+  }
+
+  function spawnPiece(bs) {
+    if (bs.pendingGarbage > 0) { bs.board = addGarbage(bs.board, bs.pendingGarbage); bs.pendingGarbage = 0; }
+    if (bs.next === null) bs.next = drawFromBag(bs);
+    const type = bs.next;
+    bs.next = drawFromBag(bs);
+    const startCol = type==='I' || type==='O' ? 3 : 3;
+    if (collides(bs.board, type, 0, 0, startCol)) { bs.gameOver = true; bs.current = null; return; }
+    bs.current = { type, rotation: 0, row: 0, col: startCol };
+    bs.aiTarget = null;
+    bs.justSpawned = true;
+  }
+
+  function moveBS(bs, dx) {
+    if (!bs.current || bs.gameOver) return;
+    if (!collides(bs.board, bs.current.type, bs.current.rotation, bs.current.row, bs.current.col+dx)) bs.current.col += dx;
+  }
+  function rotateBS(bs, dir) {
+    if (!bs.current || bs.gameOver) return;
+    const newRot = (bs.current.rotation + dir + 4) % 4;
+    for (const [kr,kc] of KICKS) {
+      const nr = bs.current.row + kr, nc = bs.current.col + kc;
+      if (!collides(bs.board, bs.current.type, newRot, nr, nc)) { bs.current.rotation = newRot; bs.current.row = nr; bs.current.col = nc; return; }
+    }
+  }
+  function lockAndAdvance(bs) {
+    bs.board = lockPiece(bs.board, bs.current, COLOR_ID[bs.current.type]);
+    const { board, cleared } = clearLines(bs.board);
+    bs.board = board;
+    if (cleared > 0) {
+      bs.lines += cleared;
+      bs.score += SCORE_TABLE[cleared] * bs.level;
+      bs.level = Math.floor(bs.lines/10) + 1;
+      if (bs.onLinesCleared) bs.onLinesCleared(cleared);
+    }
+    spawnPiece(bs);
+    bs.canHold = true;
+  }
+  function softDropBS(bs) {
+    if (!bs.current || bs.gameOver) return;
+    if (!collides(bs.board, bs.current.type, bs.current.rotation, bs.current.row+1, bs.current.col)) bs.current.row += 1;
+    else lockAndAdvance(bs);
+  }
+  function hardDropBS(bs) {
+    if (!bs.current || bs.gameOver) return;
+    while (!collides(bs.board, bs.current.type, bs.current.rotation, bs.current.row+1, bs.current.col)) bs.current.row += 1;
+    lockAndAdvance(bs);
+  }
+  function holdBS(bs) {
+    if (!bs.canHold || !bs.current || bs.gameOver) return;
+    const currentType = bs.current.type;
+    if (bs.hold === null) {
+      bs.hold = currentType;
+      spawnPiece(bs);
+      bs.canHold = false; // spawnPiece doesn't touch canHold; lockAndAdvance is the only place it resets to true
+    } else {
+      const swapped = bs.hold;
+      bs.hold = currentType;
+      const startCol = 3;
+      if (collides(bs.board, swapped, 0, 0, startCol)) { bs.gameOver = true; bs.current = null; return; }
+      bs.current = { type: swapped, rotation: 0, row: 0, col: startCol };
+      bs.aiTarget = null;
+      bs.justSpawned = true;
+      bs.canHold = false;
+    }
+  }
+
+  function doAIStep(bs) {
+    if (!bs.current || bs.gameOver) return;
+    if (!bs.aiTarget) {
+      if (bs.canHold) {
+        const swapType = bs.hold !== null ? bs.hold : bs.next;
+        const without = findBestPlacement(bs.board, bs.current.type);
+        const withSwap = swapType ? findBestPlacement(bs.board, swapType) : null;
+        if (withSwap && without && withSwap.score > without.score + 15) {
+          holdBS(bs);
+          if (bs.gameOver) return;
+        }
+      }
+      bs.aiTarget = findBestPlacement(bs.board, bs.current.type) || { rotation:0, col:bs.current.col };
+    }
+    if (bs.current.rotation !== bs.aiTarget.rotation) { rotateBS(bs, 1); return; }
+    if (bs.current.col < bs.aiTarget.col) { moveBS(bs, 1); return; }
+    if (bs.current.col > bs.aiTarget.col) { moveBS(bs, -1); return; }
+    hardDropBS(bs);
+  }
+
+  // ================= UI layer =================
+  const boardAEl = document.getElementById('board-a');
+  const boardBEl = document.getElementById('board-b');
+  const nextAEl = document.getElementById('next-a');
+  const nextBEl = document.getElementById('next-b');
+  const holdAEl = document.getElementById('hold-a');
+  const holdBEl = document.getElementById('hold-b');
+  const statsAEl = document.getElementById('stats-a');
+  const statsBEl = document.getElementById('stats-b');
+  const nameAEl = document.getElementById('name-a');
+  const nameBEl = document.getElementById('name-b');
+  const panelB = document.getElementById('panel-b');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlayText = document.getElementById('overlay-text');
+  const overlayButtons = document.getElementById('overlay-buttons');
+  const overlayExtra = document.getElementById('overlay-extra');
+  const backBtn = document.getElementById('back-btn');
+  const hintText = document.getElementById('hint-text');
+
+  const FAST_MS = 70;
+
+  let cellsA, cellsB, nextCellsA, nextCellsB, holdCellsA, holdCellsB, overlayA, overlayB;
+  function buildGrid(container, rows, cols) {
+    container.innerHTML = '';
+    const cells = [];
+    for (let i=0;i<rows*cols;i++) {
+      const d = document.createElement('div');
+      d.className = rows===ROWS ? 'tcell' : 'next-cell';
+      container.appendChild(d);
+      cells.push(d);
+    }
+    return cells;
+  }
+  function buildPieceOverlay(boardContainer) {
+    const overlay = document.createElement('div');
+    overlay.className = 'piece-overlay';
+    boardContainer.appendChild(overlay);
+    const blocks = [];
+    for (let i=0;i<4;i++) {
+      const d = document.createElement('div');
+      d.className = 'piece-block';
+      d.style.width = (100/COLS)+'%';
+      d.style.height = (100/ROWS)+'%';
+      overlay.appendChild(d);
+      blocks.push(d);
+    }
+    return blocks;
+  }
+  cellsA = buildGrid(boardAEl, ROWS, COLS);
+  cellsB = buildGrid(boardBEl, ROWS, COLS);
+  nextCellsA = buildGrid(nextAEl, 4, 4);
+  nextCellsB = buildGrid(nextBEl, 4, 4);
+  holdCellsA = buildGrid(holdAEl, 4, 4);
+  holdCellsB = buildGrid(holdBEl, 4, 4);
+  overlayA = buildPieceOverlay(boardAEl);
+  overlayB = buildPieceOverlay(boardBEl);
+
+  function renderLocked(bs, cells) {
+    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) {
+      cells[r*COLS+c].style.background = COLORS[bs.board[r][c]] || 'transparent';
+    }
+  }
+
+  function renderPieceOverlay(bs, blocks, durationMs) {
+    if (!bs.current) { blocks.forEach(d => d.style.display = 'none'); return; }
+    const instant = bs.justSpawned;
+    bs.justSpawned = false;
+    const color = COLORS[COLOR_ID[bs.current.type]];
+    const cells = cellsFor(bs.current.type, bs.current.rotation);
+    for (let i=0;i<4;i++) {
+      const d = blocks[i];
+      const [dr,dc] = cells[i];
+      const r = bs.current.row+dr, c = bs.current.col+dc;
+      d.style.background = color;
+      if (r < 0) { d.style.display = 'none'; continue; }
+      d.style.display = 'block';
+      const top = (r*100/ROWS)+'%', left = (c*100/COLS)+'%';
+      if (instant) {
+        d.style.transition = 'none';
+        d.style.top = top;
+        d.style.left = left;
+        void d.offsetWidth;
+        d.style.transition = `top ${durationMs}ms linear, left ${Math.min(durationMs,90)}ms ease-out`;
+      } else {
+        d.style.transition = `top ${durationMs}ms linear, left ${Math.min(durationMs,90)}ms ease-out`;
+        d.style.top = top;
+        d.style.left = left;
+      }
+    }
+  }
+
+  function renderNext(bs, nextCells) {
+    nextCells.forEach(el => el.style.background = 'transparent');
+    if (bs.next) {
+      for (const [dr,dc] of cellsFor(bs.next, 0)) {
+        if (dr>=0 && dr<4 && dc>=0 && dc<4) nextCells[dr*4+dc].style.background = COLORS[COLOR_ID[bs.next]];
+      }
+    }
+  }
+
+  function renderHold(bs, holdCells) {
+    holdCells.forEach(el => { el.style.background = 'transparent'; el.style.opacity = bs.canHold ? '1' : '0.4'; });
+    if (bs.hold) {
+      for (const [dr,dc] of cellsFor(bs.hold, 0)) {
+        if (dr>=0 && dr<4 && dc>=0 && dc<4) holdCells[dr*4+dc].style.background = COLORS[COLOR_ID[bs.hold]];
+      }
+    }
+  }
+
+  function updateStats(bs, el) {
+    el.innerHTML = `SCORE ${bs.score}<br>LINES ${bs.lines}`;
+  }
+
+  let bsA, bsB, mode, gameActive, loopTimer;
+  let peer = null, conn = null, roomCode = null;
+  let p1Keys, p2Keys;
+
+  function setupBattleCallbacks() {
+    bsA.onLinesCleared = (n) => {
+      const g = garbageFor(n);
+      if (g <= 0) return;
+      if (mode === 'online') { if (conn) conn.send({ type:'garbage', amount: g }); }
+      else if (bsB) bsB.pendingGarbage += g;
+    };
+    if (bsB) {
+      bsB.onLinesCleared = (n) => {
+        const g = garbageFor(n);
+        if (g > 0 && !bsB.isMirror) bsA.pendingGarbage += g;
+      };
+    }
+  }
+
+  function mainLoop() {
+    if (!gameActive) return;
+    const dt = 50;
+    if (bsA && !bsA.gameOver && !bsA.isMirror) {
+      bsA.gravityAcc += dt;
+      if (bsA.gravityAcc >= gravityMs(bsA.level)) {
+        bsA.gravityAcc = 0;
+        softDropBS(bsA);
+        if (bsA.justSpawned) renderLocked(bsA, cellsA);
+      }
+      renderPieceOverlay(bsA, overlayA, gravityMs(bsA.level));
+    }
+    if (bsB && !bsB.gameOver && !bsB.isMirror) {
+      if (bsB.isAI) {
+        bsB.aiAcc += dt;
+        if (bsB.aiAcc >= 120) {
+          bsB.aiAcc = 0;
+          doAIStep(bsB);
+          if (bsB.justSpawned) renderLocked(bsB, cellsB);
+          renderPieceOverlay(bsB, overlayB, FAST_MS);
+        }
+        bsB.gravityAcc += dt;
+        if (bsB.gravityAcc >= gravityMs(bsB.level)) {
+          bsB.gravityAcc = 0;
+          softDropBS(bsB);
+          if (bsB.justSpawned) renderLocked(bsB, cellsB);
+        }
+        renderPieceOverlay(bsB, overlayB, gravityMs(bsB.level));
+      } else {
+        bsB.gravityAcc += dt;
+        if (bsB.gravityAcc >= gravityMs(bsB.level)) {
+          bsB.gravityAcc = 0;
+          softDropBS(bsB);
+          if (bsB.justSpawned) renderLocked(bsB, cellsB);
+        }
+        renderPieceOverlay(bsB, overlayB, gravityMs(bsB.level));
+      }
+    } else if (bsB && bsB.isMirror) {
+      renderLocked(bsB, cellsB);
+      renderPieceOverlay(bsB, overlayB, FAST_MS);
+    }
+    renderNext(bsA, nextCellsA);
+    renderHold(bsA, holdCellsA);
+    updateStats(bsA, statsAEl);
+    if (bsB) { renderNext(bsB, nextCellsB); renderHold(bsB, holdCellsB); updateStats(bsB, statsBEl); }
+
+    if (mode === 'online' && conn && bsA) {
+      conn.send({ type:'state', board: bsA.board, current: bsA.current, next: bsA.next, hold: bsA.hold, canHold: bsA.canHold, score: bsA.score, lines: bsA.lines, gameOver: bsA.gameOver });
+    }
+
+    checkEnd();
+  }
+
+  function checkEnd() {
+    if (!gameActive) return;
+    if (mode === 'solo') {
+      if (bsA.gameOver) { gameActive = false; showResult('ゲームオーバー', `スコア ${bsA.score}\nライン ${bsA.lines}`, false); }
+      return;
+    }
+    if (mode === 'cpu' || mode === 'local') {
+      if (bsA.gameOver || (bsB && bsB.gameOver)) {
+        gameActive = false;
+        const aLost = bsA.gameOver;
+        let title;
+        if (mode === 'cpu') title = aLost ? 'CPUの勝ち' : 'あなたの勝ち！';
+        else title = aLost ? 'プレイヤー2の勝ち！' : 'プレイヤー1の勝ち！';
+        showResult(title, `あなた: ${bsA.score}点 / 相手: ${bsB.score}点`, true);
+      }
+      return;
+    }
+    if (mode === 'online') {
+      if (bsA.gameOver) {
+        gameActive = false;
+        if (conn) conn.send({ type:'gameover' });
+        showResult('あなたの負け', `スコア ${bsA.score}`, true);
+      }
+    }
+  }
+
+  function showResult(title, text, isBattle) {
+    const buttons = mode === 'online'
+      ? [
+          { label: 'もう一度', primary: true, onClick: () => { if (conn) conn.send({ type:'rematch' }); startGame('online', humanIsHostGlobal); } },
+          { label: 'モード選択に戻る', primary: false, onClick: () => { cleanupPeer(); showModeSelect(); } }
+        ]
+      : [
+          { label: 'もう一度', primary: true, onClick: () => startGame(mode) },
+          { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+        ];
+    showOverlay(title, text, buttons);
+  }
+
+  // ---------- keyboard ----------
+  function afterInput(bs, cells, overlay, holdCells) {
+    if (bs.justSpawned) renderLocked(bs, cells);
+    renderPieceOverlay(bs, overlay, FAST_MS);
+    renderHold(bs, holdCells);
+  }
+  function onKeyDown(e) {
+    if (!gameActive) return;
+    const code = e.code;
+    let handled = true;
+    if (mode === 'local') {
+      if (code==='KeyA') { moveBS(bsA,-1); afterInput(bsA, cellsA, overlayA, holdCellsA); }
+      else if (code==='KeyD') { moveBS(bsA,1); afterInput(bsA, cellsA, overlayA, holdCellsA); }
+      else if (code==='KeyS') { softDropBS(bsA); afterInput(bsA, cellsA, overlayA, holdCellsA); }
+      else if (code==='KeyW') { rotateBS(bsA,1); afterInput(bsA, cellsA, overlayA, holdCellsA); }
+      else if (code==='KeyF') { hardDropBS(bsA); afterInput(bsA, cellsA, overlayA, holdCellsA); }
+      else if (code==='KeyC') { holdBS(bsA); afterInput(bsA, cellsA, overlayA, holdCellsA); }
+      else if (code==='ArrowLeft') { moveBS(bsB,-1); afterInput(bsB, cellsB, overlayB, holdCellsB); }
+      else if (code==='ArrowRight') { moveBS(bsB,1); afterInput(bsB, cellsB, overlayB, holdCellsB); }
+      else if (code==='ArrowDown') { softDropBS(bsB); afterInput(bsB, cellsB, overlayB, holdCellsB); }
+      else if (code==='ArrowUp') { rotateBS(bsB,1); afterInput(bsB, cellsB, overlayB, holdCellsB); }
+      else if (code==='Enter') { hardDropBS(bsB); afterInput(bsB, cellsB, overlayB, holdCellsB); }
+      else if (code==='Slash') { holdBS(bsB); afterInput(bsB, cellsB, overlayB, holdCellsB); }
+      else handled = false;
+    } else {
+      if (code==='ArrowLeft') { moveBS(bsA,-1); afterInput(bsA, cellsA, overlayA, holdCellsA); }
+      else if (code==='ArrowRight') { moveBS(bsA,1); afterInput(bsA, cellsA, overlayA, holdCellsA); }
+      else if (code==='ArrowDown') { softDropBS(bsA); afterInput(bsA, cellsA, overlayA, holdCellsA); }
+      else if (code==='ArrowUp') { rotateBS(bsA,1); afterInput(bsA, cellsA, overlayA, holdCellsA); }
+      else if (code==='Space') { hardDropBS(bsA); afterInput(bsA, cellsA, overlayA, holdCellsA); }
+      else if (code==='KeyC') { holdBS(bsA); afterInput(bsA, cellsA, overlayA, holdCellsA); }
+      else handled = false;
+    }
+    if (handled) e.preventDefault();
+  }
+  window.addEventListener('keydown', onKeyDown);
+
+  // ---------- overlay ----------
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  function showModeSelect() {
+    cleanupPeer();
+    gameActive = false;
+    clearInterval(loopTimer);
+    panelB.classList.add('hidden');
+    hintText.textContent = '';
+    showOverlay('テトリス', 'ソロプレイか対戦か選んでください', [
+      { label: 'ソロプレイ', primary: true, onClick: () => startGame('solo') },
+      { label: '対戦', primary: true, onClick: showBattleMenu }
+    ]);
+  }
+
+  function showBattleMenu() {
+    showOverlay('対戦', '対戦相手を選んでください', [
+      { label: 'CPU戦', primary: true, onClick: () => startGame('cpu') },
+      { label: 'ローカル対戦（同じ画面）', primary: true, onClick: () => startGame('local') },
+      { label: 'オンライン対戦（別のPC）', primary: true, onClick: showOnlineMenu },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+
+  // ---------- online ----------
+  let humanIsHostGlobal = true;
+  function cleanupPeer() {
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function showOnlineMenu() {
+    showOverlay('オンライン対戦', 'インターネット経由で別のパソコンの人と対戦できます', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: hostRoom },
+      { label: '部屋に入る（参加）', primary: true, onClick: showJoinRoom },
+      { label: '戻る', primary: false, onClick: showBattleMenu }
+    ]);
+  }
+  function setupConnection() {
+    conn.on('data', handleRemoteData);
+    conn.on('close', onPeerDisconnected);
+    conn.on('error', onPeerDisconnected);
+  }
+  function onPeerDisconnected() {
+    if (mode === 'online' && gameActive) {
+      gameActive = false;
+      clearInterval(loopTimer);
+      showOverlay('相手が切断しました', '通信が切れてしまいました', [
+        { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+      ]);
+    }
+  }
+  function handleRemoteData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'state') {
+      bsB.board = data.board;
+      bsB.current = data.current;
+      bsB.next = data.next;
+      bsB.hold = data.hold;
+      bsB.canHold = data.canHold;
+      bsB.score = data.score;
+      bsB.lines = data.lines;
+      bsB.gameOver = data.gameOver;
+    } else if (data.type === 'garbage') {
+      bsA.pendingGarbage += data.amount;
+    } else if (data.type === 'gameover') {
+      if (gameActive) {
+        gameActive = false;
+        showResult('あなたの勝ち！', `スコア ${bsA.score}`, true);
+      }
+    } else if (data.type === 'rematch') {
+      startGame('online', !humanIsHostGlobal);
+    }
+  }
+  function hostRoom() {
+    cleanupPeer();
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ]);
+    peer = new Peer('tetris-room-' + roomCode);
+    peer.on('open', () => {
+      showOverlay(
+        'このコードを相手に伝えてください',
+        '相手が「部屋に入る」からコードを入力すると自動で対戦が始まります',
+        [{ label: 'キャンセル', primary: false, onClick: showModeSelect }],
+        `<div id="room-code">${roomCode}</div>
+         <button id="copy-code-btn" class="choice secondary">コードをコピー</button>
+         <div id="conn-status">相手の参加を待っています…</div>`
+      );
+      const copyBtn = document.getElementById('copy-code-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(roomCode).then(() => {
+            copyBtn.textContent = 'コピーしました！';
+            setTimeout(() => { copyBtn.textContent = 'コードをコピー'; }, 1500);
+          });
+        });
+      }
+    });
+    peer.on('connection', (c) => {
+      conn = c;
+      setupConnection();
+      conn.on('open', () => startGame('online', true));
+    });
+    peer.on('error', () => {
+      showOverlay('接続エラー', '部屋を作成できませんでした。もう一度お試しください。', [
+        { label: '戻る', primary: true, onClick: showModeSelect }
+      ]);
+    });
+  }
+  function showJoinRoom() {
+    cleanupPeer();
+    showOverlay(
+      '部屋に入る',
+      'ホストから伝えられた4桁のコードを入力してください',
+      [
+        { label: '接続する', primary: true, onClick: joinRoom },
+        { label: '戻る', primary: false, onClick: showModeSelect }
+      ],
+      `<input id="code-input" maxlength="4" placeholder="例: A1B2" autocomplete="off" />`
+    );
+    const input = document.getElementById('code-input');
+    if (input) { input.focus(); input.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(); }); }
+  }
+  function joinRoom() {
+    const input = document.getElementById('code-input');
+    const code = input ? input.value.trim().toUpperCase() : '';
+    if (!code) return;
+    cleanupPeer();
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ]);
+    peer = new Peer();
+    peer.on('open', () => {
+      conn = peer.connect('tetris-room-' + code, { reliable: true });
+      setupConnection();
+      conn.on('open', () => startGame('online', false));
+      conn.on('error', () => {
+        showOverlay('接続エラー', 'コードが正しいか、ホストが待機しているか確認してください。', [
+          { label: 'もう一度', primary: true, onClick: showJoinRoom },
+          { label: '戻る', primary: false, onClick: showModeSelect }
+        ]);
+      });
+    });
+    peer.on('error', () => {
+      showOverlay('接続エラー', 'コードが正しいか、ホストが待機しているか確認してください。', [
+        { label: 'もう一度', primary: true, onClick: showJoinRoom },
+        { label: '戻る', primary: false, onClick: showModeSelect }
+      ]);
+    });
+  }
+
+  function startGame(selectedMode, isHost) {
+    mode = selectedMode;
+    humanIsHostGlobal = isHost !== undefined ? isHost : true;
+    bsA = createBoardState(false);
+    spawnPiece(bsA);
+    if (mode === 'solo') {
+      bsB = null;
+      panelB.classList.add('hidden');
+      nameAEl.textContent = 'あなた';
+      hintText.textContent = '← → 移動 / ↓ ソフトドロップ / ↑ 回転 / Space ハードドロップ / C ホールド';
+    } else if (mode === 'cpu') {
+      bsB = createBoardState(false);
+      bsB.isAI = true;
+      spawnPiece(bsB);
+      panelB.classList.remove('hidden');
+      nameAEl.textContent = 'あなた';
+      nameBEl.textContent = 'CPU';
+      hintText.textContent = '← → 移動 / ↓ ソフトドロップ / ↑ 回転 / Space ハードドロップ / C ホールド';
+      setupBattleCallbacks();
+    } else if (mode === 'local') {
+      bsB = createBoardState(false);
+      spawnPiece(bsB);
+      panelB.classList.remove('hidden');
+      nameAEl.textContent = 'プレイヤー1';
+      nameBEl.textContent = 'プレイヤー2';
+      hintText.textContent = 'P1: A/D 移動, S ソフトドロップ, W 回転, F ハードドロップ, C ホールド　|　P2: 矢印移動, ↓ソフトドロップ, ↑回転, Enter ハードドロップ, / ホールド';
+      setupBattleCallbacks();
+    } else if (mode === 'online') {
+      bsB = createBoardState(true);
+      panelB.classList.remove('hidden');
+      nameAEl.textContent = 'あなた';
+      nameBEl.textContent = '相手';
+      hintText.textContent = '← → 移動 / ↓ ソフトドロップ / ↑ 回転 / Space ハードドロップ / C ホールド';
+      setupBattleCallbacks();
+    }
+    gameActive = true;
+    hideOverlay();
+    clearInterval(loopTimer);
+    loopTimer = setInterval(mainLoop, 50);
+  }
+
+  backBtn.addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+
+  showModeSelect();
+})();
+</script>
+</body>
+</html>

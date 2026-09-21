@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>ぷよぷよ</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 680px;
+    max-width: 96vw;
+  }
+  #topbar { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 {
+    margin: 0; font-size: 22px; letter-spacing: 4px; font-weight: 600;
+    color: #9fb4ff; text-shadow: 0 0 12px rgba(120,150,255,0.6);
+  }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #arena { display: flex; justify-content: center; gap: 24px; width: 100%; }
+  .panel { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; max-width: 320px; }
+  .panel.hidden { display: none; }
+  .panel-head { display: flex; justify-content: space-between; width: 100%; align-items: center; }
+  .panel-name { font-size: 13px; color: #9aa3d6; }
+  .panel-stats { font-size: 12px; color: #ffe066; text-align: right; line-height: 1.4; }
+  .board-row { display: flex; gap: 10px; width: 100%; }
+  .board-wrap { position: relative; }
+  .pboard {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(12, 1fr);
+    width: 168px;
+    aspect-ratio: 6 / 12;
+    background: #14162a;
+    border: 3px solid #3a4278;
+    border-radius: 6px;
+    box-shadow: 0 0 20px rgba(80,100,220,0.2), inset 0 0 20px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .pcell { border: 1px solid rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; }
+  .puyo { width: 82%; height: 82%; border-radius: 50%; box-shadow: 0 2px 3px rgba(0,0,0,0.5), inset -3px -3px 6px rgba(0,0,0,0.25), inset 3px 3px 4px rgba(255,255,255,0.3); }
+  .side-info { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .next-label { font-size: 11px; color: #7c86c2; }
+  .next-box {
+    display: grid; grid-template-columns: repeat(1, 1fr); grid-template-rows: repeat(2, 1fr);
+    width: 40px; height: 76px; background: #14162a; border: 2px solid #3a4278; border-radius: 6px; gap: 2px; padding: 4px;
+  }
+  .next-cell { display: flex; align-items: center; justify-content: center; }
+  .next-cell .puyo { width: 80%; height: 80%; }
+
+  #overlay {
+    position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; background: rgba(5,7,15,0.9); border-radius: 10px; text-align: center; padding: 24px; z-index: 5;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; white-space: pre-line; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4); color: #fff; border: none; padding: 10px 24px;
+    font-size: 14px; border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5);
+    transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice:active { transform: scale(0.95); }
+  #hint-text { font-size: 12px; color: #7c86c2; text-align: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #overlay-extra:empty { display: none; }
+  #room-code {
+    font-size: 40px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4);
+    padding: 10px 26px; border-radius: 12px; text-shadow: 0 0 14px rgba(255,224,102,0.5);
+  }
+  #conn-status { font-size: 13px; color: #9aa3d6; }
+  #code-input {
+    width: 160px; font-size: 22px; letter-spacing: 6px; text-align: center; text-transform: uppercase;
+    padding: 10px; border-radius: 10px; border: 1px solid #3a4278; background: rgba(255,255,255,0.05); color: #eef0ff;
+  }
+  #code-input:focus { outline: none; border-color: #6ea8ff; }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>ぷよぷよ</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+
+    <div id="arena">
+      <div class="panel" id="panel-a">
+        <div class="panel-head">
+          <span class="panel-name" id="name-a">あなた</span>
+          <span class="panel-stats" id="stats-a">SCORE 0</span>
+        </div>
+        <div class="board-row">
+          <div class="board-wrap"><div class="pboard" id="board-a"></div></div>
+          <div class="side-info">
+            <span class="next-label">NEXT</span>
+            <div class="next-box" id="next-a"></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel" id="panel-b">
+        <div class="panel-head">
+          <span class="panel-name" id="name-b">相手</span>
+          <span class="panel-stats" id="stats-b">SCORE 0</span>
+        </div>
+        <div class="board-row">
+          <div class="board-wrap"><div class="pboard" id="board-b"></div></div>
+          <div class="side-info">
+            <span class="next-label">NEXT</span>
+            <div class="next-box" id="next-b"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="overlay-area" style="position:relative; width:100%;">
+      <div id="overlay">
+        <h2 id="overlay-title">ぷよぷよ</h2>
+        <p id="overlay-text">モードを選んでください</p>
+        <div id="overlay-extra"></div>
+        <div id="overlay-buttons"></div>
+      </div>
+    </div>
+    <div id="hint-text"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  // ================= Core Puyo engine (validated: rotation/kick, gravity, chain pop, scoring, ojama) =================
+  const COLS = 6, ROWS = 12;
+  const EMPTY = 0, OJAMA = 5;
+  const NEI = [[-1,0],[1,0],[0,-1],[0,1]];
+  const PUYO_COLORS = { 0:'transparent', 1:'#e84d4d', 2:'#4de87a', 3:'#4d8fe8', 4:'#e8d24d', 5:'#8a8a96' };
+  const OFFSETS = [ [-1,0], [0,1], [1,0], [0,-1] ]; // child relative to axis by orientation 0..3
+  const CHAIN_POWER = [0,8,16,32,64,96,128,160,192,224,256,288,320,352,384,416,448,480,512];
+  const COLOR_BONUS = [0,3,6,12,24];
+  function groupBonusForSize(size) {
+    if (size<=4) return 0;
+    const table = {5:2,6:3,7:4,8:5,9:6,10:7};
+    return table[size] !== undefined ? table[size] : 10;
+  }
+
+  function emptyBoard(){ return Array.from({length:ROWS}, () => Array(COLS).fill(EMPTY)); }
+  function inCol(c){return c>=0&&c<COLS;}
+  function inRow(r){return r<ROWS;}
+  function cellValid(board, r, c) {
+    if (!inCol(c) || !inRow(r)) return false;
+    if (r < 0) return true;
+    return board[r][c] === EMPTY;
+  }
+  function childPos(pair) { const [dr,dc] = OFFSETS[pair.orientation]; return { r: pair.axisR+dr, c: pair.axisC+dc }; }
+  function pairValid(board, pair) {
+    const ch = childPos(pair);
+    return cellValid(board, pair.axisR, pair.axisC) && cellValid(board, ch.r, ch.c);
+  }
+  function tryRotatePair(board, pair, dir) {
+    const newOrientation = (pair.orientation + dir + 4) % 4;
+    const kicks = [[0,0],[0,-1],[0,1],[-1,0]];
+    for (const [kr,kc] of kicks) {
+      const candidate = { ...pair, orientation: newOrientation, axisR: pair.axisR+kr, axisC: pair.axisC+kc };
+      if (pairValid(board, candidate)) return candidate;
+    }
+    return pair;
+  }
+  function applyGravity(board) {
+    for (let c=0;c<COLS;c++) {
+      const vals = [];
+      for (let r=0;r<ROWS;r++) if (board[r][c] !== EMPTY) vals.push(board[r][c]);
+      for (let r=0;r<ROWS;r++) board[r][c] = EMPTY;
+      let writeRow = ROWS-1;
+      for (let i=vals.length-1;i>=0;i--) { board[writeRow][c] = vals[i]; writeRow--; }
+    }
+  }
+  function findPopGroups(board) {
+    const visited = Array.from({length:ROWS}, () => Array(COLS).fill(false));
+    const groups = [];
+    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) {
+      const color = board[r][c];
+      if (color === EMPTY || color === OJAMA || visited[r][c]) continue;
+      const stack = [[r,c]]; visited[r][c] = true;
+      const cells = [];
+      while (stack.length) {
+        const [cr,cc] = stack.pop();
+        cells.push([cr,cc]);
+        for (const [dr,dc] of NEI) {
+          const nr=cr+dr, nc=cc+dc;
+          if (nr<0||nr>=ROWS||nc<0||nc>=COLS||visited[nr][nc]) continue;
+          if (board[nr][nc] === color) { visited[nr][nc]=true; stack.push([nr,nc]); }
+        }
+      }
+      if (cells.length >= 4) groups.push({ color, cells });
+    }
+    return groups;
+  }
+  function ojamaNeighbors(board, groups) {
+    const set = new Set();
+    for (const g of groups) for (const [r,c] of g.cells) for (const [dr,dc] of NEI) {
+      const nr=r+dr, nc=c+dc;
+      if (nr<0||nr>=ROWS||nc<0||nc>=COLS) continue;
+      if (board[nr][nc] === OJAMA) set.add(nr*COLS+nc);
+    }
+    return set;
+  }
+  function resolveChains(board) {
+    let chainCount = 0, totalScore = 0;
+    while (true) {
+      applyGravity(board);
+      const groups = findPopGroups(board);
+      if (groups.length === 0) break;
+      chainCount++;
+      const ojamaSet = ojamaNeighbors(board, groups);
+      let totalCleared = 0; const colors = new Set(); let groupBonusSum = 0;
+      for (const g of groups) {
+        totalCleared += g.cells.length;
+        colors.add(g.color);
+        groupBonusSum += groupBonusForSize(g.cells.length);
+        for (const [r,c] of g.cells) board[r][c] = EMPTY;
+      }
+      for (const key of ojamaSet) { const r=(key/COLS)|0, c=key%COLS; board[r][c] = EMPTY; }
+      const chainPower = CHAIN_POWER[Math.min(chainCount-1, CHAIN_POWER.length-1)];
+      const colorBonus = COLOR_BONUS[Math.min(colors.size-1, COLOR_BONUS.length-1)];
+      const multiplier = Math.max(1, chainPower + colorBonus + groupBonusSum);
+      totalScore += totalCleared * 10 * multiplier;
+    }
+    return { chainCount, totalScore };
+  }
+  function distributeGarbage(total, startCol) {
+    const dist = Array(COLS).fill(0);
+    const per = Math.floor(total / COLS);
+    let extra = total % COLS;
+    for (let i=0;i<COLS;i++) dist[i] = per;
+    let c = startCol;
+    while (extra > 0) { dist[c % COLS]++; c++; extra--; }
+    return dist;
+  }
+  function addOjama(board, dist) {
+    let overflow = false;
+    for (let c=0;c<COLS;c++) {
+      const k = dist[c];
+      if (k <= 0) continue;
+      let topRow = ROWS;
+      for (let r=0;r<ROWS;r++) { if (board[r][c] !== EMPTY) { topRow = r; break; } }
+      let start = topRow - k;
+      if (start < 0) { overflow = true; start = 0; }
+      for (let r=start; r<topRow; r++) board[r][c] = OJAMA;
+    }
+    return overflow;
+  }
+  function cloneBoard(board) { return board.map(row => row.slice()); }
+
+  // ---------- AI placement search ----------
+  function simulateDrop(board, pair) {
+    let cur = { ...pair };
+    while (true) {
+      const next = { ...cur, axisR: cur.axisR+1 };
+      if (!pairValid(board, next)) break;
+      cur = next;
+    }
+    return cur;
+  }
+  function heightPenalty(board) {
+    let total = 0;
+    for (let c=0;c<COLS;c++) { let h=0; for (let r=0;r<ROWS;r++) if (board[r][c]!==EMPTY) { h = ROWS-r; break; } total += h; }
+    return total;
+  }
+  function findBestPlacement(board, colorA, colorB) {
+    let best = null, bestScore = -Infinity;
+    for (let orientation=0; orientation<4; orientation++) {
+      for (let axisC=0; axisC<COLS; axisC++) {
+        const startPair = { axisR:0, axisC, orientation };
+        if (!pairValid(board, startPair)) continue;
+        const landed = simulateDrop(board, startPair);
+        const ch = childPos(landed);
+        if (ch.c < 0 || ch.c >= COLS) continue;
+        const testBoard = cloneBoard(board);
+        if (landed.axisR >= 0) testBoard[landed.axisR][landed.axisC] = colorA;
+        if (ch.r >= 0) testBoard[ch.r][ch.c] = colorB;
+        const { totalScore } = resolveChains(testBoard);
+        const score = totalScore * 3 - heightPenalty(testBoard) * 0.5;
+        if (score > bestScore) { bestScore = score; best = { orientation, axisC: landed.axisC }; }
+      }
+    }
+    return best;
+  }
+
+  // ================= Board state & gameplay =================
+  const COLOR_COUNT = 4;
+  function randColor() { return 1 + ((Math.random()*COLOR_COUNT)|0); }
+  function createBoardState(isMirror) {
+    return {
+      board: emptyBoard(), pair: null, next: null, score: 0, gameOver: false, pendingGarbage: 0,
+      gravityAcc: 0, aiAcc: 0, aiTarget: null, resolving: false, isMirror: !!isMirror, isAI: false,
+      onGarbage: null, cells: null, nextCells: null
+    };
+  }
+  function spawnPuyoNext(bs) { bs.next = { a: randColor(), b: randColor() }; }
+  function spawnPair(bs) {
+    if (bs.pendingGarbage > 0) {
+      const dist = distributeGarbage(bs.pendingGarbage, Math.floor(Math.random()*COLS));
+      const overflow = addOjama(bs.board, dist);
+      bs.pendingGarbage = 0;
+      if (overflow) { bs.gameOver = true; bs.pair = null; return; }
+    }
+    if (!bs.next) spawnPuyoNext(bs);
+    const colors = bs.next;
+    spawnPuyoNext(bs);
+    const startPair = { axisR: 0, axisC: 2, orientation: 0, colorA: colors.a, colorB: colors.b };
+    if (!pairValid(bs.board, startPair)) { bs.gameOver = true; bs.pair = null; return; }
+    bs.pair = startPair;
+    bs.aiTarget = null;
+  }
+  function moveBS(bs, dx) {
+    if (!bs.pair || bs.gameOver || bs.resolving) return;
+    const cand = { ...bs.pair, axisC: bs.pair.axisC+dx };
+    if (pairValid(bs.board, cand)) bs.pair = cand;
+  }
+  function rotateBS(bs, dir) {
+    if (!bs.pair || bs.gameOver || bs.resolving) return;
+    bs.pair = tryRotatePair(bs.board, bs.pair, dir);
+  }
+  function lockAndResolve(bs) {
+    const ch = childPos(bs.pair);
+    if (bs.pair.axisR >= 0) bs.board[bs.pair.axisR][bs.pair.axisC] = bs.pair.colorA;
+    if (ch.r >= 0) bs.board[ch.r][ch.c] = bs.pair.colorB;
+    bs.pair = null;
+    bs.resolving = true;
+    if (bs.render) bs.render();
+    setTimeout(() => {
+      const { totalScore } = resolveChains(bs.board);
+      bs.score += totalScore;
+      const garbage = Math.floor(totalScore / 70);
+      if (garbage > 0 && bs.onGarbage) bs.onGarbage(garbage);
+      bs.resolving = false;
+      spawnPair(bs);
+      if (bs.render) bs.render();
+    }, 320);
+  }
+  function softDropBS(bs) {
+    if (!bs.pair || bs.gameOver || bs.resolving) return;
+    const cand = { ...bs.pair, axisR: bs.pair.axisR+1 };
+    if (pairValid(bs.board, cand)) bs.pair = cand;
+    else lockAndResolve(bs);
+  }
+  function hardDropBS(bs) {
+    if (!bs.pair || bs.gameOver || bs.resolving) return;
+    bs.pair = simulateDrop(bs.board, bs.pair);
+    lockAndResolve(bs);
+  }
+  function doAIStep(bs) {
+    if (!bs.pair || bs.gameOver || bs.resolving) return;
+    if (!bs.aiTarget) bs.aiTarget = findBestPlacement(bs.board, bs.pair.colorA, bs.pair.colorB) || { orientation:0, axisC:bs.pair.axisC };
+    if (bs.pair.orientation !== bs.aiTarget.orientation) { rotateBS(bs, 1); return; }
+    if (bs.pair.axisC < bs.aiTarget.axisC) { moveBS(bs, 1); return; }
+    if (bs.pair.axisC > bs.aiTarget.axisC) { moveBS(bs, -1); return; }
+    hardDropBS(bs);
+  }
+
+  // ================= UI layer =================
+  const boardAEl = document.getElementById('board-a');
+  const boardBEl = document.getElementById('board-b');
+  const nextAEl = document.getElementById('next-a');
+  const nextBEl = document.getElementById('next-b');
+  const statsAEl = document.getElementById('stats-a');
+  const statsBEl = document.getElementById('stats-b');
+  const nameAEl = document.getElementById('name-a');
+  const nameBEl = document.getElementById('name-b');
+  const panelB = document.getElementById('panel-b');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlayText = document.getElementById('overlay-text');
+  const overlayButtons = document.getElementById('overlay-buttons');
+  const overlayExtra = document.getElementById('overlay-extra');
+  const backBtn = document.getElementById('back-btn');
+  const hintText = document.getElementById('hint-text');
+
+  function buildGrid(container, rows, cols, cellClass) {
+    container.innerHTML = '';
+    const cells = [];
+    for (let i=0;i<rows*cols;i++) {
+      const d = document.createElement('div');
+      d.className = cellClass;
+      const inner = document.createElement('div');
+      inner.className = 'puyo';
+      d.appendChild(inner);
+      container.appendChild(d);
+      cells.push(inner);
+    }
+    return cells;
+  }
+  const cellsA = buildGrid(boardAEl, ROWS, COLS, 'pcell');
+  const cellsB = buildGrid(boardBEl, ROWS, COLS, 'pcell');
+  const nextCellsA = buildGrid(nextAEl, 2, 1, 'next-cell');
+  const nextCellsB = buildGrid(nextBEl, 2, 1, 'next-cell');
+
+  function renderBS(bs, cells, nextCells) {
+    const display = bs.board.map(row => row.slice());
+    if (bs.pair) {
+      const ch = childPos(bs.pair);
+      if (bs.pair.axisR >= 0) display[bs.pair.axisR][bs.pair.axisC] = bs.pair.colorA;
+      if (ch.r >= 0 && ch.r < ROWS) display[ch.r][ch.c] = bs.pair.colorB;
+    }
+    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) {
+      cells[r*COLS+c].style.background = PUYO_COLORS[display[r][c]] || 'transparent';
+    }
+    if (bs.next) {
+      nextCells[0].style.background = PUYO_COLORS[bs.next.a];
+      nextCells[1].style.background = PUYO_COLORS[bs.next.b];
+    }
+  }
+  function updateStats(bs, el) { el.textContent = 'SCORE ' + bs.score; }
+
+  let bsA, bsB, mode, gameActive, loopTimer;
+  let peer = null, conn = null, roomCode = null;
+  let humanIsHostGlobal = true;
+
+  function setupBattleCallbacks() {
+    bsA.onGarbage = (n) => {
+      if (mode === 'online') { if (conn) conn.send({ type:'garbage', amount: n }); }
+      else if (bsB) bsB.pendingGarbage += n;
+    };
+    if (bsB && !bsB.isMirror) {
+      bsB.onGarbage = (n) => { bsA.pendingGarbage += n; };
+    }
+  }
+
+  function mainLoop() {
+    if (!gameActive) return;
+    const dt = 50;
+    if (bsA && !bsA.gameOver && !bsA.isMirror && !bsA.resolving) {
+      bsA.gravityAcc += dt;
+      if (bsA.gravityAcc >= 500) { bsA.gravityAcc = 0; softDropBS(bsA); }
+    }
+    if (bsB && !bsB.gameOver && !bsB.isMirror) {
+      if (bsB.isAI) {
+        if (!bsB.resolving) {
+          bsB.aiAcc += dt;
+          if (bsB.aiAcc >= 150) { bsB.aiAcc = 0; doAIStep(bsB); }
+        }
+      } else if (!bsB.resolving) {
+        bsB.gravityAcc += dt;
+        if (bsB.gravityAcc >= 500) { bsB.gravityAcc = 0; softDropBS(bsB); }
+      }
+    }
+    renderBS(bsA, cellsA, nextCellsA);
+    updateStats(bsA, statsAEl);
+    if (bsB) { renderBS(bsB, cellsB, nextCellsB); updateStats(bsB, statsBEl); }
+
+    if (mode === 'online' && conn && bsA) {
+      conn.send({ type:'state', board: bsA.board, pair: bsA.pair, score: bsA.score, gameOver: bsA.gameOver });
+    }
+    checkEnd();
+  }
+
+  function checkEnd() {
+    if (!gameActive) return;
+    if (mode === 'solo') {
+      if (bsA.gameOver) { gameActive = false; showResult('ゲームオーバー', `スコア ${bsA.score}`); }
+      return;
+    }
+    if (mode === 'cpu' || mode === 'local') {
+      if (bsA.gameOver || (bsB && bsB.gameOver)) {
+        gameActive = false;
+        const aLost = bsA.gameOver;
+        let title;
+        if (mode === 'cpu') title = aLost ? 'CPUの勝ち' : 'あなたの勝ち！';
+        else title = aLost ? 'プレイヤー2の勝ち！' : 'プレイヤー1の勝ち！';
+        showResult(title, `あなた: ${bsA.score}点 / 相手: ${bsB.score}点`);
+      }
+      return;
+    }
+    if (mode === 'online') {
+      if (bsA.gameOver) {
+        gameActive = false;
+        if (conn) conn.send({ type:'gameover' });
+        showResult('あなたの負け', `スコア ${bsA.score}`);
+      }
+    }
+  }
+
+  function showResult(title, text) {
+    const buttons = mode === 'online'
+      ? [
+          { label: 'もう一度', primary: true, onClick: () => { if (conn) conn.send({ type:'rematch' }); startGame('online', humanIsHostGlobal); } },
+          { label: 'モード選択に戻る', primary: false, onClick: () => { cleanupPeer(); showModeSelect(); } }
+        ]
+      : [
+          { label: 'もう一度', primary: true, onClick: () => startGame(mode) },
+          { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+        ];
+    showOverlay(title, text, buttons);
+  }
+
+  // ---------- keyboard ----------
+  function onKeyDown(e) {
+    if (!gameActive) return;
+    const code = e.code;
+    let handled = true;
+    if (mode === 'local') {
+      if (code==='KeyA') moveBS(bsA,-1);
+      else if (code==='KeyD') moveBS(bsA,1);
+      else if (code==='KeyS') softDropBS(bsA);
+      else if (code==='KeyW') rotateBS(bsA,1);
+      else if (code==='KeyF') hardDropBS(bsA);
+      else if (code==='ArrowLeft') moveBS(bsB,-1);
+      else if (code==='ArrowRight') moveBS(bsB,1);
+      else if (code==='ArrowDown') softDropBS(bsB);
+      else if (code==='ArrowUp') rotateBS(bsB,1);
+      else if (code==='Enter') hardDropBS(bsB);
+      else handled = false;
+    } else {
+      if (code==='ArrowLeft') moveBS(bsA,-1);
+      else if (code==='ArrowRight') moveBS(bsA,1);
+      else if (code==='ArrowDown') softDropBS(bsA);
+      else if (code==='ArrowUp') rotateBS(bsA,1);
+      else if (code==='Space') hardDropBS(bsA);
+      else handled = false;
+    }
+    if (handled) e.preventDefault();
+  }
+  window.addEventListener('keydown', onKeyDown);
+
+  // ---------- overlay ----------
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  function showModeSelect() {
+    cleanupPeer();
+    gameActive = false;
+    clearInterval(loopTimer);
+    panelB.classList.add('hidden');
+    hintText.textContent = '';
+    showOverlay('ぷよぷよ', 'ソロプレイか対戦か選んでください', [
+      { label: 'ソロプレイ', primary: true, onClick: () => startGame('solo') },
+      { label: '対戦', primary: true, onClick: showBattleMenu }
+    ]);
+  }
+  function showBattleMenu() {
+    showOverlay('対戦', '対戦相手を選んでください', [
+      { label: 'CPU戦', primary: true, onClick: () => startGame('cpu') },
+      { label: 'ローカル対戦（同じ画面）', primary: true, onClick: () => startGame('local') },
+      { label: 'オンライン対戦（別のPC）', primary: true, onClick: showOnlineMenu },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+
+  // ---------- online ----------
+  function cleanupPeer() {
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function showOnlineMenu() {
+    showOverlay('オンライン対戦', 'インターネット経由で別のパソコンの人と対戦できます', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: hostRoom },
+      { label: '部屋に入る（参加）', primary: true, onClick: showJoinRoom },
+      { label: '戻る', primary: false, onClick: showBattleMenu }
+    ]);
+  }
+  function setupConnection() {
+    conn.on('data', handleRemoteData);
+    conn.on('close', onPeerDisconnected);
+    conn.on('error', onPeerDisconnected);
+  }
+  function onPeerDisconnected() {
+    if (mode === 'online' && gameActive) {
+      gameActive = false;
+      clearInterval(loopTimer);
+      showOverlay('相手が切断しました', '通信が切れてしまいました', [
+        { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+      ]);
+    }
+  }
+  function handleRemoteData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'state') {
+      bsB.board = data.board;
+      bsB.pair = data.pair;
+      bsB.score = data.score;
+      bsB.gameOver = data.gameOver;
+    } else if (data.type === 'garbage') {
+      bsA.pendingGarbage += data.amount;
+    } else if (data.type === 'gameover') {
+      if (gameActive) { gameActive = false; showResult('あなたの勝ち！', `スコア ${bsA.score}`); }
+    } else if (data.type === 'rematch') {
+      startGame('online', !humanIsHostGlobal);
+    }
+  }
+  function hostRoom() {
+    cleanupPeer();
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ]);
+    peer = new Peer('puyo-room-' + roomCode);
+    peer.on('open', () => {
+      showOverlay(
+        'このコードを相手に伝えてください',
+        '相手が「部屋に入る」からコードを入力すると自動で対戦が始まります',
+        [{ label: 'キャンセル', primary: false, onClick: showModeSelect }],
+        `<div id="room-code">${roomCode}</div>
+         <button id="copy-code-btn" class="choice secondary">コードをコピー</button>
+         <div id="conn-status">相手の参加を待っています…</div>`
+      );
+      const copyBtn = document.getElementById('copy-code-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(roomCode).then(() => {
+            copyBtn.textContent = 'コピーしました！';
+            setTimeout(() => { copyBtn.textContent = 'コードをコピー'; }, 1500);
+          });
+        });
+      }
+    });
+    peer.on('connection', (c) => {
+      conn = c;
+      setupConnection();
+      conn.on('open', () => startGame('online', true));
+    });
+    peer.on('error', () => {
+      showOverlay('接続エラー', '部屋を作成できませんでした。もう一度お試しください。', [
+        { label: '戻る', primary: true, onClick: showModeSelect }
+      ]);
+    });
+  }
+  function showJoinRoom() {
+    cleanupPeer();
+    showOverlay(
+      '部屋に入る',
+      'ホストから伝えられた4桁のコードを入力してください',
+      [
+        { label: '接続する', primary: true, onClick: joinRoom },
+        { label: '戻る', primary: false, onClick: showModeSelect }
+      ],
+      `<input id="code-input" maxlength="4" placeholder="例: A1B2" autocomplete="off" />`
+    );
+    const input = document.getElementById('code-input');
+    if (input) { input.focus(); input.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(); }); }
+  }
+  function joinRoom() {
+    const input = document.getElementById('code-input');
+    const code = input ? input.value.trim().toUpperCase() : '';
+    if (!code) return;
+    cleanupPeer();
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ]);
+    peer = new Peer();
+    peer.on('open', () => {
+      conn = peer.connect('puyo-room-' + code, { reliable: true });
+      setupConnection();
+      conn.on('open', () => startGame('online', false));
+      conn.on('error', () => {
+        showOverlay('接続エラー', 'コードが正しいか、ホストが待機しているか確認してください。', [
+          { label: 'もう一度', primary: true, onClick: showJoinRoom },
+          { label: '戻る', primary: false, onClick: showModeSelect }
+        ]);
+      });
+    });
+    peer.on('error', () => {
+      showOverlay('接続エラー', 'コードが正しいか、ホストが待機しているか確認してください。', [
+        { label: 'もう一度', primary: true, onClick: showJoinRoom },
+        { label: '戻る', primary: false, onClick: showModeSelect }
+      ]);
+    });
+  }
+
+  function startGame(selectedMode, isHost) {
+    mode = selectedMode;
+    humanIsHostGlobal = isHost !== undefined ? isHost : true;
+    bsA = createBoardState(false);
+    bsA.render = () => { renderBS(bsA, cellsA, nextCellsA); updateStats(bsA, statsAEl); };
+    spawnPair(bsA);
+    if (mode === 'solo') {
+      bsB = null;
+      panelB.classList.add('hidden');
+      nameAEl.textContent = 'あなた';
+      hintText.textContent = '← → 移動 / ↓ ソフトドロップ / ↑ 回転 / Space ハードドロップ（4つ以上つなげて消そう）';
+    } else if (mode === 'cpu') {
+      bsB = createBoardState(false);
+      bsB.isAI = true;
+      bsB.render = () => { renderBS(bsB, cellsB, nextCellsB); updateStats(bsB, statsBEl); };
+      spawnPair(bsB);
+      panelB.classList.remove('hidden');
+      nameAEl.textContent = 'あなた';
+      nameBEl.textContent = 'CPU';
+      hintText.textContent = '← → 移動 / ↓ ソフトドロップ / ↑ 回転 / Space ハードドロップ';
+      setupBattleCallbacks();
+    } else if (mode === 'local') {
+      bsB = createBoardState(false);
+      bsB.render = () => { renderBS(bsB, cellsB, nextCellsB); updateStats(bsB, statsBEl); };
+      spawnPair(bsB);
+      panelB.classList.remove('hidden');
+      nameAEl.textContent = 'プレイヤー1';
+      nameBEl.textContent = 'プレイヤー2';
+      hintText.textContent = 'P1: A/D 移動, S ソフトドロップ, W 回転, F ハードドロップ　|　P2: 矢印移動, ↓ソフトドロップ, ↑回転, Enter ハードドロップ';
+      setupBattleCallbacks();
+    } else if (mode === 'online') {
+      bsB = createBoardState(true);
+      panelB.classList.remove('hidden');
+      nameAEl.textContent = 'あなた';
+      nameBEl.textContent = '相手';
+      hintText.textContent = '← → 移動 / ↓ ソフトドロップ / ↑ 回転 / Space ハードドロップ';
+      setupBattleCallbacks();
+    }
+    gameActive = true;
+    hideOverlay();
+    clearInterval(loopTimer);
+    loopTimer = setInterval(mainLoop, 50);
+  }
+
+  backBtn.addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+
+  showModeSelect();
+})();
+</script>
+</body>
+</html>
