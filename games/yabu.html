@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>藪の中</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 560px;
+    max-width: 94vw;
+  }
+  #topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  h1 {
+    margin: 0;
+    font-size: 22px;
+    letter-spacing: 4px;
+    font-weight: 600;
+    color: #9fb4ff;
+    text-shadow: 0 0 12px rgba(120,150,255,0.6);
+  }
+  #back-btn, #hub-link {
+    background: transparent;
+    border: 1px solid #3a4278;
+    color: #b9c2f0;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #board-area {
+    position: relative;
+    width: 100%;
+    min-height: 420px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid #2a3160;
+    border-radius: 14px;
+    padding: 24px 16px 20px;
+  }
+
+  #round-banner { text-align: center; font-size: 13px; color: #9aa3d6; margin-bottom: 6px; }
+  #turn-indicator { text-align: center; font-size: 14px; color: #9fb4ff; min-height: 20px; margin-bottom: 10px; }
+
+  #suspects-row { display: flex; gap: 14px; justify-content: center; margin: 18px 0 34px; }
+  .suspect-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .suspect-label { font-size: 12px; font-weight: 700; color: #7c86c2; letter-spacing: 2px; }
+  .suspect-tile {
+    position: relative;
+    width: 92px;
+    height: 120px;
+    border-radius: 12px;
+    background: linear-gradient(160deg, #232a52, #141833);
+    border: 2px solid #2a3160;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    font-weight: 800;
+    color: #eef0ff;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .suspect-tile.facedown { color: #4a5290; }
+  .suspect-tile.known { color: #ffe066; }
+  .suspect-tile.culprit { border-color: #ff5d73; box-shadow: 0 0 22px rgba(255,93,115,0.55); }
+  .suspect-tile.culprit::after {
+    content: '犯人';
+    position: absolute;
+    top: -12px;
+    right: -10px;
+    background: #ff5d73;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  }
+  .suspect-tile.clickable { cursor: pointer; }
+  .suspect-tile.clickable:hover { border-color: #6ea8ff; transform: translateY(-3px); }
+  .vote-badges {
+    position: absolute;
+    bottom: -16px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .vote-badge {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #0a0c1a;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  }
+
+  #players-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 22px; }
+  .ply-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #2a3160;
+  }
+  .ply-card.active { border-color: #6ea8ff; box-shadow: 0 0 12px rgba(110,168,255,0.4); }
+  .ply-swatch { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .ply-info { display: flex; flex-direction: column; gap: 4px; line-height: 1.25; }
+  .ply-name { font-size: 11px; color: #c7cdf5; }
+
+  .pip-row { display: flex; gap: 3px; }
+  .pip {
+    width: 14px; height: 14px;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 800;
+  }
+  .pip-empty { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); }
+  .pip-ok { background: rgba(126,231,135,0.18); color: #7ee787; border: 1px solid rgba(126,231,135,0.55); }
+  .pip-bad { background: rgba(255,93,115,0.18); color: #ff5d73; border: 1px solid rgba(255,93,115,0.55); }
+
+  .culprit-banner {
+    font-size: 14px; font-weight: 700; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.35);
+    border-radius: 10px; padding: 8px 14px; text-align: center;
+  }
+  .culprit-banner strong { color: #ff9f5d; }
+  .result-list, .standings-list { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 380px; }
+  .result-row, .standing-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px;
+    background: rgba(255,255,255,0.03); border-left: 4px solid transparent;
+    font-size: 13px;
+  }
+  .result-row.correct { border-left-color: #7ee787; }
+  .result-row.wrong { border-left-color: #ff5d73; }
+  .r-swatch { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .r-name { color: #eef0ff; }
+  .r-pick { color: #8b93c9; font-size: 12px; }
+  .r-mark { margin-left: auto; font-weight: 700; white-space: nowrap; }
+  .result-row.correct .r-mark { color: #7ee787; }
+  .result-row.wrong .r-mark { color: #ff5d73; }
+  .standing-row.winner { border-left-color: #ffe066; box-shadow: 0 0 12px rgba(255,224,102,0.25); }
+  .standing-rank { width: 22px; text-align: center; font-size: 15px; }
+  .result-divider { width: 100%; max-width: 380px; border: none; border-top: 1px solid #2a3160; margin: 4px 0; }
+
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: rgba(5,7,15,0.9);
+    border-radius: 14px;
+    text-align: center;
+    padding: 24px;
+    z-index: 5;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #ffe066;
+    text-shadow: 0 0 14px rgba(255,224,102,0.6);
+  }
+  #overlay-text { margin: 0; font-size: 14px; color: #b9c2f0; white-space: pre-line; }
+  #overlay-text:empty { display: none; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #overlay-extra:empty { display: none; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4);
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    font-size: 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(60,80,255,0.5);
+    transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
+
+  #room-code {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: 8px;
+    color: #ffe066;
+    background: rgba(255,224,102,0.08);
+    border: 1px solid rgba(255,224,102,0.4);
+    padding: 8px 22px;
+    border-radius: 12px;
+    text-shadow: 0 0 14px rgba(255,224,102,0.5);
+  }
+  #conn-status { font-size: 13px; color: #9aa3d6; }
+
+  .name-inputs, .lobby-list { display: flex; flex-direction: column; gap: 8px; width: 220px; }
+  .name-input, #my-name-input, #code-input {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.05);
+    color: #eef0ff;
+    font-size: 14px;
+    text-align: center;
+  }
+  .name-input:focus, #my-name-input:focus, #code-input:focus { outline: none; border-color: #6ea8ff; }
+  .lobby-player {
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid #2a3160;
+    font-size: 13px;
+  }
+
+  .rules-text { text-align: left; max-width: 420px; max-height: 50vh; overflow-y: auto; font-size: 13px; line-height: 1.7; color: #cdd3f5; }
+  .rules-text p { margin: 0 0 10px; }
+  .rules-text strong { color: #ffe066; }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>藪の中</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+
+    <div id="board-area">
+      <div id="round-banner">ラウンド <span id="round-num">-</span> / 7</div>
+      <div id="turn-indicator"></div>
+      <div id="suspects-row">
+        <div class="suspect-wrap"><div class="suspect-label">A</div><div class="suspect-tile facedown" id="suspect-0"><div class="s-value">?</div></div></div>
+        <div class="suspect-wrap"><div class="suspect-label">B</div><div class="suspect-tile facedown" id="suspect-1"><div class="s-value">?</div></div></div>
+        <div class="suspect-wrap"><div class="suspect-label">C</div><div class="suspect-tile facedown" id="suspect-2"><div class="s-value">?</div></div></div>
+      </div>
+      <div id="players-row"></div>
+
+      <div id="overlay">
+        <h2 id="overlay-title">藪の中</h2>
+        <p id="overlay-text"></p>
+        <div id="overlay-extra"></div>
+        <div id="overlay-buttons"></div>
+      </div>
+    </div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  const ROUNDS = 7;
+  const CHIPS_START = 7;
+  const PLAYER_COLORS = ['#ff5d73', '#6ea8ff', '#ffe066', '#7ee787', '#c98bff'];
+
+  const boardEl = document.getElementById('board-area');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlayText = document.getElementById('overlay-text');
+  const overlayExtra = document.getElementById('overlay-extra');
+  const overlayButtons = document.getElementById('overlay-buttons');
+  const backBtn = document.getElementById('back-btn');
+  const roundNumEl = document.getElementById('round-num');
+  const turnIndicatorEl = document.getElementById('turn-indicator');
+  const playersRowEl = document.getElementById('players-row');
+
+  // ---------- pure game logic (shared by local + online) ----------
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function buildPool(n) {
+    const nums = [2, 3, 4, 5, 6, 7, 8].map(v => ({ type: 'num', value: v }));
+    if (n === 3) return nums;
+    if (n === 4) return nums.concat([{ type: 'x' }]);
+    return nums.concat([{ type: 'x' }, { type: 'x' }]);
+  }
+
+  function dealRound(playerCount) {
+    const pool = shuffle(buildPool(playerCount));
+    const suspects = pool.slice(0, 3);
+    const hiddenOffset = Math.floor(Math.random() * 3);
+    return { suspects, hiddenOffset };
+  }
+
+  function hiddenIndexFor(hiddenOffset, playerIdx) {
+    return (playerIdx + hiddenOffset) % 3;
+  }
+
+  function determineCulprit(suspects) {
+    const numbered = suspects.map((s, i) => ({ i, v: s.value, type: s.type })).filter(o => o.type === 'num');
+    const hasFive = numbered.some(o => o.v === 5);
+    let best = null;
+    for (const o of numbered) {
+      if (!best) { best = o; continue; }
+      if (hasFive ? o.v < best.v : o.v > best.v) best = o;
+    }
+    return best.i;
+  }
+
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+
+  // ---------- shared render state ----------
+  let mode = null; // 'local' | 'online'
+  let G = { players: [], round: 0, phase: 'facedown', votes: {}, myKey: null, currentTurnKey: null, myPrivate: null, _suspects: null, _culpritIndex: null };
+
+  function playerByKey(k) { return G.players.find(p => p.key === k); }
+
+  function clearTable() {
+    roundNumEl.textContent = '-';
+    turnIndicatorEl.textContent = '';
+    for (let i = 0; i < 3; i++) {
+      const tile = document.getElementById('suspect-' + i);
+      tile.className = 'suspect-tile facedown';
+      tile.querySelector('.s-value').textContent = '?';
+      const badges = tile.querySelector('.vote-badges');
+      if (badges) badges.remove();
+      tile.onclick = null;
+    }
+    playersRowEl.innerHTML = '';
+  }
+
+  function render() {
+    roundNumEl.textContent = G.round || '-';
+    for (let i = 0; i < 3; i++) {
+      const tile = document.getElementById('suspect-' + i);
+      const valEl = tile.querySelector('.s-value');
+      tile.className = 'suspect-tile';
+      if (G.phase === 'reveal-final' && G._suspects) {
+        const s = G._suspects[i];
+        valEl.textContent = s.type === 'x' ? 'X' : s.value;
+        tile.classList.add('known');
+        if (i === G._culpritIndex) tile.classList.add('culprit');
+        tile.onclick = null;
+      } else if (G.phase === 'private' && G.myPrivate) {
+        if (G.myPrivate[i] === null) { valEl.textContent = '?'; tile.classList.add('facedown'); }
+        else { valEl.textContent = G.myPrivate[i]; tile.classList.add('known'); }
+        const canVote = G.currentTurnKey === G.myKey && G.votes[G.myKey] === undefined;
+        if (canVote) { tile.classList.add('clickable'); tile.onclick = () => onSuspectClick(i); }
+        else tile.onclick = null;
+      } else {
+        valEl.textContent = '?';
+        tile.classList.add('facedown');
+        tile.onclick = null;
+      }
+      renderVoteBadges(tile, i);
+    }
+    renderTurnIndicator();
+    renderPlayersRow();
+  }
+
+  function renderVoteBadges(tile, i) {
+    let badges = tile.querySelector('.vote-badges');
+    if (!badges) { badges = document.createElement('div'); badges.className = 'vote-badges'; tile.appendChild(badges); }
+    badges.innerHTML = '';
+    Object.entries(G.votes || {}).forEach(([key, sIdx]) => {
+      if (sIdx === i) {
+        const p = playerByKey(key);
+        if (!p) return;
+        const b = document.createElement('div');
+        b.className = 'vote-badge';
+        b.style.background = p.color;
+        b.textContent = p.name.slice(0, 1);
+        badges.appendChild(b);
+      }
+    });
+  }
+
+  function renderTurnIndicator() {
+    if (G.phase === 'reveal-final' || !G.currentTurnKey) { turnIndicatorEl.textContent = ''; return; }
+    const p = playerByKey(G.currentTurnKey);
+    if (!p) { turnIndicatorEl.textContent = ''; return; }
+    const votedCount = Object.keys(G.votes || {}).length;
+    const total = G.players.length;
+    const base = G.currentTurnKey === G.myKey
+      ? 'あなたの番です。犯人だと思う容疑者を選んでください'
+      : `${p.name} さんの番です…`;
+    turnIndicatorEl.textContent = `${base}（投票済み ${votedCount}/${total}）`;
+  }
+
+  function renderPlayersRow() {
+    playersRowEl.innerHTML = '';
+    G.players.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'ply-card' + (p.key === G.currentTurnKey ? ' active' : '');
+      const youTag = (mode === 'online' && p.key === G.myKey) ? '(あなた)' : '';
+      card.innerHTML = `<div class="ply-swatch" style="background:${p.color}"></div>
+        <div class="ply-info"><div class="ply-name">${p.name}${youTag}</div>${buildPipTrack(p)}</div>`;
+      playersRowEl.appendChild(card);
+    });
+  }
+
+  const SUSPECT_LABELS = ['A', 'B', 'C'];
+
+  function buildPipTrack(p) {
+    let html = '<div class="pip-row">';
+    for (let i = 0; i < ROUNDS; i++) {
+      const h = p.history && p.history[i];
+      if (h === 'o') html += '<div class="pip pip-ok" title="正解">✓</div>';
+      else if (h === 'x') html += '<div class="pip pip-bad" title="ハズレ">✕</div>';
+      else html += '<div class="pip pip-empty"></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function buildRevealHtml(votes, culpritIndex, culpritValue) {
+    const rows = G.players.map(p => {
+      const chosen = votes[p.key];
+      const correct = chosen === culpritIndex;
+      const chosenLabel = chosen !== undefined ? SUSPECT_LABELS[chosen] : '?';
+      return `<div class="result-row ${correct ? 'correct' : 'wrong'}">
+        <div class="r-swatch" style="background:${p.color}"></div>
+        <div class="r-name">${p.name}</div>
+        <div class="r-pick">${chosenLabel}に投票</div>
+        <div class="r-mark">${correct ? '⭕ 正解' : '❌ ハズレ'}</div>
+      </div>`;
+    }).join('');
+    return `<div class="culprit-banner">犯人は <strong>容疑者${SUSPECT_LABELS[culpritIndex]}</strong>（数字 ${culpritValue}）でした</div>
+      <div class="result-list">${rows}</div>`;
+  }
+
+  function buildStandingsHtml() {
+    const sorted = [...G.players].sort((a, b) => a.blunders - b.blunders);
+    const minB = sorted[0].blunders;
+    const medals = ['🥇', '🥈', '🥉'];
+    const rows = sorted.map((p, i) => `<div class="standing-row ${p.blunders === minB ? 'winner' : ''}">
+        <div class="standing-rank">${medals[i] || ('#' + (i + 1))}</div>
+        <div class="r-swatch" style="background:${p.color}"></div>
+        <div class="r-name">${p.name}</div>
+        ${buildPipTrack(p)}
+      </div>`).join('');
+    return `<div class="standings-list">${rows}</div>`;
+  }
+
+  function onSuspectClick(i) {
+    const canVote = G.phase === 'private' && G.currentTurnKey === G.myKey && G.votes[G.myKey] === undefined;
+    if (!canVote) return;
+    if (mode === 'local') {
+      G.votes[G.myKey] = i;
+      render();
+      L.turnPos++;
+      if (L.turnPos >= L.turnOrder.length) setTimeout(resolveLocalRound, 400);
+      else setTimeout(localShowGate, 300);
+    } else if (mode === 'online') {
+      G.votes[G.myKey] = i;
+      render();
+      if (isHost) hostReceiveVote('host', i);
+      else if (guestConn) guestConn.send({ type: 'vote', suspectIndex: i });
+    }
+  }
+
+  // ---------- overlay ----------
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text || '';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      if (b.disabled) btn.disabled = true;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  // ---------- mode select ----------
+  function showModeSelect() {
+    cleanupOnline();
+    mode = null;
+    G = { players: [], round: 0, phase: 'facedown', votes: {}, myKey: null, currentTurnKey: null, myPrivate: null, _suspects: null, _culpritIndex: null };
+    clearTable();
+    showOverlay('藪の中', '3〜5人で遊べる推理・ハッタリゲームです', [
+      { label: '1台の画面でパス&プレイ', primary: true, onClick: showLocalSetup },
+      { label: 'オンライン対戦（別々の端末）', primary: true, onClick: showOnlineEntry },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+
+  function showRules() {
+    showOverlay('遊び方', '', [
+      { label: '閉じる', primary: true, onClick: showModeSelect }
+    ], `<div class="rules-text">
+      <p>場に3人の「容疑者」タイルが伏せて並びます。数字は2〜8、まれに犯人になり得ない「X」も混じります。</p>
+      <p>あなたは3人のうち<strong>2人の数字だけ</strong>を見ることができます。誰が見えないかは人によって違うため、みんなの証言が食い違います。</p>
+      <p>自分の番が来たら、犯人だと思う容疑者に自分のチップを置きます。他の人がどこに置いたかも参考にしつつ、時にはハッタリで揺さぶりましょう。</p>
+      <p>全員が置き終わったら数字を公開。<strong>最大の数字</strong>の人が犯人です。ただし<strong>5がいる場合は最小の数字</strong>が犯人になります(Xは犯人になりません)。</p>
+      <p>正解するとチップはゲームから取り除かれ、外れると「しくじり」として記録されます。7ラウンド終了時、しくじりが一番少ない人の勝ちです。</p>
+      <p style="color:#7c86c2;font-size:12px;">※オインクゲームズ「藪の中」にインスパイアされた非公式のファンメイド実装です。</p>
+    </div>`);
+  }
+
+  // ---------- local pass & play ----------
+  let L = { turnOrder: [], turnPos: 0 };
+
+  function showLocalSetup() {
+    showOverlay('パス&プレイ', '人数を選んでください', [
+      { label: '3人', primary: true, onClick: () => showLocalNames(3) },
+      { label: '4人', primary: true, onClick: () => showLocalNames(4) },
+      { label: '5人', primary: true, onClick: () => showLocalNames(5) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+
+  function showLocalNames(count) {
+    const inputsHtml = Array.from({ length: count }).map((_, i) =>
+      `<input class="name-input" id="name-${i}" maxlength="8" placeholder="プレイヤー${i + 1}" />`
+    ).join('');
+    showOverlay('名前を入力', `${count}人分の名前を入れてください（空欄でも可）`, [
+      { label: '開始', primary: true, onClick: () => {
+          const names = [];
+          for (let i = 0; i < count; i++) {
+            const el = document.getElementById('name-' + i);
+            names.push(el.value.trim());
+          }
+          startLocal(names);
+        } },
+      { label: '戻る', primary: false, onClick: showLocalSetup }
+    ], `<div class="name-inputs">${inputsHtml}</div>`);
+  }
+
+  function startLocal(names) {
+    mode = 'local';
+    G = {
+      players: names.map((nm, i) => ({ key: String(i), name: nm || ('プレイヤー' + (i + 1)), color: PLAYER_COLORS[i], chips: CHIPS_START, blunders: 0, history: [] })),
+      round: 0, phase: 'facedown', votes: {}, myKey: null, currentTurnKey: null, myPrivate: null, _suspects: null, _culpritIndex: null
+    };
+    nextLocalRound();
+  }
+
+  function nextLocalRound() {
+    G.round++;
+    const { suspects, hiddenOffset } = dealRound(G.players.length);
+    G._suspects = suspects;
+    G._hiddenOffset = hiddenOffset;
+    G.votes = {};
+    const startIdx = (G.round - 1) % G.players.length;
+    L.turnOrder = [];
+    for (let k = 0; k < G.players.length; k++) L.turnOrder.push(String((startIdx + k) % G.players.length));
+    L.turnPos = 0;
+    localShowGate();
+  }
+
+  function localShowGate() {
+    const key = L.turnOrder[L.turnPos];
+    G.phase = 'facedown';
+    G.myKey = null;
+    G.myPrivate = null;
+    G.currentTurnKey = key;
+    render();
+    const p = playerByKey(key);
+    showOverlay('つぎの番', `端末を「${p.name}」さんに渡してください`, [
+      { label: '自分の情報を見る', primary: true, onClick: localShowPrivate }
+    ]);
+  }
+
+  function localShowPrivate() {
+    hideOverlay();
+    const key = G.currentTurnKey;
+    const idx = Number(key);
+    const hiddenIdx = hiddenIndexFor(G._hiddenOffset, idx);
+    G.myKey = key;
+    G.phase = 'private';
+    G.myPrivate = G._suspects.map((s, i) => i === hiddenIdx ? null : (s.type === 'x' ? 'X' : s.value));
+    render();
+  }
+
+  function resolveLocalRound() {
+    const culprit = determineCulprit(G._suspects);
+    G.players.forEach(p => {
+      const v = G.votes[p.key];
+      const correct = v === culprit;
+      p.chips--;
+      if (!correct) p.blunders++;
+      p.history.push(correct ? 'o' : 'x');
+    });
+    G._culpritIndex = culprit;
+    G.phase = 'reveal-final';
+    G.myKey = null;
+    G.currentTurnKey = null;
+    render();
+    const revealHtml = buildRevealHtml(G.votes, culprit, G._suspects[culprit].value);
+    if (G.round >= ROUNDS) {
+      showOverlay('最終結果', '', [
+        { label: 'もう一度', primary: true, onClick: () => startLocal(G.players.map(p => p.name)) },
+        { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+      ], revealHtml + '<hr class="result-divider">' + buildStandingsHtml());
+    } else {
+      showOverlay(`ラウンド${G.round}の結果`, '', [
+        { label: '次のラウンドへ', primary: true, onClick: nextLocalRound },
+        { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+      ], revealHtml);
+    }
+  }
+
+  // ---------- online multiplayer (host-authoritative via PeerJS) ----------
+  let peer = null;
+  let isHost = false;
+  let hostConns = {};
+  let hostConnOrder = [];
+  let guestConn = null;
+  let roomCode = null;
+  let roomCodeJoined = null;
+  let hostName = '';
+  let onlinePlayers = [];
+  let onlineGameStarted = false;
+  let H = null;
+
+  function cleanupOnline(resetMode) {
+    Object.values(hostConns).forEach(c => { try { c.close(); } catch (e) {} });
+    hostConns = {};
+    hostConnOrder = [];
+    if (guestConn) { try { guestConn.close(); } catch (e) {} guestConn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+    onlineGameStarted = false;
+    isHost = false;
+  }
+
+  function showOnlineEntry() {
+    showOverlay('オンライン対戦', 'あなたの名前を入力してください', [
+      { label: '次へ', primary: true, onClick: () => {
+          const el = document.getElementById('my-name-input');
+          const name = (el.value || '').trim() || 'プレイヤー';
+          showOnlineHostOrJoin(name);
+        } },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="my-name-input" maxlength="8" placeholder="なまえ" />`);
+  }
+
+  function showOnlineHostOrJoin(name) {
+    showOverlay('オンライン対戦', `${name} さん、部屋を作りますか？入りますか？`, [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => hostCreateRoom(name) },
+      { label: '部屋に入る（参加）', primary: true, onClick: () => showJoinCodeForm(name) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+
+  function showJoinCodeForm(name) {
+    showOverlay('部屋に入る', 'ホストのコードを入力してください', [
+      { label: '接続する', primary: true, onClick: () => {
+          const el = document.getElementById('code-input');
+          const code = (el.value || '').trim().toUpperCase();
+          if (!code) return;
+          roomCodeJoined = code;
+          joinOnlineRoom(name, code);
+        } },
+      { label: '戻る', primary: false, onClick: () => showOnlineHostOrJoin(name) }
+    ], `<input id="code-input" maxlength="4" placeholder="例: A1B2" />`);
+  }
+
+  function hostBuildPlayersMeta() {
+    const ids = ['host', ...hostConnOrder];
+    return ids.map((id, i) => ({
+      key: id,
+      name: id === 'host' ? hostName : ((hostConns[id] && hostConns[id]._name) || '(参加中…)'),
+      color: PLAYER_COLORS[i]
+    }));
+  }
+
+  function hostLobbyHtml(players, canStart) {
+    return `<div id="room-code">${roomCode}</div>
+      <div class="lobby-list">${players.map(p => `<div class="lobby-player">${p.name}${p.key === 'host' ? '（あなた/ホスト）' : ''}</div>`).join('')}</div>
+      <div id="conn-status">${players.length}/5人 ${canStart ? '' : '（開始には3人以上必要です）'}</div>`;
+  }
+
+  function updateHostLobbyUI() {
+    const players = hostBuildPlayersMeta();
+    const canStart = players.length >= 3;
+    showOverlay('オンライン対戦(ホスト)', `コード「${roomCode}」を仲間に伝えてください`, [
+      { label: 'ゲーム開始', primary: true, disabled: !canStart, onClick: canStart ? hostStartGame : () => {} },
+      { label: 'キャンセル', primary: false, onClick: () => { cleanupOnline(); showModeSelect(); } }
+    ], hostLobbyHtml(players, canStart));
+    sendToAllGuests({ type: 'lobby', players: players.map(p => ({ key: p.key, name: p.name })) });
+  }
+
+  function sendToAllGuests(msg) {
+    hostConnOrder.forEach(id => { const c = hostConns[id]; if (c && c.open) c.send(msg); });
+  }
+
+  function hostCreateRoom(name) {
+    mode = 'online'; isHost = true; hostName = name;
+    cleanupOnline();
+    isHost = true;
+    roomCode = randomCode();
+    showOverlay('オンライン対戦(ホスト)', '部屋を準備しています…', [
+      { label: 'キャンセル', primary: false, onClick: () => { cleanupOnline(); showModeSelect(); } }
+    ]);
+    peer = new Peer('yabu-room-' + roomCode);
+    peer.on('open', updateHostLobbyUI);
+    peer.on('connection', handleIncoming);
+    peer.on('error', () => {
+      showOverlay('接続エラー', '部屋を作成できませんでした', [
+        { label: '戻る', primary: true, onClick: showModeSelect }
+      ]);
+    });
+  }
+
+  function handleIncoming(conn) {
+    conn.on('open', () => {
+      if (onlineGameStarted || hostConnOrder.length >= 4) {
+        conn.send({ type: 'reject', message: onlineGameStarted ? 'このゲームはすでに開始されています' : 'この部屋はすでに5人集まっています' });
+        setTimeout(() => { try { conn.close(); } catch (e) {} }, 200);
+        return;
+      }
+      conn.on('data', d => handleHostData(conn, d));
+      conn.on('close', () => handleGuestLeft(conn));
+      hostConns[conn.peer] = conn;
+      hostConnOrder.push(conn.peer);
+    });
+  }
+
+  function handleHostData(conn, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'join') {
+      conn._name = data.name || '参加者';
+      if (!onlineGameStarted) updateHostLobbyUI();
+    } else if (data.type === 'vote') {
+      hostReceiveVote(conn.peer, data.suspectIndex);
+    }
+  }
+
+  function handleGuestLeft(conn) {
+    const idx = hostConnOrder.indexOf(conn.peer);
+    if (idx === -1) return;
+    hostConnOrder.splice(idx, 1);
+    delete hostConns[conn.peer];
+    if (!isHost) return;
+    if (onlineGameStarted) {
+      sendToAllGuests({ type: 'left' });
+      showOverlay('参加者が退出しました', '通信が切れたためゲームを終了します', [
+        { label: 'モード選択に戻る', primary: true, onClick: () => { cleanupOnline(); showModeSelect(); } }
+      ]);
+    } else {
+      updateHostLobbyUI();
+    }
+  }
+
+  function hostStartGame() {
+    onlineGameStarted = true;
+    onlinePlayers = hostBuildPlayersMeta().map(p => ({ ...p, chips: CHIPS_START, blunders: 0, history: [] }));
+    mode = 'online';
+    G.myKey = 'host';
+    hideOverlay();
+    H = { round: 0 };
+    hostNextRound();
+  }
+
+  function hostNextRound() {
+    H.round = (H.round || 0) + 1;
+    const { suspects, hiddenOffset } = dealRound(onlinePlayers.length);
+    H.suspects = suspects;
+    H.votes = {};
+    const startIdx = (H.round - 1) % onlinePlayers.length;
+    H.turnOrder = [];
+    for (let k = 0; k < onlinePlayers.length; k++) H.turnOrder.push(onlinePlayers[(startIdx + k) % onlinePlayers.length].key);
+    H.turnPos = 0;
+    const publicPlayers = onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, chips: p.chips, blunders: p.blunders, history: p.history }));
+    onlinePlayers.forEach((p, idx) => {
+      const hiddenIdx = hiddenIndexFor(hiddenOffset, idx);
+      const priv = suspects.map((s, i) => i === hiddenIdx ? null : (s.type === 'x' ? 'X' : s.value));
+      const msg = { type: 'roundStart', round: H.round, myPrivate: priv, players: publicPlayers, currentTurnKey: H.turnOrder[0], votes: {} };
+      if (p.key === 'host') applyRoundStart(msg);
+      else if (hostConns[p.key]) hostConns[p.key].send(msg);
+    });
+  }
+
+  function applyRoundStart(msg) {
+    G.round = msg.round;
+    G.players = msg.players;
+    G.myPrivate = msg.myPrivate;
+    G.phase = 'private';
+    G.currentTurnKey = msg.currentTurnKey;
+    G.votes = msg.votes || {};
+    G._suspects = null;
+    G._culpritIndex = null;
+    render();
+    hideOverlay();
+  }
+
+  function hostReceiveVote(key, suspectIndex) {
+    if (H.turnOrder[H.turnPos] !== key) return;
+    if (H.votes[key] !== undefined) return;
+    if (typeof suspectIndex !== 'number' || suspectIndex < 0 || suspectIndex > 2) return;
+    H.votes[key] = suspectIndex;
+    H.turnPos++;
+    if (H.turnPos >= H.turnOrder.length) {
+      hostResolveRound();
+    } else {
+      broadcastPublicState();
+    }
+  }
+
+  function broadcastPublicState() {
+    const msg = {
+      type: 'publicState',
+      currentTurnKey: H.turnOrder[H.turnPos],
+      votes: H.votes,
+      players: onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, chips: p.chips, blunders: p.blunders, history: p.history }))
+    };
+    applyPublicState(msg);
+    sendToAllGuests(msg);
+  }
+
+  function applyPublicState(msg) {
+    G.currentTurnKey = msg.currentTurnKey;
+    G.votes = msg.votes;
+    G.players = msg.players;
+    render();
+  }
+
+  function hostResolveRound() {
+    const culprit = determineCulprit(H.suspects);
+    onlinePlayers.forEach(p => {
+      const v = H.votes[p.key];
+      const correct = v === culprit;
+      p.chips--;
+      if (!correct) p.blunders++;
+      p.history.push(correct ? 'o' : 'x');
+    });
+    const msg = {
+      type: 'reveal',
+      suspects: H.suspects.map(s => s.type === 'x' ? 'X' : s.value),
+      culpritIndex: culprit,
+      votes: H.votes,
+      players: onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, chips: p.chips, blunders: p.blunders, history: p.history })),
+      isLast: H.round >= ROUNDS
+    };
+    applyReveal(msg);
+    sendToAllGuests(msg);
+  }
+
+  function applyReveal(msg) {
+    G._culpritIndex = msg.culpritIndex;
+    G._suspects = msg.suspects.map(v => v === 'X' ? { type: 'x' } : { type: 'num', value: v });
+    G.players = msg.players;
+    G.votes = msg.votes;
+    G.phase = 'reveal-final';
+    G.currentTurnKey = null;
+    render();
+    const revealHtml = buildRevealHtml(msg.votes, msg.culpritIndex, G._suspects[msg.culpritIndex].value);
+    if (isHost) {
+      if (msg.isLast) {
+        showOverlay('最終結果', '', [
+          { label: 'もう一度', primary: true, onClick: hostRestartSamePlayers },
+          { label: 'モード選択に戻る', primary: false, onClick: () => { sendToAllGuests({ type: 'left' }); cleanupOnline(); showModeSelect(); } }
+        ], revealHtml + '<hr class="result-divider">' + buildStandingsHtml());
+      } else {
+        showOverlay(`ラウンド${G.round}の結果`, '', [
+          { label: '次のラウンドへ', primary: true, onClick: hostNextRound },
+          { label: 'モード選択に戻る', primary: false, onClick: () => { sendToAllGuests({ type: 'left' }); cleanupOnline(); showModeSelect(); } }
+        ], revealHtml);
+      }
+    } else {
+      const buttons = msg.isLast
+        ? [{ label: 'モード選択に戻る', primary: true, onClick: () => { cleanupOnline(); showModeSelect(); } }]
+        : [];
+      const extra = msg.isLast
+        ? revealHtml + '<hr class="result-divider">' + buildStandingsHtml()
+        : revealHtml + '<div id="conn-status">ホストが次に進めるのを待っています…</div>';
+      showOverlay(msg.isLast ? '最終結果' : `ラウンド${G.round}の結果`, '', buttons, extra);
+    }
+  }
+
+  function hostRestartSamePlayers() {
+    onlinePlayers.forEach(p => { p.chips = CHIPS_START; p.blunders = 0; p.history = []; });
+    H.round = 0;
+    hostNextRound();
+  }
+
+  function guestLobbyHtml(players) {
+    return `<div class="lobby-list">${players.map(p => `<div class="lobby-player">${p.name}</div>`).join('')}</div>
+      <div id="conn-status">${players.length}人参加中（開始には3人以上必要）</div>`;
+  }
+
+  function updateGuestLobbyUI(players) {
+    showOverlay('ロビー', `部屋「${roomCodeJoined}」に接続しました。ホストの開始を待っています…`, [
+      { label: '退出する', primary: false, onClick: () => { cleanupOnline(); showModeSelect(); } }
+    ], guestLobbyHtml(players));
+  }
+
+  function joinOnlineRoom(name, code) {
+    mode = 'online'; isHost = false;
+    cleanupOnline();
+    isHost = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [
+      { label: 'キャンセル', primary: false, onClick: () => { cleanupOnline(); showModeSelect(); } }
+    ]);
+    peer = new Peer();
+    peer.on('open', () => {
+      G.myKey = peer.id;
+      guestConn = peer.connect('yabu-room-' + code, { reliable: true });
+      guestConn.on('open', () => { guestConn.send({ type: 'join', name }); });
+      guestConn.on('data', handleGuestData);
+      guestConn.on('close', () => {
+        if (mode === 'online') {
+          showOverlay('切断されました', 'ホストとの通信が切れました', [
+            { label: 'モード選択に戻る', primary: true, onClick: () => { cleanupOnline(); showModeSelect(); } }
+          ]);
+        }
+      });
+    });
+    peer.on('error', () => {
+      showOverlay('接続エラー', 'コードが正しいか、ホストが待機しているか確認してください', [
+        { label: 'もう一度', primary: true, onClick: () => showJoinCodeForm(name) },
+        { label: '戻る', primary: false, onClick: showModeSelect }
+      ]);
+    });
+  }
+
+  function handleGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'reject') {
+      showOverlay('参加できません', data.message, [
+        { label: '戻る', primary: true, onClick: showModeSelect }
+      ]);
+    } else if (data.type === 'lobby') {
+      updateGuestLobbyUI(data.players);
+    } else if (data.type === 'roundStart') {
+      applyRoundStart(data);
+    } else if (data.type === 'publicState') {
+      applyPublicState(data);
+    } else if (data.type === 'reveal') {
+      applyReveal(data);
+    } else if (data.type === 'left') {
+      showOverlay('接続が終了しました', 'ホストがゲームを終了しました', [
+        { label: 'モード選択に戻る', primary: true, onClick: () => { cleanupOnline(); showModeSelect(); } }
+      ]);
+    }
+  }
+
+  backBtn.addEventListener('click', () => { cleanupOnline(); showModeSelect(); });
+  window.addEventListener('beforeunload', () => cleanupOnline());
+
+  showModeSelect();
+})();
+</script>
+</body>
+</html>

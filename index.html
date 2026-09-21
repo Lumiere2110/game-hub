@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ゲームハブ</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+  }
+  #page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 20px 60px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  header h1 {
+    margin: 0 0 8px;
+    font-size: 34px;
+    letter-spacing: 6px;
+    font-weight: 700;
+    color: #9fb4ff;
+    text-shadow: 0 0 18px rgba(120,150,255,0.6);
+  }
+  header p {
+    margin: 0;
+    font-size: 14px;
+    color: #9aa3d6;
+  }
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 22px;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #2a3160;
+    border-radius: 14px;
+    padding: 22px;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    border-color: #6ea8ff;
+    box-shadow: 0 10px 28px rgba(80,100,220,0.35);
+  }
+  .card .icon {
+    font-size: 40px;
+    line-height: 1;
+    margin-bottom: 14px;
+  }
+  .card .title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #eef0ff;
+    margin-bottom: 6px;
+  }
+  .card .desc {
+    font-size: 13px;
+    color: #b9c2f0;
+    line-height: 1.5;
+    flex: 1;
+  }
+  .card .tag {
+    align-self: flex-start;
+    margin-top: 14px;
+    font-size: 11px;
+    color: #ffe066;
+    background: rgba(255,224,102,0.12);
+    border: 1px solid rgba(255,224,102,0.35);
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+  .card.placeholder {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border-style: dashed;
+    color: #6b74a8;
+    cursor: default;
+  }
+  .card.placeholder:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #3a4278;
+  }
+  .card.placeholder .icon { color: #4a5290; }
+  .card.placeholder .desc { color: #6b74a8; }
+</style>
+</head>
+<body>
+  <div id="page">
+    <header>
+      <h1>GAME HUB</h1>
+      <p>遊びたいゲームを選んでください</p>
+    </header>
+    <div id="grid"></div>
+  </div>
+
+<script>
+  // 新しいゲームを追加するときは、この配列に1件足すだけでカードが増える
+  const games = [
+    {
+      title: 'ブロック崩し',
+      desc: 'パドルでボールを操り、ブロックを全て破壊しよう。レベルが進むほどスピードアップ。',
+      icon: '🧱',
+      href: 'games/breakout.html',
+      tag: '1人用'
+    },
+    {
+      title: 'オセロ',
+      desc: '対人戦・CPU戦を選べる定番の陣取りゲーム。CPUは終盤読み切り搭載。オンライン対戦にも対応。',
+      icon: '⚫⚪',
+      href: 'games/othello.html',
+      tag: '1〜2人用'
+    },
+    {
+      title: '藪の中',
+      desc: '証言が食い違う中で犯人を推理するブラフゲーム。1台をパス&プレイ、または各自の端末でオンライン対戦。',
+      icon: '🔍',
+      href: 'games/yabu.html',
+      tag: '3〜5人用'
+    }
+  ];
+
+  const grid = document.getElementById('grid');
+
+  for (const g of games) {
+    const card = document.createElement('a');
+    card.className = 'card';
+    card.href = g.href;
+    card.innerHTML = `
+      <div class="icon">${g.icon}</div>
+      <div class="title">${g.title}</div>
+      <div class="desc">${g.desc}</div>
+      <div class="tag">${g.tag}</div>
+    `;
+    grid.appendChild(card);
+  }
+
+  const placeholder = document.createElement('div');
+  placeholder.className = 'card placeholder';
+  placeholder.innerHTML = `
+    <div class="icon">➕</div>
+    <div class="title">Coming Soon</div>
+    <div class="desc">次のゲームもここに追加されます</div>
+  `;
+  grid.appendChild(placeholder);
+</script>
+</body>
+</html>
