@@ -477,7 +477,7 @@
     const drawBtn = document.createElement('button');
     drawBtn.className = 'mini';
     drawBtn.textContent = '山札から引く（残り' + game.drawPileCount + '）';
-    drawBtn.disabled = !(myCount() < 2 && game.drawPileCount > 0);
+    drawBtn.disabled = !!pendingOutgoingRequest || !(myCount() < 2 && game.drawPileCount > 0);
     drawBtn.addEventListener('click', () => doMyDraw());
     el.appendChild(drawBtn);
 
@@ -520,14 +520,14 @@
     const drawBtn = document.createElement('button');
     drawBtn.className = 'mini';
     drawBtn.textContent = '山札から引く（残り' + game.drawPileCount + '）';
-    drawBtn.disabled = !(game.players[idx].infoCards.length < 2 && game.drawPileCount > 0);
+    drawBtn.disabled = !!localPendingRequest || !(game.players[idx].infoCards.length < 2 && game.drawPileCount > 0);
     drawBtn.addEventListener('click', () => localDraw(idx));
     el.appendChild(drawBtn);
 
     const reqBtn = document.createElement('button');
     reqBtn.className = 'mini secondary';
     reqBtn.textContent = '相手に要求する';
-    reqBtn.disabled = !canRequestEligible(game.players[idx].infoCards.length, game.players[other].infoCards.length, game.players[idx].resolvedRole);
+    reqBtn.disabled = !!localPendingRequest || !canRequestEligible(game.players[idx].infoCards.length, game.players[other].infoCards.length, game.players[idx].resolvedRole);
     reqBtn.addEventListener('click', () => promptRequestSlotLocal(idx, other));
     el.appendChild(reqBtn);
 
@@ -570,7 +570,7 @@
   }
 
   function localDraw(idx) {
-    if (!(game.players[idx].infoCards.length < 2 && game.drawPile.length > 0)) return;
+    if (localPendingRequest || !(game.players[idx].infoCards.length < 2 && game.drawPile.length > 0)) return;
     const card = game.drawPile.pop();
     game.drawPileCount = game.drawPile.length;
     game.players[idx].infoCards.push(card);
@@ -606,6 +606,7 @@
     if (comply) {
       const [card] = game.players[target].infoCards.splice(slot, 1);
       game.players[requester].infoCards.push(card);
+      maybeResolveFoolLocal(requester);
       showNotice(targetLabel + 'が要求に応じました');
     } else {
       showNotice(targetLabel + 'に拒否されました');
@@ -622,6 +623,7 @@
   }
   function sendRequest(slot) {
     if (mode === 'cpu') {
+      pendingOutgoingRequest = { slot };
       cpuRespondToRequest(slot);
     } else if (mode === 'online') {
       pendingOutgoingRequest = { slot };
@@ -633,9 +635,12 @@
     const cpu = game.players[1];
     let comply = cpu.resolvedRole === 'misanthrope' ? false : Math.random() < 0.55;
     setTimeout(() => {
-      if (comply) {
+      pendingOutgoingRequest = null;
+      if (phase !== 'discuss') return;
+      if (comply && slot < cpu.infoCards.length) {
         const [card] = cpu.infoCards.splice(slot, 1);
         game.players[0].infoCards.push(card);
+        maybeResolveFoolLocal(0);
         showNotice('CPUが要求に応じました');
       } else {
         showNotice('CPUに拒否されました');
@@ -647,17 +652,20 @@
     const slot = pendingIncomingRequest.slot;
     pendingIncomingRequest = null;
     if (game.players[0].resolvedRole === 'misanthrope') comply = false;
+    if (!(slot < game.players[0].infoCards.length)) comply = false;
     let card = null;
     if (comply) {
       [card] = game.players[0].infoCards.splice(slot, 1);
       if (mode === 'cpu') { game.players[1].infoCards.push(card); maybeResolveFoolLocal(1); }
+      // 相手の手札は枚数だけ管理しているので、渡した1枚を相手側に加算する
+      if (mode === 'online') game.players[1].infoCount = (game.players[1].infoCount||0) + 1;
     }
     if (mode === 'online') conn.send({ type:'requestResponse', comply, card });
     renderDiscuss();
   }
 
   function doMyDraw() {
-    if (!(myCount() < 2 && game.drawPileCount > 0)) return;
+    if (pendingOutgoingRequest || !(myCount() < 2 && game.drawPileCount > 0)) return;
     if (mode === 'cpu' || (mode === 'online' && iAmDealer)) {
       const card = game.drawPile.pop();
       game.drawPileCount = game.drawPile.length;
