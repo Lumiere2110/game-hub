@@ -651,8 +651,15 @@
   function respondToRequest(comply) {
     const slot = pendingIncomingRequest.slot;
     pendingIncomingRequest = null;
-    if (game.players[0].resolvedRole === 'misanthrope') comply = false;
+    const wanted = comply;
+    // 人間不信はカードを渡せないため、「渡す」を押しても拒否になる
+    const misanthrope = game.players[0].resolvedRole === 'misanthrope';
+    if (misanthrope) comply = false;
     if (!(slot < game.players[0].infoCards.length)) comply = false;
+    // 押した本人の画面にも結果を出す（オンライン/CPU戦では自分の画面は相手から見えない）
+    if (comply) showNotice('カードを渡しました');
+    else if (wanted && misanthrope) showNotice('人間不信はカードを渡せないため、要求は拒否されました');
+    else showNotice('要求を拒否しました');
     let card = null;
     if (comply) {
       [card] = game.players[0].infoCards.splice(slot, 1);
