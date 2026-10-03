@@ -36,11 +36,6 @@
     font-size: 14px;
     color: #9aa3d6;
   }
-  #grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 22px;
-  }
   .card {
     display: flex;
     flex-direction: column;
@@ -99,6 +94,75 @@
   }
   .card.placeholder .icon { color: #4a5290; }
   .card.placeholder .desc { color: #6b74a8; }
+
+  #tabs {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 0;
+    margin-bottom: 18px;
+    background: rgba(10,12,26,0.85);
+    backdrop-filter: blur(6px);
+    border-radius: 0 0 14px 14px;
+  }
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #2a3160;
+    color: #b9c2f0;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .tab:hover { border-color: #6ea8ff; color: #eef0ff; }
+  .tab.active {
+    background: linear-gradient(180deg, #5a6bff, #3444c4);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(60,80,255,0.45);
+  }
+  .tab .count {
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+  }
+  @media (max-width: 600px) {
+    /* スマホではタブを1段にして横スクロール */
+    #tabs { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; margin: 0 -20px 18px; padding: 10px 20px; }
+    #tabs::-webkit-scrollbar { display: none; }
+    .tab { flex-shrink: 0; padding: 7px 13px; font-size: 13px; }
+  }
+  .section { margin-bottom: 36px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2a3160;
+  }
+  .section-head h2 {
+    margin: 0;
+    font-size: 20px;
+    letter-spacing: 2px;
+    color: #eef0ff;
+  }
+  .section-head p { margin: 0; font-size: 12px; color: #9aa3d6; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 22px;
+  }
 </style>
 </head>
 <body>
@@ -107,17 +171,19 @@
       <h1>GAME HUB</h1>
       <p>遊びたいゲームを選んでください</p>
     </header>
-    <div id="grid"></div>
+    <nav id="tabs"></nav>
+    <div id="sections"></div>
   </div>
 
 <script>
-  // 新しいゲームを追加するときは、この配列に1件足すだけでカードが増える
+  // 新しいゲームを追加するときは、この配列に1件足すだけでカードが増える（category でカテゴリを指定）
   const games = [
     {
       title: 'ブロック崩し',
       desc: 'パドルでボールを操り、ブロックを全て破壊しよう。レベルが進むほどスピードアップ。',
       icon: '🧱',
       href: 'games/breakout.html',
+      category: 'digital',
       tag: '1人用'
     },
     {
@@ -125,6 +191,7 @@
       desc: '対人戦・CPU戦を選べる定番の陣取りゲーム。CPUは終盤読み切り搭載。オンライン対戦にも対応。',
       icon: '⚫⚪',
       href: 'games/othello.html',
+      category: 'board',
       tag: '1〜2人用'
     },
     {
@@ -132,6 +199,7 @@
       desc: '証言が食い違う中で犯人を推理するブラフゲーム。1台をパス&プレイ、または各自の端末でオンライン対戦。',
       icon: '🔍',
       href: 'games/yabu.html',
+      category: 'other',
       tag: '3〜5人用'
     },
     {
@@ -139,6 +207,7 @@
       desc: '対人戦・CPU戦（3手読み）・オンライン対戦に対応。キャスリングやアンパッサンなど公式ルールを完全実装。',
       icon: '♟️',
       href: 'games/chess.html',
+      category: 'board',
       tag: '1〜2人用'
     },
     {
@@ -146,6 +215,7 @@
       desc: '持ち駒・成り・二歩・打ち歩詰めなど日本将棋のルールに対応。対人戦・CPU戦・オンライン対戦を選択可能。',
       icon: '🎌',
       href: 'games/shogi.html',
+      category: 'board',
       tag: '1〜2人用'
     },
     {
@@ -153,6 +223,7 @@
       desc: '9路盤の陣取りゲーム。石を取り合い、地の広さを競う。対人戦・CPU戦・オンライン対戦に対応。',
       icon: '⚪',
       href: 'games/go.html',
+      category: 'board',
       tag: '1〜2人用'
     },
     {
@@ -160,6 +231,7 @@
       desc: '15路盤で縦横斜めに5つ並べたら勝ち。対人戦・CPU戦・オンライン対戦を選択できる定番ゲーム。',
       icon: '⭕',
       href: 'games/gomoku.html',
+      category: 'board',
       tag: '1〜2人用'
     },
     {
@@ -167,6 +239,7 @@
       desc: 'そろプレイ、またはCPU・対人（同画面/オンライン）とのおじゃま行対戦を選択可能なブロック落下パズル。',
       icon: '🧊',
       href: 'games/tetris.html',
+      category: 'digital',
       tag: '1〜2人用'
     },
     {
@@ -174,6 +247,7 @@
       desc: 'そろプレイ、またはCPU・対人（同画面/オンライン）との連鎖対戦を選択可能な落ちものパズル。',
       icon: '🟢',
       href: 'games/puyo.html',
+      category: 'digital',
       tag: '1〜2人用'
     },
     {
@@ -181,6 +255,7 @@
       desc: 'アニメで登場した架空のボードゲームを、駒を3段まで積み重ねられるオリジナルルールで再構築。「帥」を討てば勝利。対人戦・CPU戦・オンライン対戦に対応。',
       icon: '🗻',
       href: 'games/gungi.html',
+      category: 'board',
       tag: '1〜2人用'
     },
     {
@@ -188,6 +263,7 @@
       desc: '2人用の心理戦・人狼ゲーム。役職を隠したまま情報カードを引いたり要求したりして相手の正体を探り、「留まる」か「立ち去る」かで決着をつける。対人戦・CPU戦・オンライン対戦に対応。',
       icon: '🎭',
       href: 'games/gishinanki.html',
+      category: 'other',
       tag: '2人用'
     },
     {
@@ -195,6 +271,7 @@
       desc: 'サイコロを振って4つのコマをゴールへ運ぶすごろく系ボードゲーム。相手のコマを取って振り出しに戻せる。各色を人・CPUから選べるローカル対戦と、最大4人のオンライン対戦に対応。',
       icon: '🎲',
       href: 'games/ludo.html',
+      category: 'board',
       tag: '1〜4人用'
     },
     {
@@ -202,6 +279,7 @@
       desc: '赤と青の2チームに分かれ、スパイマスターの「1語＋数字」のヒントから味方の諜報員の言葉を当てる。暗殺者を引いたら即負け。1台を囲んで遊ぶモードと、各自の端末で参加するオンライン対戦に対応。',
       icon: '🕵️',
       href: 'games/codenames.html',
+      category: 'other',
       tag: '4人以上'
     },
     {
@@ -209,6 +287,7 @@
       desc: '手札を早くなくした人が勝ちのトランプゲーム。階段・革命・8切り・ジョーカーあり、ラウンド間のカード交換も再現。CPU戦とオンライン対戦（足りない人数はCPU）に対応。',
       icon: '👑',
       href: 'games/daifugo.html',
+      category: 'trump',
       tag: '1〜6人用'
     },
     {
@@ -216,6 +295,7 @@
       desc: '台札と数字が1つ違うカードを早い者勝ちで出し合う、リアルタイムのトランプ対戦。CPU戦（3段階の強さ）とオンライン対戦に対応。',
       icon: '⚡',
       href: 'games/speed.html',
+      category: 'trump',
       tag: '1〜2人用'
     },
     {
@@ -223,6 +303,7 @@
       desc: '7から順にカードをつなげて手札をなくそう。パスは3回まで、超えると脱落。CPU戦とオンライン対戦（足りない人数はCPU）に対応。',
       icon: '7️⃣',
       href: 'games/sevens.html',
+      category: 'trump',
       tag: '1〜6人用'
     },
     {
@@ -230,6 +311,7 @@
       desc: '自分のカードだけが見えない！場の合計を予想して数字を宣言し、怪しいと思ったら「コヨーテ！」。×2やMAX→0などの特殊カード入り。CPU戦とオンライン対戦に対応。',
       icon: '🐺',
       href: 'games/coyote.html',
+      category: 'other',
       tag: '1〜8人用'
     },
     {
@@ -237,13 +319,22 @@
       desc: 'マスターへの質問でお題を当てつつ、答えを知っているのに隠れている「インサイダー」を探し出す推理ゲーム。1台を回して遊ぶモードと、チャットで質問するオンライン対戦に対応。',
       icon: '🕶️',
       href: 'games/insider.html',
+      category: 'other',
       tag: '3〜8人用'
     }
   ];
 
-  const grid = document.getElementById('grid');
+  const categories = [
+    { id: 'trump', name: 'トランプ', icon: '🃏', desc: '52枚のトランプで遊ぶカードゲーム' },
+    { id: 'board', name: 'ボード', icon: '♟️', desc: '盤と駒・石を使う対戦ゲーム' },
+    { id: 'digital', name: 'デジタル', icon: '🕹️', desc: 'アクション・落ちものパズル' },
+    { id: 'other', name: 'その他', icon: '🎭', desc: 'パーティー・推理・心理戦' }
+  ];
 
-  for (const g of games) {
+  const tabsEl = document.getElementById('tabs');
+  const sectionsEl = document.getElementById('sections');
+
+  function makeCard(g) {
     const card = document.createElement('a');
     card.className = 'card';
     card.href = g.href;
@@ -253,17 +344,55 @@
       <div class="desc">${g.desc}</div>
       <div class="tag">${g.tag}</div>
     `;
-    grid.appendChild(card);
+    return card;
   }
 
-  const placeholder = document.createElement('div');
-  placeholder.className = 'card placeholder';
-  placeholder.innerHTML = `
-    <div class="icon">➕</div>
-    <div class="title">Coming Soon</div>
-    <div class="desc">次のゲームもここに追加されます</div>
-  `;
-  grid.appendChild(placeholder);
+  // 選んだカテゴリだけを表示（「すべて」はカテゴリごとに見出し付きで並べる）
+  function render(selected) {
+    tabsEl.innerHTML = '';
+    const tabs = [{ id: 'all', name: 'すべて', icon: '✨' }, ...categories];
+    for (const c of tabs) {
+      const n = c.id === 'all' ? games.length : games.filter(g => g.category === c.id).length;
+      const b = document.createElement('button');
+      b.className = 'tab' + (c.id === selected ? ' active' : '');
+      b.innerHTML = `<span>${c.icon}</span><span>${c.name}</span><span class="count">${n}</span>`;
+      b.addEventListener('click', () => {
+        try { localStorage.setItem('hub-category', c.id); } catch (e) {}
+        render(c.id);
+      });
+      tabsEl.appendChild(b);
+    }
+
+    sectionsEl.innerHTML = '';
+    for (const c of categories) {
+      if (selected !== 'all' && selected !== c.id) continue;
+      const list = games.filter(g => g.category === c.id);
+      if (!list.length) continue;
+      const section = document.createElement('section');
+      section.className = 'section';
+      section.innerHTML = `<div class="section-head"><h2>${c.icon} ${c.name}</h2><p>${c.desc}</p></div>`;
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      list.forEach(g => grid.appendChild(makeCard(g)));
+      section.appendChild(grid);
+      sectionsEl.appendChild(section);
+    }
+
+    const placeholder = document.createElement('div');
+    placeholder.className = 'card placeholder';
+    placeholder.innerHTML = `
+      <div class="icon">➕</div>
+      <div class="title">Coming Soon</div>
+      <div class="desc">次のゲームもここに追加されます</div>
+    `;
+    const lastGrid = sectionsEl.querySelector('.section:last-child .grid');
+    if (lastGrid) lastGrid.appendChild(placeholder);
+  }
+
+  let initial = 'all';
+  try { initial = localStorage.getItem('hub-category') || 'all'; } catch (e) {}
+  if (initial !== 'all' && !categories.some(c => c.id === initial)) initial = 'all';
+  render(initial);
 </script>
 </body>
 </html>
