@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>七並べ</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 760px;
+    max-width: 94vw;
+  }
+  #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 {
+    margin: 0; font-size: 22px; letter-spacing: 4px; font-weight: 600;
+    color: #9fb4ff; text-shadow: 0 0 12px rgba(120,150,255,0.6);
+  }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #players { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; justify-content: center; }
+  .pchip {
+    flex: 1 1 110px; max-width: 180px; padding: 6px 10px; border-radius: 10px;
+    background: rgba(255,255,255,0.03); border: 1px solid #2a3160;
+    transition: box-shadow 0.2s, border-color 0.2s, opacity 0.2s; line-height: 1.35; min-width: 0;
+  }
+  .pchip.active { border-color: #ffe066; box-shadow: 0 0 14px rgba(255,224,102,0.55); }
+  .pchip.me { background: rgba(110,168,255,0.08); }
+  .pchip.done { opacity: 0.55; }
+  .pchip .nm { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pchip .sub { font-size: 11px; color: #9aa3d6; display: flex; justify-content: space-between; gap: 6px; }
+  .pchip .cnt { color: #ffe066; font-weight: 700; }
+  .pchip .st { color: #ff9f9f; }
+  .pchip .pass { color: #8fe3b0; }
+
+  #table {
+    width: 100%;
+    border-radius: 16px;
+    background: radial-gradient(ellipse at center, #17603f 0%, #0b3a27 75%);
+    border: 3px solid #08291b;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 0 24px rgba(80,100,220,0.2);
+    padding: 10px;
+    display: grid;
+    grid-template-columns: repeat(13, 1fr);
+    gap: 4px;
+  }
+  .slot {
+    aspect-ratio: 5 / 7;
+    border-radius: 5px;
+    border: 1px dashed rgba(255,255,255,0.18);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: clamp(9px, 2.2vw, 15px);
+    line-height: 1.05;
+    color: rgba(255,255,255,0.25);
+  }
+  .slot.on { background: #fdfcf8; color: #1d1d28; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+  .slot.on.red { color: #d0283a; }
+  .slot.on.burst { background: #d9d5c8; }
+  .slot.on.fresh { animation: pop 0.35s ease-out; }
+  .slot.next { border: 2px solid rgba(255,224,102,0.7); }
+  @keyframes pop { 0% { transform: scale(0.4); } 100% { transform: scale(1); } }
+
+  .pc {
+    position: relative; width: 52px; height: 74px; border-radius: 7px; background: #fdfcf8; color: #1d1d28;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5); flex-shrink: 0; user-select: none; font-weight: 700;
+    transition: transform 0.12s, box-shadow 0.12s, opacity 0.12s;
+  }
+  .pc.red { color: #d0283a; }
+  .pc .rk { position: absolute; top: 3px; left: 5px; font-size: 16px; line-height: 1; }
+  .pc .st1 { position: absolute; top: 20px; left: 5px; font-size: 12px; line-height: 1; }
+  .pc .big { position: absolute; bottom: 5px; right: 6px; font-size: 26px; line-height: 1; }
+  #hand { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; width: 100%; min-height: 80px; padding-top: 10px; }
+  #hand .pc.playable { cursor: pointer; box-shadow: 0 0 0 3px #ffe066, 0 4px 12px rgba(255,224,102,0.5); }
+  #hand .pc.playable:hover { transform: translateY(-8px); }
+  #hand.dim .pc:not(.playable) { opacity: 0.55; }
+
+  #actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; min-height: 42px; }
+  #msg { font-size: 13px; color: #b9c2f0; text-align: center; min-height: 18px; }
+
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4);
+    color: #fff; border: none; padding: 10px 24px; font-size: 14px; border-radius: 999px;
+    cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5); transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  #overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 14px; background: rgba(5,7,15,0.93); text-align: center; padding: 64px 16px 20px; z-index: 50; overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; max-width: 520px; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 480px; margin: 0; padding-left: 20px; }
+  .seg { display: flex; border: 1px solid #3a4278; border-radius: 999px; overflow: hidden; }
+  .seg button { background: transparent; border: none; color: #9aa3d6; font-size: 13px; padding: 6px 14px; cursor: pointer; }
+  .seg button.on { background: #4a5cf0; color: #fff; }
+  .seg button:disabled { opacity: 0.35; cursor: default; }
+  .result-table { border-collapse: collapse; font-size: 14px; color: #dfe4ff; }
+  .result-table td { padding: 4px 12px; border-bottom: 1px solid #2a3160; text-align: left; }
+  .result-table td.t { color: #8fe3b0; font-weight: 700; }
+  #room-code {
+    font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4);
+    padding: 4px 22px; border-radius: 12px; text-shadow: 0 0 14px rgba(255,224,102,0.5);
+  }
+  #overlay input {
+    font-size: 16px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center;
+  }
+  #overlay input:focus { outline: none; border-color: #6ea8ff; }
+  #code-input { width: 150px; font-size: 22px !important; letter-spacing: 6px; text-transform: uppercase; }
+  #name-input { width: 200px; }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .member-list { font-size: 14px; color: #dfe4ff; line-height: 1.8; }
+  @media (max-width: 520px) {
+    .pc { width: 40px; height: 58px; border-radius: 6px; }
+    .pc .rk { font-size: 13px; }
+    .pc .st1 { top: 16px; font-size: 10px; }
+    .pc .big { font-size: 19px; bottom: 3px; right: 4px; }
+    #hand { gap: 3px; }
+    #table { padding: 6px; gap: 2px; border-radius: 10px; }
+    .slot { border-radius: 3px; }
+    .pchip { flex-basis: 90px; padding: 5px 8px; }
+  }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>七並べ</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+    <div id="players"></div>
+    <div id="table"></div>
+    <div id="msg"></div>
+    <div id="hand"></div>
+    <div id="actions"></div>
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">七並べ</h2>
+    <p id="overlay-text"></p>
+    <div id="overlay-extra"></div>
+    <div id="overlay-buttons"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  // ---------- cards ----------
+  // カードIDは「スート+ランク」（例: S7, H13）。A=1, J=11, Q=12, K=13
+  const SUITS = ['S', 'H', 'D', 'C'];
+  const SUIT_MARK = { S: '♠', H: '♥', D: '♦', C: '♣' };
+  const RANK_LABEL = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' };
+  const PASS_LIMIT = 3;
+  const rankOf = id => +id.slice(1);
+  const suitOf = id => id[0];
+  const label = r => RANK_LABEL[r] || String(r);
+  const isRed = s => s === 'H' || s === 'D';
+
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  const sortHand = h => h.sort((a, b) => SUITS.indexOf(suitOf(a)) - SUITS.indexOf(suitOf(b)) || rankOf(a) - rankOf(b));
+
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const playersEl = $('players'), tableEl = $('table'), handEl = $('hand'), actionsEl = $('actions'), msgEl = $('msg');
+  const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
+  const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const cardText = id => SUIT_MARK[suitOf(id)] + label(rankOf(id));
+  function cardEl(id) {
+    const el = document.createElement('div');
+    const s = suitOf(id);
+    el.className = 'pc' + (isRed(s) ? ' red' : '');
+    el.innerHTML = `<span class="rk">${label(rankOf(id))}</span><span class="st1">${SUIT_MARK[s]}</span><span class="big">${SUIT_MARK[s]}</span>`;
+    return el;
+  }
+  function loadName() { try { return localStorage.getItem('cardgame-name') || ''; } catch (e) { return ''; } }
+  function saveName(n) { try { localStorage.setItem('cardgame-name', n); } catch (e) {} }
+
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  // ---------- state ----------
+  let mode = null;            // 'cpu' | 'online'
+  let isHost = false;
+  let myId = 'me';
+  let seats = [];             // { id, name, cpu }
+  let G = null, V = null;
+  let cpuCount = 3;
+  let onlineTotal = 4;
+  let version = 0;
+  let lastPlaced = null;
+  let peer = null, conn = null, roomCode = null;
+  const guests = new Map();
+
+  const isAuthority = () => mode === 'cpu' || isHost;
+  const mySeat = () => seats.findIndex(s => s.id === myId);
+
+  // ---------- engine (ローカル/ホストのみ) ----------
+  function startGame() {
+    const n = seats.length;
+    const deck = [];
+    for (const s of SUITS) for (let r = 1; r <= 13; r++) deck.push(s + r);
+    shuffle(deck);
+    const hands = Array.from({ length: n }, () => []);
+    deck.forEach((c, i) => hands[i % n].push(c));
+    const first = hands.findIndex(h => h.includes('D7'));
+    // 7は最初から場に並べる
+    const board = {};
+    for (const s of SUITS) board[s] = { lo: 7, hi: 7 };
+    const placed = SUITS.map(s => s + 7);
+    hands.forEach((h, i) => { hands[i] = sortHand(h.filter(c => rankOf(c) !== 7)); });
+    G = {
+      n, hands, board, placed, burst: [],
+      passes: Array(n).fill(PASS_LIMIT),
+      finished: [],          // 上がった順
+      out: [],               // パス超過で脱落した順
+      turn: first,
+      phase: 'play',
+      last: null,
+      log: `${seats[first].name}が♦7を持っていたので最初の番です`
+    };
+    // 7しか持っていなかった人はその時点で上がり
+    for (let i = 0; i < n; i++) if (!G.hands[i].length) G.finished.push(i);
+    if (!isActive(G.turn)) G.turn = nextActive(G.turn);
+    afterChange();
+  }
+
+  const isActive = i => G.hands[i].length > 0 && !G.out.includes(i);
+  function nextActive(from) {
+    for (let k = 1; k <= G.n; k++) { const i = (from + k) % G.n; if (isActive(i)) return i; }
+    return -1;
+  }
+  function playable(board, hand) {
+    return hand.filter(c => { const b = board[suitOf(c)], r = rankOf(c); return r === b.lo - 1 || r === b.hi + 1; });
+  }
+  function place(c) {
+    G.placed.push(c);
+    recomputeEnds();
+  }
+
+  function checkEnd() {
+    const left = [...Array(G.n).keys()].filter(isActive);
+    if (left.length <= 1) {
+      if (left.length === 1) G.finished.push(left[0]);
+      G.phase = 'over';
+      return true;
+    }
+    return false;
+  }
+
+  function doPlay(p, c) {
+    if (G.phase !== 'play' || G.turn !== p || !G.hands[p].includes(c)) return false;
+    if (!playable(G.board, [c]).length) return false;
+    G.hands[p] = G.hands[p].filter(x => x !== c);
+    place(c);
+    G.last = c;
+    G.log = `${seats[p].name}：${cardText(c)}`;
+    if (!G.hands[p].length) {
+      G.finished.push(p);
+      G.log += `　${seats[p].name}が上がり！`;
+    }
+    if (!checkEnd()) G.turn = nextActive(p);
+    return true;
+  }
+
+  function doPass(p) {
+    if (G.phase !== 'play' || G.turn !== p) return false;
+    G.last = null;
+    if (G.passes[p] <= 0) {
+      // パスの回数を使い切っていたら脱落。手札はすべて場に置く
+      G.out.push(p);
+      G.burst.push(...G.hands[p]);
+      for (const c of G.hands[p]) place(c);
+      G.hands[p] = [];
+      G.log = `${seats[p].name}はパスの上限を超えたので脱落`;
+    } else {
+      G.passes[p]--;
+      G.log = `${seats[p].name}：パス（残り${G.passes[p]}回）`;
+    }
+    if (!checkEnd()) G.turn = nextActive(p);
+    return true;
+  }
+
+  // 脱落者のカードは7から離れた位置にも置かれるので、場の端は7から連続して埋まっている範囲で判断する
+  function recomputeEnds() {
+    for (const s of SUITS) {
+      let lo = 7, hi = 7;
+      while (lo > 1 && G.placed.includes(s + (lo - 1))) lo--;
+      while (hi < 13 && G.placed.includes(s + (hi + 1))) hi++;
+      G.board[s] = { lo, hi };
+    }
+  }
+
+  function ranking() {
+    return [...G.finished, ...G.out.slice().reverse()];
+  }
+
+  // ---------- CPU ----------
+  function cpuDecide(i) {
+    const hand = G.hands[i];
+    const opts = playable(G.board, hand);
+    if (!opts.length) return null;
+    const score = c => {
+      const s = suitOf(c), r = rankOf(c);
+      const dir = r < 7 ? -1 : 1;
+      let mine = 0, others = 0;
+      for (let x = r + dir; x >= 1 && x <= 13; x += dir) {
+        if (hand.includes(s + x)) mine++; else if (!G.placed.includes(s + x)) others++;
+      }
+      return mine * 2 - others * 0.4 + Math.random() * 0.6;
+    };
+    opts.sort((a, b) => score(b) - score(a));
+    // 自分に得がないカードしかなければ、パスが残っているうちは出し渋ることがある
+    if (G.passes[i] >= PASS_LIMIT && score(opts[0]) < -1.5 && Math.random() < 0.3) return null;
+    return opts[0];
+  }
+  function cpuStep(v) {
+    if (v !== version || !G || G.phase !== 'play') return;
+    const i = G.turn;
+    if (!seats[i] || !seats[i].cpu) return;
+    const c = cpuDecide(i);
+    if (c ? doPlay(i, c) : doPass(i)) afterChange();
+  }
+
+  // ---------- sync / actions ----------
+  function viewFor(seatIdx) {
+    if (!G) return null;
+    return { ...G, hands: G.hands.map((h, i) => i === seatIdx ? h : h.length), me: seatIdx };
+  }
+  function afterChange() {
+    version++;
+    if (isHost) {
+      for (const [id, c] of guests) {
+        try { c.send({ type: 'sync', seats, view: viewFor(seats.findIndex(s => s.id === id)) }); } catch (e) {}
+      }
+    }
+    V = viewFor(mySeat());
+    render();
+    if (!isAuthority() || !G || G.phase !== 'play') return;
+    if (seats[G.turn] && seats[G.turn].cpu) { const v = version; setTimeout(() => cpuStep(v), 700); }
+  }
+  function act(action) {
+    if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action }); return; }
+    if (applyAction(mySeat(), action)) afterChange();
+  }
+  function applyAction(seat, a) {
+    if (!G || seat < 0) return false;
+    if (a.type === 'play') return doPlay(seat, a.card);
+    if (a.type === 'pass') return doPass(seat);
+    return false;
+  }
+
+  // ---------- rendering ----------
+  function render() {
+    if (!V) return;
+    const me = V.me;
+    playersEl.innerHTML = '';
+    for (let i = 0; i < V.n; i++) {
+      const cnt = Array.isArray(V.hands[i]) ? V.hands[i].length : V.hands[i];
+      const fin = V.finished.indexOf(i), out = V.out.includes(i);
+      const chip = document.createElement('div');
+      chip.className = 'pchip' + (i === me ? ' me' : '') + (V.phase === 'play' && V.turn === i ? ' active' : '') + (fin >= 0 || out ? ' done' : '');
+      const st = fin >= 0 ? `${fin + 1}位` : out ? '脱落' : '';
+      chip.innerHTML = `<div class="nm">${esc(seats[i].name)}${i === me && mode === 'online' ? '（あなた）' : ''}</div>
+        <div class="sub"><span class="pass">パス${V.passes[i]}</span><span class="st">${st}</span><span class="cnt">${cnt}枚</span></div>`;
+      playersEl.appendChild(chip);
+    }
+
+    // board
+    const hand = Array.isArray(V.hands[me]) ? V.hands[me] : [];
+    const myTurn = V.phase === 'play' && V.turn === me;
+    const canPlay = myTurn ? playable(V.board, hand) : [];
+    const fresh = V.last && V.last !== lastPlaced ? V.last : null;
+    lastPlaced = V.last;
+    tableEl.innerHTML = '';
+    for (const s of SUITS) {
+      for (let r = 1; r <= 13; r++) {
+        const id = s + r;
+        const d = document.createElement('div');
+        const on = V.placed.includes(id);
+        d.className = 'slot' + (on ? ' on' + (isRed(s) ? ' red' : '') + (V.burst.includes(id) ? ' burst' : '') + (id === fresh ? ' fresh' : '') : '');
+        if (!on && canPlay.includes(id)) d.classList.add('next');
+        d.innerHTML = on ? `<span>${label(r)}</span><span>${SUIT_MARK[s]}</span>` : `<span>${label(r)}</span>`;
+        tableEl.appendChild(d);
+      }
+    }
+
+    // hand
+    handEl.innerHTML = '';
+    handEl.classList.toggle('dim', myTurn);
+    for (const c of hand) {
+      const el = cardEl(c);
+      if (canPlay.includes(c)) {
+        el.classList.add('playable');
+        el.addEventListener('click', () => act({ type: 'play', card: c }));
+      }
+      handEl.appendChild(el);
+    }
+
+    actionsEl.innerHTML = '';
+    if (myTurn) {
+      const b = document.createElement('button');
+      b.className = 'choice secondary';
+      b.textContent = V.passes[me] > 0 ? `パス（残り${V.passes[me]}回）` : 'パス（脱落になります）';
+      b.addEventListener('click', () => {
+        if (V.passes[me] <= 0 && !confirm('パスの残りがありません。パスすると脱落します。よろしいですか？')) return;
+        act({ type: 'pass' });
+      });
+      actionsEl.appendChild(b);
+      msgEl.textContent = canPlay.length ? '光っているカードを出せます。出さずにパスもできます' : '出せるカードがありません。パスしてください';
+    } else if (V.phase === 'play') {
+      msgEl.textContent = (V.log ? V.log + '　／　' : '') + `${seats[V.turn].name}の番です`;
+    } else {
+      msgEl.textContent = V.log || '';
+    }
+    if (V.phase === 'over') showResult(); else if (overlay.dataset.kind === 'result') { overlay.dataset.kind = ''; hideOverlay(); }
+  }
+
+  function showResult() {
+    const order = [...V.finished, ...V.out.slice().reverse()];
+    const rows = order.map((seat, k) =>
+      `<tr><td>${k + 1}位</td><td>${esc(seats[seat].name)}</td><td class="t">${V.out.includes(seat) ? '脱落' : ''}</td></tr>`).join('');
+    const canAgain = mode === 'cpu' || isHost;
+    const win = order[0] === V.me;
+    overlay.dataset.kind = 'result';
+    showOverlay(win ? 'あなたの勝ち！' : `${seats[order[0]].name}の勝ち`, canAgain ? '' : 'ホストが再戦を選ぶと始まります',
+      canAgain ? [
+        { label: 'もう一度', primary: true, onClick: () => { overlay.dataset.kind = ''; hideOverlay(); startGame(); } },
+        { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+      ] : [{ label: 'モード選択に戻る', primary: false, onClick: showModeSelect }],
+      `<table class="result-table">${rows}</table>`);
+  }
+
+  // ---------- menus ----------
+  function resetAll() {
+    cleanupPeer();
+    mode = null; isHost = false; myId = 'me'; seats = []; G = null; V = null; version++;
+    overlay.dataset.kind = '';
+    playersEl.innerHTML = ''; handEl.innerHTML = ''; actionsEl.innerHTML = ''; msgEl.textContent = '';
+    tableEl.innerHTML = '';
+    for (const s of SUITS) for (let r = 1; r <= 13; r++) {
+      const d = document.createElement('div');
+      d.className = 'slot' + (r === 7 ? ' on' + (isRed(s) ? ' red' : '') : '');
+      d.innerHTML = r === 7 ? `<span>7</span><span>${SUIT_MARK[s]}</span>` : `<span>${label(r)}</span>`;
+      tableEl.appendChild(d);
+    }
+  }
+
+  function showModeSelect() {
+    resetAll();
+    showOverlay('七並べ', '7から順にカードをつなげて、手札を先になくした人が勝ち', [
+      { label: 'CPU戦', primary: true, onClick: showCpuSetup },
+      { label: 'オンライン対戦', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>カードを全員に配り、各スートの7を最初に場に並べます。♦7を持っていた人から始めます。</li>
+        <li>自分の番では、場に並んだカードの隣（数字が1つ上か下で同じスート）のカードを1枚出します。</li>
+        <li>出せないとき・出したくないときはパスできます。パスは1人3回まで。4回目のパスをすると脱落し、手札はすべて場に置かれます。</li>
+        <li>手札を最初になくした人が1位。脱落した人は後に脱落した人ほど上の順位になります。</li>
+      </ul>`);
+  }
+  function showCpuSetup() {
+    const seg = [2, 3, 4, 5].map(n => `<button data-n="${n}" class="${n === cpuCount ? 'on' : ''}">${n}人</button>`).join('');
+    showOverlay('CPU戦', 'CPUの人数を選んでください', [
+      { label: 'ゲーム開始', primary: true, onClick: startCpuGame },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<div class="seg">${seg}</div>`);
+    overlayExtra.querySelectorAll('[data-n]').forEach(b => b.addEventListener('click', () => { cpuCount = +b.dataset.n; showCpuSetup(); }));
+  }
+  function startCpuGame() {
+    mode = 'cpu'; isHost = false; myId = 'me';
+    seats = [{ id: 'me', name: 'あなた', cpu: false }];
+    for (let i = 1; i <= cpuCount; i++) seats.push({ id: 'cpu' + i, name: 'CPU' + i, cpu: true });
+    hideOverlay();
+    startGame();
+  }
+
+  // ---------- online (PeerJS, ホストがゲームを進行) ----------
+  function cleanupPeer() {
+    for (const c of guests.values()) { try { c.close(); } catch (e) {} }
+    guests.clear();
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン対戦', '各自の端末で参加します（2〜6人、足りない分はCPU）。まず名前を入力してください', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" />
+        <div class="row"><input id="code-input" maxlength="4" placeholder="コード" autocomplete="off" />
+        <button id="join-btn" class="choice">部屋に入る</button></div>`);
+    $('join-btn').addEventListener('click', () => withName(joinRoom));
+    $('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
+  }
+  function withName(fn) {
+    const name = ($('name-input').value || '').trim();
+    if (!name) { $('name-input').focus(); $('name-input').placeholder = '名前を入力してください'; return; }
+    saveName(name);
+    fn(name, ($('code-input').value || '').trim().toUpperCase());
+  }
+  function hostRoom(name) {
+    cleanupPeer();
+    mode = 'online'; isHost = true; myId = 'host';
+    seats = [{ id: 'host', name, cpu: false }];
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('sevens-room-' + roomCode);
+    peer.on('open', renderLobby);
+    peer.on('connection', c => {
+      c.on('data', d => onHostData(c, d));
+      c.on('close', () => onGuestLeft(c.peer));
+      c.on('error', () => onGuestLeft(c.peer));
+    });
+    peer.on('error', () => { if (!G) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+  const lobbyPlayers = () => seats.filter(s => !s.cpu);
+  function renderLobby() {
+    if (G) return;
+    const humans = lobbyPlayers();
+    if (onlineTotal < humans.length) onlineTotal = humans.length;
+    for (const c of guests.values()) { try { c.send({ type: 'lobby', names: humans.map(s => s.name), total: onlineTotal }); } catch (e) {} }
+    const seg = [2, 3, 4, 5, 6].map(n => `<button data-n="${n}" class="${n === onlineTotal ? 'on' : ''}" ${n < Math.max(2, humans.length) ? 'disabled' : ''}>${n}人</button>`).join('');
+    showOverlay('部屋を作りました', 'コードを伝えて参加してもらいましょう。人数が足りない分はCPUが入ります', [
+      { label: 'ゲーム開始', primary: true, onClick: hostStart },
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ], `<div id="room-code">${roomCode}</div>
+        <div class="member-list">${humans.map(s => esc(s.name)).join('<br>')}</div>
+        <div class="row" style="font-size:13px;color:#9aa3d6">合計人数 <div class="seg">${seg}</div></div>`);
+    overlayExtra.querySelectorAll('[data-n]').forEach(b => b.addEventListener('click', () => { onlineTotal = +b.dataset.n; renderLobby(); }));
+  }
+  function hostStart() {
+    let k = 1;
+    seats = lobbyPlayers();
+    while (seats.length < onlineTotal) seats.push({ id: 'cpu' + k, name: 'CPU' + k++, cpu: true });
+    hideOverlay();
+    startGame();
+  }
+  function onHostData(c, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'hello') {
+      if (G || lobbyPlayers().length >= 6) { c.send({ type: 'full' }); return; }
+      guests.set(c.peer, c);
+      seats.push({ id: c.peer, name: String(data.name || '').trim().slice(0, 8) || 'ゲスト', cpu: false });
+      renderLobby();
+    } else if (data.type === 'act' && G) {
+      const seat = seats.findIndex(s => s.id === c.peer);
+      if (seat >= 0 && !seats[seat].cpu && applyAction(seat, data.action || {})) afterChange();
+    }
+  }
+  function onGuestLeft(id) {
+    if (!guests.has(id)) return;
+    guests.delete(id);
+    const i = seats.findIndex(s => s.id === id);
+    if (i < 0) return;
+    if (!G) { seats.splice(i, 1); renderLobby(); return; }
+    seats[i] = { id: 'cpu-' + id, name: seats[i].name + '(CPU)', cpu: true };
+    G.log = `${seats[i].name}：切断したためCPUが代わります`;
+    afterChange();
+  }
+  function joinRoom(name, code) {
+    if (!code) { $('code-input').focus(); return; }
+    cleanupPeer();
+    mode = 'online'; isHost = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', id => {
+      myId = id;
+      conn = peer.connect('sevens-room-' + code, { reliable: true });
+      conn.on('open', () => conn.send({ type: 'hello', name }));
+      conn.on('data', onGuestData);
+      conn.on('close', onHostLost);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+    });
+    peer.on('error', () => { if (!V) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+  function onGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'lobby') {
+      showOverlay('参加しました', `ホストの開始を待っています（合計${data.total}人で遊びます）`, [
+        { label: '退出する', primary: false, onClick: showModeSelect }
+      ], `<div class="member-list">${data.names.map(esc).join('<br>')}</div>`);
+    } else if (data.type === 'sync') {
+      seats = data.seats;
+      const first = !V || (V.phase === 'over' && data.view.phase === 'play');
+      V = data.view;
+      if (first) { overlay.dataset.kind = ''; hideOverlay(); }
+      render();
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋は満員か、すでにゲームが始まっています。');
+      cleanupPeer();
+    }
+  }
+  function onHostLost() {
+    if (mode !== 'online' || isHost) return;
+    showOverlay('ホストとの接続が切れました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  $('back-btn').addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+  showModeSelect();
+})();
+</script>
+</body>
+</html>

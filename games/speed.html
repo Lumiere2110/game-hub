@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>スピード</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+    touch-action: manipulation;
+  }
+  #wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 560px;
+    max-width: 94vw;
+  }
+  #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 {
+    margin: 0; font-size: 22px; letter-spacing: 4px; font-weight: 600;
+    color: #9fb4ff; text-shadow: 0 0 12px rgba(120,150,255,0.6);
+  }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #table {
+    position: relative;
+    width: 100%;
+    border-radius: 18px;
+    background: radial-gradient(ellipse at center, #17603f 0%, #0b3a27 75%);
+    border: 3px solid #08291b;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 0 24px rgba(80,100,220,0.2);
+    padding: 14px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+  }
+  .side { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+  .side-label { font-size: 13px; color: #d7f5e4; display: flex; gap: 12px; align-items: center; }
+  .side-label b { color: #ffe066; }
+  .row { display: flex; gap: 8px; justify-content: center; align-items: center; }
+  #center { display: flex; gap: 22px; justify-content: center; align-items: center; position: relative; min-height: 120px; }
+  .pile-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .pile-count { font-size: 11px; color: rgba(255,255,255,0.6); }
+
+  .pc {
+    position: relative;
+    width: 72px;
+    height: 102px;
+    border-radius: 9px;
+    background: #fdfcf8;
+    color: #1d1d28;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+    user-select: none;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: transform 0.1s, box-shadow 0.1s, opacity 0.2s;
+  }
+  .pc.red { color: #d0283a; }
+  .pc .rk { position: absolute; top: 4px; left: 7px; font-size: 22px; line-height: 1; }
+  .pc .st1 { position: absolute; top: 28px; left: 7px; font-size: 15px; line-height: 1; }
+  .pc .big { position: absolute; bottom: 6px; right: 8px; font-size: 36px; line-height: 1; }
+  .pc.empty { background: transparent; box-shadow: none; border: 2px dashed rgba(255,255,255,0.18); }
+  .pc.back { background: repeating-linear-gradient(45deg, #3444c4 0 6px, #4a5cf0 6px 12px); border: 3px solid #fdfcf8; }
+  .pc.mine { cursor: pointer; }
+  .pc.mine:not(.empty):hover { transform: translateY(-5px); }
+  .pc.can { box-shadow: 0 0 0 3px rgba(255,224,102,0.85), 0 3px 10px rgba(255,224,102,0.4); }
+  .pc.sel { transform: translateY(-10px); box-shadow: 0 0 0 4px #ffe066, 0 6px 16px rgba(255,224,102,0.6); }
+  .pc.target { cursor: pointer; box-shadow: 0 0 0 4px #6ee7ff, 0 0 18px rgba(110,231,255,0.8); }
+  .pc.bump { animation: bump 0.25s ease-out; }
+  .pc.shake { animation: shake 0.3s; }
+  @keyframes bump { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+  .deck { display: flex; align-items: center; gap: 6px; }
+  .deck .pc { width: 34px; height: 48px; border-width: 2px; }
+
+  #call {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    font-size: 40px;
+    font-weight: 900;
+    color: #ffe066;
+    text-shadow: 0 0 20px rgba(255,224,102,0.8), 0 3px 0 #000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    white-space: nowrap;
+    z-index: 5;
+  }
+  #call.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #msg { font-size: 13px; color: #b9c2f0; text-align: center; min-height: 18px; }
+
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4);
+    color: #fff; border: none; padding: 10px 24px; font-size: 14px; border-radius: 999px;
+    cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5); transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  #overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 14px; background: rgba(5,7,15,0.93); text-align: center; padding: 64px 16px 20px; z-index: 50; overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; max-width: 520px; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 480px; margin: 0; padding-left: 20px; }
+  #room-code {
+    font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4);
+    padding: 4px 22px; border-radius: 12px; text-shadow: 0 0 14px rgba(255,224,102,0.5);
+  }
+  #overlay input {
+    font-size: 22px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278; width: 150px;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center; letter-spacing: 6px; text-transform: uppercase;
+  }
+  #overlay input:focus { outline: none; border-color: #6ea8ff; }
+  #conn-status { font-size: 13px; color: #9aa3d6; }
+  @media (max-width: 480px) {
+    .pc { width: 60px; height: 86px; border-radius: 8px; }
+    .pc .rk { font-size: 18px; }
+    .pc .st1 { top: 24px; font-size: 13px; }
+    .pc .big { font-size: 28px; }
+    .row { gap: 6px; }
+    #call { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>スピード</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+    <div id="table">
+      <div class="side">
+        <div class="side-label"><span id="opp-name">相手</span><span class="deck"><span class="pc back"></span>山札 <b id="opp-deck">0</b></span></div>
+        <div class="row" id="opp-field"></div>
+      </div>
+      <div id="center">
+        <div class="pile-wrap"><div id="pile-0"></div><span class="pile-count" id="pile-count-0"></span></div>
+        <div class="pile-wrap"><div id="pile-1"></div><span class="pile-count" id="pile-count-1"></span></div>
+        <div id="call"></div>
+      </div>
+      <div class="side">
+        <div class="row" id="my-field"></div>
+        <div class="side-label"><span id="my-name">あなた</span><span class="deck"><span class="pc back"></span>山札 <b id="my-deck">0</b></span></div>
+      </div>
+    </div>
+    <div id="msg"></div>
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">スピード</h2>
+    <p id="overlay-text"></p>
+    <div id="overlay-extra"></div>
+    <div id="overlay-buttons"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  const SUIT_MARK = { S: '♠', H: '♥', D: '♦', C: '♣' };
+  const RANK_LABEL = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' };
+  const rankOf = id => +id.slice(1);
+  const suitOf = id => id[0];
+  const label = r => RANK_LABEL[r] || String(r);
+  // 数字が1つ違えば出せる（KとAもつながる）
+  const fits = (card, top) => { const d = Math.abs(rankOf(card) - rankOf(top)); return d === 1 || d === 12; };
+  const CPU_SPEED = { easy: 1900, normal: 1150, hard: 700 };
+  const CPU_LABEL = { easy: 'やさしい', normal: 'ふつう', hard: 'つよい' };
+
+  const $ = id => document.getElementById(id);
+  const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
+  const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
+  const callEl = $('call'), msgEl = $('msg');
+
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+  let callTimer = null;
+  function call(text, ms = 900) {
+    callEl.textContent = text;
+    callEl.classList.add('show');
+    clearTimeout(callTimer);
+    if (ms) callTimer = setTimeout(() => callEl.classList.remove('show'), ms);
+  }
+
+  // ---------- state ----------
+  let mode = null;          // 'cpu' | 'online'
+  let isHost = false;
+  let me = 0;               // 自分のプレイヤー番号（ホスト/CPU戦は0、ゲストは1）
+  let level = 'normal';
+  let G = null;
+  let selected = -1;
+  let token = 0;            // ゲームごとのタイマー無効化用
+  let cpuTimer = null, stuckTimer = null;
+  let lastPiles = [null, null];
+  let peer = null, conn = null, roomCode = null;
+
+  const isAuthority = () => mode === 'cpu' || isHost;
+  function later(fn, ms) { const t = token; return setTimeout(() => { if (t === token) fn(); }, ms); }
+
+  // ---------- engine (CPU戦/ホストのみ) ----------
+  function newGame() {
+    const decks = [[], []];
+    for (let r = 1; r <= 13; r++) { decks[0].push('H' + r, 'D' + r); decks[1].push('S' + r, 'C' + r); }
+    decks.forEach(shuffle);
+    G = {
+      players: decks.map(d => ({ deck: d, field: d.splice(0, 4) })),
+      piles: [[], []],
+      phase: 'ready',       // 'ready' | 'play' | 'over'
+      winner: null,
+      flips: 0
+    };
+  }
+
+  function canMove(p) {
+    if (!G.piles[0].length) return false;
+    return G.players[p].field.some(c => c && G.piles.some(pile => fits(c, pile[pile.length - 1])));
+  }
+
+  function flipCenter() {
+    // 両者がそれぞれ自分の山札（なければ場札）から1枚ずつ台札に出す
+    G.flips++;
+    for (let p = 0; p < 2; p++) {
+      const pl = G.players[p];
+      let card = pl.deck.pop();
+      if (!card) {
+        const i = pl.field.findIndex(c => c);
+        if (i >= 0) { card = pl.field[i]; pl.field[i] = null; }
+      }
+      if (card) G.piles[p].push(card);
+    }
+    checkWin();
+  }
+
+  function checkWin() {
+    const empty = G.players.map(pl => !pl.deck.length && pl.field.every(c => !c));
+    if (!empty[0] && !empty[1]) return false;
+    // 台札を出し合ったときに同時に出し切った場合は引き分け
+    G.phase = 'over';
+    G.winner = empty[0] && empty[1] ? -1 : (empty[0] ? 0 : 1);
+    return true;
+  }
+
+  function doPlay(p, slot, pile) {
+    if (!G || G.phase !== 'play') return false;
+    const pl = G.players[p];
+    const card = pl.field[slot];
+    const pc = G.piles[pile];
+    if (!card || !pc || !pc.length || !fits(card, pc[pc.length - 1])) return false;
+    pc.push(card);
+    pl.field[slot] = pl.deck.pop() || null;
+    checkWin();
+    return true;
+  }
+
+  function startRound() {
+    token++;
+    clearTimeout(cpuTimer);
+    stuckTimer = null;
+    newGame();
+    selected = -1;
+    lastPiles = [null, null];
+    sync();
+    // 3, 2, 1, スピード！
+    let n = 3;
+    const tick = () => {
+      if (n > 0) { call(String(n), 0); broadcastCall(String(n)); n--; later(tick, 650); return; }
+      flipCenter();
+      G.phase = 'play';
+      call('スピード！'); broadcastCall('スピード！');
+      sync();
+    };
+    tick();
+  }
+
+  // 状態が変わるたびに呼ぶ: 同期・描画・CPUと手詰まりの監視
+  function sync() {
+    if (isHost && conn) { try { conn.send({ type: 'state', G }); } catch (e) {} }
+    render();
+    if (!isAuthority() || !G) return;
+    if (G.phase === 'over') { clearTimeout(cpuTimer); clearTimeout(stuckTimer); stuckTimer = null; return; }
+    if (G.phase !== 'play') return;
+    if (!canMove(0) && !canMove(1)) {
+      if (!stuckTimer) {
+        call('出せるカードがありません', 1100);
+        broadcastCall('出せるカードがありません');
+        stuckTimer = later(() => {
+          stuckTimer = null;
+          if (!G || G.phase !== 'play' || canMove(0) || canMove(1)) return;
+          flipCenter();
+          call('スピード！'); broadcastCall('スピード！');
+          sync();
+        }, 1500);
+      }
+    }
+    if (mode === 'cpu') scheduleCpu();
+  }
+
+  function scheduleCpu() {
+    clearTimeout(cpuTimer);
+    const base = CPU_SPEED[level];
+    cpuTimer = later(() => {
+      if (!G || G.phase !== 'play') return;
+      const pl = G.players[1];
+      const moves = [];
+      pl.field.forEach((c, slot) => {
+        if (!c) return;
+        [0, 1].forEach(pile => { if (fits(c, G.piles[pile][G.piles[pile].length - 1])) moves.push([slot, pile]); });
+      });
+      if (moves.length) {
+        const [slot, pile] = moves[Math.floor(Math.random() * moves.length)];
+        doPlay(1, slot, pile);
+        sync();
+      } else {
+        scheduleCpu();
+      }
+    }, base * (0.7 + Math.random() * 0.6));
+  }
+
+  // ---------- input ----------
+  function act(slot, pile) {
+    if (mode === 'online' && !isHost) {
+      if (conn) conn.send({ type: 'play', slot, pile });
+      return;
+    }
+    if (doPlay(me, slot, pile)) {
+      sync();
+    } else {
+      shake(slot);
+    }
+  }
+  function shake(slot) {
+    const el = $('my-field').children[slot];
+    if (!el) return;
+    el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
+  }
+  function validPiles(slot) {
+    if (!G || G.phase !== 'play') return [];
+    const card = G.players[me].field[slot];
+    if (!card) return [];
+    return [0, 1].filter(p => G.piles[p].length && fits(card, G.piles[p][G.piles[p].length - 1]));
+  }
+  function onMyCard(slot) {
+    if (!G || G.phase !== 'play' || !G.players[me].field[slot]) return;
+    const piles = validPiles(slot);
+    if (!piles.length) { selected = -1; shake(slot); render(); return; }
+    if (piles.length === 1) { selected = -1; act(slot, piles[0]); return; }
+    selected = selected === slot ? -1 : slot;
+    render();
+  }
+  function onPile(pile) {
+    if (selected < 0) return;
+    const slot = selected;
+    selected = -1;
+    act(slot, pile);
+  }
+  window.addEventListener('keydown', e => {
+    if (overlay.classList.contains('show') || !G) return;
+    const k = { '1': 0, '2': 1, '3': 2, '4': 3, 'a': 0, 's': 1, 'd': 2, 'f': 3 }[e.key.toLowerCase()];
+    if (k !== undefined) { onMyCard(k); return; }
+    if (selected >= 0 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) onPile(e.key === 'ArrowLeft' ? 0 : 1);
+  });
+
+  // ---------- rendering ----------
+  function cardEl(id) {
+    const el = document.createElement('div');
+    if (!id) { el.className = 'pc empty'; return el; }
+    const s = suitOf(id);
+    el.className = 'pc' + (s === 'H' || s === 'D' ? ' red' : '');
+    el.innerHTML = `<span class="rk">${label(rankOf(id))}</span><span class="st1">${SUIT_MARK[s]}</span><span class="big">${SUIT_MARK[s]}</span>`;
+    return el;
+  }
+
+  function render() {
+    if (!G) return;
+    const opp = 1 - me;
+    const oppField = $('opp-field'), myField = $('my-field');
+    oppField.innerHTML = '';
+    for (const c of G.players[opp].field) oppField.appendChild(cardEl(c));
+    myField.innerHTML = '';
+    G.players[me].field.forEach((c, slot) => {
+      const el = cardEl(c);
+      el.classList.add('mine');
+      if (c && validPiles(slot).length) el.classList.add('can');
+      if (slot === selected) el.classList.add('sel');
+      el.addEventListener('click', () => onMyCard(slot));
+      myField.appendChild(el);
+    });
+    $('opp-deck').textContent = G.players[opp].deck.length;
+    $('my-deck').textContent = G.players[me].deck.length;
+    const targets = selected >= 0 ? validPiles(selected) : [];
+    for (let p = 0; p < 2; p++) {
+      const holder = $('pile-' + p);
+      const pile = G.piles[p];
+      const top = pile[pile.length - 1] || null;
+      holder.innerHTML = '';
+      const el = top ? cardEl(top) : (() => { const e = document.createElement('div'); e.className = 'pc back'; return e; })();
+      if (targets.includes(p)) el.classList.add('target');
+      if (top && top !== lastPiles[p]) el.classList.add('bump');
+      el.addEventListener('click', () => onPile(p));
+      holder.appendChild(el);
+      lastPiles[p] = top;
+      $('pile-count-' + p).textContent = pile.length ? `${pile.length}枚` : '';
+    }
+    $('opp-name').textContent = mode === 'cpu' ? `CPU（${CPU_LABEL[level]}）` : '相手';
+    $('my-name').textContent = 'あなた';
+    if (G.phase === 'play') {
+      msgEl.textContent = selected >= 0 ? '出す台札をタップしてください（←→キーでも選べます）' : '台札と数字が1つ違うカードをタップ（キーボードは1〜4）';
+    } else if (G.phase === 'ready') {
+      msgEl.textContent = '';
+    }
+    if (G.phase === 'over' && !overlay.classList.contains('show')) later(showResult, 600);
+  }
+
+  function showResult() {
+    if (!G || G.phase !== 'over' || overlay.classList.contains('show')) return;
+    const win = G.winner === me;
+    const opp = G.players[1 - me];
+    const left = opp.deck.length + opp.field.filter(c => c).length;
+    const buttons = [];
+    if (mode === 'cpu' || isHost) buttons.push({ label: 'もう一度', primary: true, onClick: () => { hideOverlay(); startRound(); } });
+    buttons.push({ label: 'モード選択に戻る', primary: false, onClick: showModeSelect });
+    const draw = G.winner === -1;
+    showOverlay(draw ? '引き分け！' : win ? 'あなたの勝ち！' : (mode === 'cpu' ? 'CPUの勝ち' : '相手の勝ち'),
+      (draw ? '2人同時に出し切りました' : win ? `相手の残りは${left}枚でした` : `あなたの残りは${G.players[me].deck.length + G.players[me].field.filter(c => c).length}枚でした`) +
+      (mode === 'online' && !isHost ? '。ホストが「もう一度」を押すと再戦が始まります' : ''), buttons);
+  }
+
+  // ---------- menus ----------
+  function resetAll() {
+    token++;
+    clearTimeout(cpuTimer); clearTimeout(stuckTimer); stuckTimer = null;
+    cleanupPeer();
+    mode = null; isHost = false; me = 0; G = null; selected = -1;
+    callEl.classList.remove('show');
+    msgEl.textContent = '';
+    for (const id of ['opp-field', 'my-field']) { $(id).innerHTML = ''; for (let i = 0; i < 4; i++) $(id).appendChild(cardEl(null)); }
+    for (let p = 0; p < 2; p++) { $('pile-' + p).innerHTML = ''; $('pile-' + p).appendChild(cardEl(null)); $('pile-count-' + p).textContent = ''; }
+    $('opp-deck').textContent = 22; $('my-deck').textContent = 22;
+  }
+  function showModeSelect() {
+    resetAll();
+    showOverlay('スピード', '早い者勝ちでカードを出し合う、2人用のリアルタイム対戦', [
+      { label: 'CPU戦', primary: true, onClick: showCpuSetup },
+      { label: 'オンライン対戦', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>赤（♥♦）と黒（♠♣）の26枚ずつを使います。手前に4枚の場札を並べ、残りは山札です。</li>
+        <li>「スピード！」の合図で中央に台札が出たら、順番は関係なく、台札と数字が1つ違うカードをどんどん重ねます（KとAもつながります）。</li>
+        <li>場札を出すと山札から自動で補充されます。</li>
+        <li>2人とも出せなくなったら、それぞれ山札から1枚を台札に出して再開します（山札がなければ場札から）。</li>
+        <li>山札と場札を先に全部出し切った人の勝ち！</li>
+        <li>操作：カードをタップ（出せる台札が2つあるときは台札もタップ）。キーボードは1〜4（またはA S D F）と←→。</li>
+      </ul>`);
+  }
+  function showCpuSetup() {
+    showOverlay('CPU戦', 'CPUの強さを選んでください', [
+      { label: 'やさしい', primary: true, onClick: () => startCpu('easy') },
+      { label: 'ふつう', primary: true, onClick: () => startCpu('normal') },
+      { label: 'つよい', primary: true, onClick: () => startCpu('hard') },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function startCpu(lv) {
+    mode = 'cpu'; isHost = false; me = 0; level = lv;
+    hideOverlay();
+    startRound();
+  }
+
+  // ---------- online (PeerJS, ホストが判定) ----------
+  function cleanupPeer() {
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function broadcastCall(text) { if (isHost && conn) { try { conn.send({ type: 'call', text }); } catch (e) {} } }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン対戦', 'インターネット経由で別の端末の人と対戦できます', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: hostRoom },
+      { label: '部屋に入る（参加）', primary: true, onClick: showJoinRoom },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function hostRoom() {
+    cleanupPeer();
+    mode = 'online'; isHost = true; me = 0;
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('speed-room-' + roomCode);
+    peer.on('open', () => {
+      showOverlay('このコードを相手に伝えてください', '相手が「部屋に入る」からコードを入力すると自動で対戦が始まります', [
+        { label: 'キャンセル', primary: false, onClick: showModeSelect }
+      ], `<div id="room-code">${roomCode}</div><div id="conn-status">相手の参加を待っています…</div>`);
+    });
+    peer.on('connection', c => {
+      if (conn) { c.on('open', () => { c.send({ type: 'full' }); setTimeout(() => c.close(), 300); }); return; }
+      conn = c;
+      conn.on('data', onData);
+      conn.on('close', onDisconnected);
+      conn.on('error', onDisconnected);
+      conn.on('open', () => { hideOverlay(); startRound(); });
+    });
+    peer.on('error', () => { if (!G) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+  function showJoinRoom() {
+    cleanupPeer();
+    showOverlay('部屋に入る', 'ホストから伝えられた4桁のコードを入力してください', [
+      { label: '接続する', primary: true, onClick: joinRoom },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="code-input" maxlength="4" placeholder="例: A1B2" autocomplete="off" />`);
+    const input = $('code-input');
+    input.focus();
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
+  }
+  function joinRoom() {
+    const code = ($('code-input').value || '').trim().toUpperCase();
+    if (!code) return;
+    cleanupPeer();
+    mode = 'online'; isHost = false; me = 1;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', () => {
+      conn = peer.connect('speed-room-' + code, { reliable: true });
+      conn.on('data', onData);
+      conn.on('close', onDisconnected);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+      conn.on('open', () => showOverlay('接続しました', 'まもなく始まります…', []));
+    });
+    peer.on('error', () => { if (!G) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+  function onData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (isHost) {
+      if (data.type === 'play' && G && doPlay(1, data.slot, data.pile)) sync();
+      else if (data.type === 'play') sync(); // 間に合わなかった操作は最新の状態を送り直す
+      return;
+    }
+    if (data.type === 'state') {
+      G = data.G;
+      if (G.phase !== 'over') hideOverlay();
+      if (selected >= 0 && !validPiles(selected).length) selected = -1;
+      render();
+    } else if (data.type === 'call') {
+      call(data.text, /^\d$/.test(data.text) ? 0 : 900);
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋はすでに対戦中です。');
+      cleanupPeer();
+    }
+  }
+  function onDisconnected() {
+    if (mode !== 'online') return;
+    token++;
+    showOverlay('相手が切断しました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  $('back-btn').addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+  showModeSelect();
+})();
+</script>
+</body>
+</html>

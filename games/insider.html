@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>インサイダーゲーム</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 640px;
+    max-width: 94vw;
+  }
+  #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 {
+    margin: 0; font-size: 22px; letter-spacing: 3px; font-weight: 600;
+    color: #9fb4ff; text-shadow: 0 0 12px rgba(120,150,255,0.6);
+  }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none; white-space: nowrap;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #phase { font-size: 13px; color: #9aa3d6; letter-spacing: 2px; }
+  #timer { font-size: 54px; font-weight: 800; color: #ffe066; text-shadow: 0 0 16px rgba(255,224,102,0.5); font-variant-numeric: tabular-nums; line-height: 1; }
+  #timer.low { color: #ff6b81; text-shadow: 0 0 16px rgba(255,107,129,0.6); }
+  #timer:empty { display: none; }
+  #my-role {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid #2a3160;
+    font-size: 14px;
+    text-align: center;
+    line-height: 1.6;
+  }
+  #my-role:empty { display: none; }
+  #my-role .topic { font-size: 22px; font-weight: 800; color: #ffe066; }
+  .role-master { color: #6ee7ff; font-weight: 800; }
+  .role-insider { color: #ff7ab6; font-weight: 800; }
+  .role-common { color: #8fe3b0; font-weight: 800; }
+
+  #main { width: 100%; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  #players { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .pl { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid #2a3160; }
+  .pl.master { border-color: #6ee7ff; color: #6ee7ff; }
+  .pl.ready { border-color: #8fe3b0; }
+  #chat {
+    width: 100%;
+    max-height: 340px;
+    min-height: 120px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid #2a3160;
+  }
+  #chat:empty { display: none; }
+  .q { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 14px; line-height: 1.4; }
+  .q .who { font-size: 11px; color: #9aa3d6; }
+  .q .ans { font-size: 12px; font-weight: 800; padding: 1px 9px; border-radius: 999px; color: #10142a; }
+  .ans.yes { background: #8fe3b0; }
+  .ans.no { background: #ff9f9f; }
+  .ans.unk { background: #c9d0f5; }
+  .ans.hit { background: #ffe066; }
+  .q.talk .text { color: #c9d0f5; }
+  .q .abtn { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid #3a4278; background: rgba(255,255,255,0.06); color: #eef0ff; cursor: pointer; }
+  .q .abtn.hit { border-color: #ffe066; color: #ffe066; }
+  #input-row { display: flex; gap: 8px; width: 100%; }
+  #input-row input {
+    flex: 1; min-width: 0; font-size: 15px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff;
+  }
+  #input-row input:focus { outline: none; border-color: #6ea8ff; }
+  #actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #msg { font-size: 13px; color: #b9c2f0; text-align: center; min-height: 18px; line-height: 1.6; }
+  .vote-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4);
+    color: #fff; border: none; padding: 10px 22px; font-size: 14px; border-radius: 999px;
+    cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5); transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice.hit { background: linear-gradient(180deg, #ffd34d, #e0a400); color: #2a1d00; box-shadow: 0 4px 14px rgba(255,200,0,0.4); font-weight: 800; }
+  button.choice.on { background: linear-gradient(180deg, #ff7ab6, #c43a7d); }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  #overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 14px; background: rgba(5,7,15,0.95); text-align: center; padding: 64px 16px 20px; z-index: 50; overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; max-width: 520px; line-height: 1.6; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 480px; margin: 0; padding-left: 20px; }
+  .seg { display: flex; border: 1px solid #3a4278; border-radius: 999px; overflow: hidden; }
+  .seg button { background: transparent; border: none; color: #9aa3d6; font-size: 13px; padding: 6px 12px; cursor: pointer; }
+  .seg button.on { background: #4a5cf0; color: #fff; }
+  .role-card {
+    padding: 18px 28px; border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid #3a4278;
+    font-size: 15px; line-height: 1.8; min-width: 240px;
+  }
+  .role-card .rname { font-size: 30px; }
+  .role-card .topic { font-size: 30px; font-weight: 800; color: #ffe066; }
+  .names { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #overlay input {
+    font-size: 16px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center; width: 150px;
+  }
+  #overlay input:focus { outline: none; border-color: #6ea8ff; }
+  #code-input { font-size: 22px !important; letter-spacing: 6px; text-transform: uppercase; }
+  #room-code {
+    font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4);
+    padding: 4px 22px; border-radius: 12px; text-shadow: 0 0 14px rgba(255,224,102,0.5);
+  }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .member-list { font-size: 14px; color: #dfe4ff; line-height: 1.8; }
+  .result-table { border-collapse: collapse; font-size: 14px; color: #dfe4ff; }
+  .result-table td { padding: 4px 10px; border-bottom: 1px solid #2a3160; text-align: left; }
+  @media (max-width: 480px) {
+    #timer { font-size: 44px; }
+    .names { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>インサイダー</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+    <div id="phase"></div>
+    <div id="timer"></div>
+    <div id="my-role"></div>
+    <div id="main">
+      <div id="players"></div>
+      <div id="chat"></div>
+      <div id="input-row" style="display:none"><input id="chat-input" maxlength="40" autocomplete="off"><button id="send-btn" class="choice">送信</button></div>
+      <div id="msg"></div>
+      <div id="actions"></div>
+    </div>
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">インサイダーゲーム</h2>
+    <p id="overlay-text"></p>
+    <div id="overlay-extra"></div>
+    <div id="overlay-buttons"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  const TOPICS = [...new Set(`
+    りんご バナナ スイカ いちご みかん ぶどう もも レモン メロン パイナップル トマト にんじん じゃがいも たまねぎ キャベツ
+    ラーメン カレー すし 天ぷら ハンバーガー ピザ おにぎり 餃子 焼肉 たこ焼き お好み焼き うどん そば パン ケーキ アイス チョコレート ドーナツ
+    コーヒー 牛乳 ジュース お茶 たまご チーズ 納豆 豆腐 カップラーメン ポップコーン
+    いぬ ねこ うさぎ パンダ ライオン ぞう キリン ペンギン イルカ クジラ サメ タコ カメ ヘビ カエル ニワトリ 金魚 カブトムシ ハチ チョウ
+    太陽 月 星 虹 雪 雨 雷 台風 富士山 海 川 砂漠 火山 森 島
+    電車 新幹線 飛行機 自転車 救急車 消防車 船 ロケット 気球 エレベーター 信号
+    学校 病院 図書館 遊園地 動物園 水族館 コンビニ 温泉 空港 駅 神社 お城 映画館 公園 交番
+    スマートフォン テレビ 冷蔵庫 掃除機 電子レンジ 時計 カメラ 傘 眼鏡 財布 鍵 はさみ 鉛筆 消しゴム 歯ブラシ 枕 ベッド 椅子 鏡 リモコン
+    サッカー 野球 バスケットボール テニス 水泳 スキー 相撲 柔道 マラソン 卓球 ボウリング
+    ピアノ ギター 太鼓 カラオケ 将棋 トランプ 風船 花火 雪だるま サンタクロース 鬼 忍者 侍 ロボット 宇宙人 恐竜 幽霊 魔法使い
+    医者 先生 警察官 消防士 パイロット 歌手 料理人 宇宙飛行士 お正月 誕生日 クリスマス ハロウィン 夏休み 運動会 結婚式
+    マスク 手紙 地図 宝くじ 指輪 王冠 ランドセル 浴衣 ネクタイ サングラス
+  `.trim().split(/\s+/))];
+  const ROLE = { master: 'マスター', insider: 'インサイダー', common: '庶民' };
+  const ANS = { yes: 'はい', no: 'いいえ', unk: 'わからない', hit: '正解！' };
+
+  const $ = id => document.getElementById(id);
+  const phaseEl = $('phase'), timerEl = $('timer'), myRoleEl = $('my-role'), playersEl = $('players');
+  const chatEl = $('chat'), inputRow = $('input-row'), chatInput = $('chat-input'), msgEl = $('msg'), actionsEl = $('actions');
+  const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
+  const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const fmt = sec => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function loadName() { try { return localStorage.getItem('cardgame-name') || ''; } catch (e) { return ''; } }
+  function saveName(n) { try { localStorage.setItem('cardgame-name', n); } catch (e) {} }
+
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary') + (b.cls ? ' ' + b.cls : '');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  // ---------- state ----------
+  let mode = null;            // 'local' | 'online'
+  let isHost = false;
+  let myId = 'local';
+  let players = [];           // { id, name }
+  let G = null;               // 完全な状態（ローカル/ホスト）
+  let V = null;               // 自分視点
+  let questionMin = 5;
+  let localCount = 5;
+  let localNames = [];
+  let clockOffset = 0;        // ホストの時計 - 自分の時計
+  let tickTimer = null;
+  let peer = null, conn = null, roomCode = null;
+  const guests = new Map();
+  let lastMaster = -1;
+
+  const mySeat = () => players.findIndex(p => p.id === myId);
+  const now = () => Date.now() + clockOffset;
+
+  // ---------- engine (ローカル/ホスト) ----------
+  function newRound() {
+    const n = players.length;
+    // マスターは順番に交代
+    const master = (lastMaster + 1) % n;
+    lastMaster = master;
+    const others = [...Array(n).keys()].filter(i => i !== master);
+    const insider = others[Math.floor(Math.random() * others.length)];
+    G = {
+      n, master, insider,
+      topic: TOPICS[Math.floor(Math.random() * TOPICS.length)],
+      phase: 'roles',        // roles → question → discuss → vote → result
+      ready: Array(n).fill(false),
+      deadline: null,
+      qStart: null,
+      elapsed: 0,
+      answerer: null,
+      log: [],               // { id, by, text, kind: 'q' | 'talk', answer }
+      votes: Array(n).fill(null),
+      result: null,
+      seq: 0
+    };
+  }
+
+  function startQuestion() {
+    G.phase = 'question';
+    G.qStart = Date.now();
+    G.deadline = G.qStart + questionMin * 60000;
+  }
+  function doCorrect(answerer) {
+    if (G.phase !== 'question') return false;
+    G.answerer = answerer;
+    G.elapsed = Math.max(10, Math.round((Date.now() - G.qStart) / 1000));
+    G.phase = 'discuss';
+    // 議論の時間は、正解までにかかった時間と同じ
+    G.deadline = Date.now() + G.elapsed * 1000;
+    return true;
+  }
+  function timeUp() {
+    if (G.phase === 'question') {
+      G.phase = 'result';
+      G.result = { timeout: true };
+      return true;
+    }
+    if (G.phase === 'discuss') { G.phase = 'vote'; G.deadline = null; return true; }
+    return false;
+  }
+  function doVote(voter, target) {
+    if (G.phase !== 'vote' || voter === target || !(target >= 0 && target < G.n) || G.votes[voter] !== null) return false;
+    G.votes[voter] = target;
+    if (G.votes.every(v => v !== null)) finishVote();
+    return true;
+  }
+  function finishVote() {
+    const count = Array(G.n).fill(0);
+    G.votes.forEach(v => { if (v !== null) count[v]++; });
+    const max = Math.max(...count);
+    let top = [...count.keys()].filter(i => count[i] === max);
+    // 同票のときはマスターの票で決める（マスターが同票の誰にも入れていなければ指名できない）
+    if (top.length > 1) top = top.includes(G.votes[G.master]) ? [G.votes[G.master]] : [];
+    const accused = top.length === 1 ? top[0] : null;
+    G.phase = 'result';
+    G.result = { timeout: false, count, accused, caught: accused === G.insider };
+  }
+
+  // ---------- views ----------
+  function viewFor(seat) {
+    if (!G) return null;
+    const reveal = G.phase === 'result';
+    const knows = seat === G.master || seat === G.insider;
+    const guessed = G.phase === 'discuss' || G.phase === 'vote' || reveal; // 正解が出た後はお題を全員に公開
+    return {
+      ...G,
+      insider: reveal || seat === G.insider ? G.insider : null,
+      topic: guessed || knows ? G.topic : null,
+      votes: reveal ? G.votes : G.votes.map((v, i) => i === seat ? v : (v === null ? null : -1)),
+      me: seat,
+      hostNow: Date.now()
+    };
+  }
+
+  function afterChange() {
+    if (isHost) {
+      for (const [id, c] of guests) {
+        try { c.send({ type: 'sync', players, view: viewFor(players.findIndex(p => p.id === id)) }); } catch (e) {}
+      }
+    }
+    if (mode === 'online') V = viewFor(mySeat());
+    render();
+  }
+
+  // 締め切りの監視（ローカル/ホストのみ）
+  function startTicker() {
+    clearInterval(tickTimer);
+    tickTimer = setInterval(() => {
+      if (G && G.deadline && Date.now() >= G.deadline && (mode === 'local' || isHost)) {
+        if (timeUp()) afterChange();
+      }
+      renderTimer();
+    }, 250);
+  }
+
+  function act(a) {
+    if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action: a }); return; }
+    if (applyAction(mode === 'online' ? mySeat() : -1, a)) afterChange();
+  }
+  // seat: 送信者の席（ローカルでは -1 = 端末を持っている人）
+  function applyAction(seat, a) {
+    if (!G) return false;
+    const local = mode === 'local';
+    if (a.type === 'ready' && G.phase === 'roles' && seat >= 0) {
+      G.ready[seat] = true;
+      if (G.ready.every(Boolean)) startQuestion();
+      return true;
+    }
+    if (a.type === 'post' && seat >= 0) {
+      const text = String(a.text || '').trim().slice(0, 40);
+      if (!text) return false;
+      if (G.phase === 'question' && seat !== G.master) { G.log.push({ id: ++G.seq, by: seat, text, kind: 'q', answer: null }); return true; }
+      if (G.phase === 'discuss' || G.phase === 'vote') { G.log.push({ id: ++G.seq, by: seat, text, kind: 'talk' }); return true; }
+      return false;
+    }
+    if (a.type === 'answer' && G.phase === 'question' && (local || seat === G.master)) {
+      const q = G.log.find(x => x.id === a.id && x.kind === 'q');
+      if (!q || !ANS[a.answer]) return false;
+      q.answer = a.answer;
+      if (a.answer === 'hit') doCorrect(q.by);
+      return true;
+    }
+    if (a.type === 'correct' && local) return doCorrect(a.answerer);
+    if (a.type === 'toVote' && G.phase === 'discuss' && (local || isHost && seat === 0)) { G.phase = 'vote'; G.deadline = null; return true; }
+    if (a.type === 'vote') return doVote(local ? a.voter : seat, a.target);
+    return false;
+  }
+
+  // ---------- rendering ----------
+  function renderTimer() {
+    const S = mode === 'online' ? V : G;
+    if (!S || !S.deadline || !(S.phase === 'question' || S.phase === 'discuss')) { timerEl.textContent = ''; return; }
+    const left = Math.max(0, Math.ceil((S.deadline - now()) / 1000));
+    timerEl.textContent = fmt(left);
+    timerEl.classList.toggle('low', left <= 30);
+  }
+
+  const PHASE_LABEL = { roles: '役職の確認', question: '質問タイム', discuss: 'インサイダー探し（議論）', vote: '投票', result: '結果' };
+
+  function render() {
+    const S = mode === 'online' ? V : G;
+    if (!S) return;
+    phaseEl.textContent = PHASE_LABEL[S.phase] || '';
+    renderTimer();
+    const me = mode === 'online' ? S.me : -1;
+    const masterName = players[S.master].name;
+
+    // 自分の役職（オンラインのみ。ローカルは端末を回して確認）
+    if (mode === 'online' && S.phase !== 'result') {
+      const role = me === S.master ? 'master' : me === S.insider ? 'insider' : 'common';
+      myRoleEl.innerHTML = `あなたは <span class="role-${role}">${ROLE[role]}</span>` +
+        (S.topic ? `　お題：<span class="topic">${esc(S.topic)}</span>` : '') +
+        (role === 'insider' ? '<br><small>正体を隠したまま、庶民がお題にたどり着けるようこっそり誘導しよう</small>' : '') +
+        (role === 'master' ? '<br><small>質問に「はい・いいえ・わからない」で答え、正解が出たら「正解！」</small>' : '') +
+        (role === 'common' ? '<br><small>マスターに質問してお題を当て、インサイダーを見つけよう</small>' : '');
+    } else {
+      myRoleEl.innerHTML = '';
+    }
+
+    playersEl.innerHTML = players.map((p, i) => {
+      let cls = 'pl' + (i === S.master ? ' master' : '');
+      if (S.phase === 'roles' && S.ready[i]) cls += ' ready';
+      if (S.phase === 'vote' && S.votes[i] !== null) cls += ' ready';
+      const tag = i === S.master ? '👑' : '';
+      const st = S.phase === 'roles' ? (S.ready[i] ? ' ✓' : '') : S.phase === 'vote' ? (S.votes[i] !== null ? ' ✓' : '') : '';
+      return `<span class="${cls}">${tag}${esc(p.name)}${i === me ? '（あなた）' : ''}${st}</span>`;
+    }).join('');
+
+    // chat
+    const amMaster = mode === 'local' || me === S.master;
+    chatEl.innerHTML = '';
+    for (const q of S.log) {
+      const d = document.createElement('div');
+      d.className = 'q' + (q.kind === 'talk' ? ' talk' : '');
+      d.innerHTML = `<span class="who">${esc(players[q.by].name)}</span><span class="text">${esc(q.text)}</span>`;
+      if (q.kind === 'q') {
+        if (q.answer) d.insertAdjacentHTML('beforeend', `<span class="ans ${q.answer}">${ANS[q.answer]}</span>`);
+        else if (S.phase === 'question' && amMaster && mode === 'online') {
+          for (const k of ['yes', 'no', 'unk', 'hit']) {
+            const b = document.createElement('button');
+            b.className = 'abtn' + (k === 'hit' ? ' hit' : '');
+            b.textContent = ANS[k];
+            b.addEventListener('click', () => act({ type: 'answer', id: q.id, answer: k }));
+            d.appendChild(b);
+          }
+        }
+      }
+      chatEl.appendChild(d);
+    }
+    chatEl.scrollTop = chatEl.scrollHeight;
+
+    const canPost = mode === 'online' && ((S.phase === 'question' && me !== S.master) || S.phase === 'discuss' || S.phase === 'vote');
+    inputRow.style.display = canPost ? 'flex' : 'none';
+    chatInput.placeholder = S.phase === 'question' ? 'マスターへの質問・答えの予想（例：食べ物ですか？）' : '議論（誰がインサイダーだと思う？）';
+
+    actionsEl.innerHTML = '';
+    const button = (text, onClick, cls = '') => {
+      const b = document.createElement('button');
+      b.className = 'choice ' + cls;
+      b.textContent = text;
+      b.addEventListener('click', onClick);
+      actionsEl.appendChild(b);
+      return b;
+    };
+    msgEl.textContent = '';
+    if (S.phase === 'roles') {
+      if (mode === 'online') {
+        if (!S.ready[me]) button('役職を確認した', () => act({ type: 'ready' }));
+        msgEl.textContent = '全員が確認すると質問タイムが始まります';
+      }
+    } else if (S.phase === 'question') {
+      if (mode === 'local') {
+        msgEl.innerHTML = `マスター（<b>${esc(masterName)}</b>）に「はい / いいえ / わからない」で答えられる質問をして、お題を当てよう。<br>正解が出たらマスターがボタンを押してください`;
+        button('正解が出た！', chooseAnswerer, 'hit');
+      } else {
+        msgEl.textContent = me === S.master ? '質問に答えてください。お題が当たったら「正解！」' : `マスター（${masterName}）に質問してお題を当てよう`;
+      }
+    } else if (S.phase === 'discuss') {
+      const ans = players[S.answerer].name;
+      msgEl.innerHTML = `お題「<b>${esc(S.topic || '')}</b>」を<b>${esc(ans)}</b>が当てました（${S.elapsed}秒）。<br>正解までと同じ時間だけ、誰がインサイダーかを話し合います`;
+      if (mode === 'local' || isHost) button('投票へ進む', () => act({ type: 'toVote' }), 'secondary');
+    } else if (S.phase === 'vote') {
+      if (mode === 'local') {
+        localVoteFlow();
+      } else if (S.votes[me] === null) {
+        msgEl.textContent = 'インサイダーだと思う人に投票してください';
+        players.forEach((p, i) => { if (i !== me) button(p.name, () => act({ type: 'vote', target: i })); });
+      } else {
+        msgEl.textContent = 'ほかの人の投票を待っています…';
+      }
+    } else if (S.phase === 'result') {
+      showResult(S);
+    }
+    if (S.phase !== 'result' && overlay.dataset.kind === 'result') { overlay.dataset.kind = ''; hideOverlay(); }
+  }
+
+  function showResult(S) {
+    const r = S.result;
+    const insiderName = players[S.insider].name;
+    let title, text;
+    if (r.timeout) {
+      title = '時間切れ…全員の負け';
+      text = `お題は「${S.topic}」、インサイダーは${insiderName}でした`;
+    } else if (r.caught) {
+      title = '庶民とマスターの勝ち！';
+      text = `インサイダーの${insiderName}を見破りました（お題「${S.topic}」）`;
+    } else {
+      title = 'インサイダーの勝ち！';
+      text = `インサイダーは${insiderName}でした（お題「${S.topic}」）` + (r.accused === null ? '。同票で指名できませんでした' : `。${players[r.accused].name}が疑われました`);
+    }
+    const rows = !r.timeout ? players.map((p, i) => {
+      const role = i === S.master ? 'master' : i === S.insider ? 'insider' : 'common';
+      return `<tr><td>${esc(p.name)}</td><td class="role-${role}">${ROLE[role]}</td><td>${r.count[i]}票</td><td style="color:#9aa3d6">→ ${S.votes[i] !== null && S.votes[i] >= 0 ? esc(players[S.votes[i]].name) : '-'}</td></tr>`;
+    }).join('') : '';
+    const canAgain = mode === 'local' || isHost;
+    overlay.dataset.kind = 'result';
+    showOverlay(title, text + (canAgain ? '' : '。ホストが次のゲームを始めるのを待っています'), [
+      ...(canAgain ? [{ label: '次のゲーム（マスター交代）', primary: true, onClick: () => { overlay.dataset.kind = ''; hideOverlay(); startNext(); } }] : []),
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ], rows ? `<table class="result-table">${rows}</table>` : '');
+  }
+
+  // ---------- local (1台を回して遊ぶ) ----------
+  function localRoleFlow(i) {
+    if (i >= players.length) {
+      hideOverlay();
+      startQuestion();
+      render();
+      return;
+    }
+    const p = players[i];
+    showOverlay('つぎの人', `端末を「${p.name}」さんに渡してください`, [
+      { label: '自分の役職を見る', primary: true, onClick: () => {
+        const role = i === G.master ? 'master' : i === G.insider ? 'insider' : 'common';
+        const topic = role !== 'common' ? `<div>お題</div><div class="topic">${esc(G.topic)}</div>` : '<div style="color:#9aa3d6">お題は秘密です</div>';
+        const hint = role === 'master' ? 'みんなの質問に「はい・いいえ・わからない」で答えます。役職は公開してOK'
+          : role === 'insider' ? '正体を隠したまま、みんながお題にたどり着けるようこっそり誘導しよう'
+          : 'マスターに質問してお題を当て、インサイダーを見つけよう';
+        showOverlay(`${p.name}さんの役職`, '', [
+          { label: '確認した（次の人へ）', primary: true, onClick: () => localRoleFlow(i + 1) }
+        ], `<div class="role-card"><div class="rname role-${role}">${ROLE[role]}</div>${topic}<div style="font-size:12px;color:#9aa3d6;margin-top:6px">${hint}</div></div>`);
+      } }
+    ]);
+  }
+
+  function chooseAnswerer() {
+    showOverlay('誰が正解しましたか？', '', [
+      ...players.map((p, i) => ({ label: p.name, primary: true, onClick: () => { hideOverlay(); act({ type: 'correct', answerer: i }); } })).filter((b, i) => i !== G.master),
+      { label: 'キャンセル', primary: false, onClick: hideOverlay }
+    ]);
+  }
+
+  function localVoteFlow() {
+    const voter = G.votes.findIndex(v => v === null);
+    if (voter < 0 || overlay.classList.contains('show')) return;
+    const p = players[voter];
+    showOverlay('秘密の投票', `端末を「${p.name}」さんに渡してください`, [
+      { label: '投票する', primary: true, onClick: () => {
+        showOverlay(`${p.name}さんの投票`, 'インサイダーだと思う人を選んでください', [
+          ...players.map((q, i) => ({ label: q.name, primary: true, onClick: () => { hideOverlay(); act({ type: 'vote', voter, target: i }); } })).filter((b, i) => i !== voter)
+        ]);
+      } }
+    ]);
+  }
+
+  function startNext() {
+    newRound();
+    if (mode === 'local') { render(); localRoleFlow(0); }
+    else afterChange();
+  }
+
+  // ---------- menus ----------
+  function resetAll() {
+    cleanupPeer();
+    clearInterval(tickTimer);
+    tickTimer = null;
+    mode = null; isHost = false; myId = 'local'; players = []; G = null; V = null; lastMaster = -1; clockOffset = 0;
+    overlay.dataset.kind = '';
+    phaseEl.textContent = ''; timerEl.textContent = ''; myRoleEl.innerHTML = ''; playersEl.innerHTML = '';
+    chatEl.innerHTML = ''; inputRow.style.display = 'none'; msgEl.textContent = ''; actionsEl.innerHTML = '';
+  }
+  function showModeSelect() {
+    resetAll();
+    showOverlay('インサイダーゲーム', '質問でお題を当てながら、答えを知っているのに隠れている「インサイダー」を見つけ出す推理ゲーム（3〜8人）', [
+      { label: '1台で遊ぶ（集まって）', primary: true, onClick: showLocalSetup },
+      { label: 'オンライン対戦（各自の端末）', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>役職は<b>マスター</b>1人、<b>インサイダー</b>1人、残りは<b>庶民</b>。マスターは全員に公開されますが、インサイダーは秘密です。</li>
+        <li>マスターとインサイダーだけがお題を知っています。</li>
+        <li><b>質問タイム</b>：マスター以外の人が「はい・いいえ・わからない」で答えられる質問をして、制限時間内にお題を当てます。時間切れなら全員の負け。</li>
+        <li>インサイダーは正体がばれないよう、みんながお題にたどり着けるようにこっそり誘導します。</li>
+        <li><b>インサイダー探し</b>：正解までにかかったのと同じ時間だけ話し合い、全員で投票します（同票ならマスターの票で決定）。</li>
+        <li>インサイダーを当てれば庶民とマスターの勝ち、外れればインサイダーの勝ち！</li>
+      </ul>`);
+  }
+  function timeSeg() {
+    return `<div class="row" style="font-size:13px;color:#9aa3d6">質問タイム <div class="seg" id="time-seg">${[3, 4, 5, 6].map(m => `<button data-m="${m}" class="${m === questionMin ? 'on' : ''}">${m}分</button>`).join('')}</div></div>`;
+  }
+  function bindTimeSeg(rerender) {
+    overlayExtra.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => { questionMin = +b.dataset.m; rerender(); }));
+  }
+  function showLocalSetup() {
+    while (localNames.length < 8) localNames.push('');
+    const inputs = Array.from({ length: localCount }, (_, i) => `<input data-i="${i}" maxlength="8" placeholder="プレイヤー${i + 1}" value="${esc(localNames[i])}">`).join('');
+    showOverlay('1台で遊ぶ', '人数と名前を決めてください。役職は端末を回して1人ずつ確認します', [
+      { label: 'ゲーム開始', primary: true, onClick: () => {
+        mode = 'local'; myId = 'local';
+        players = Array.from({ length: localCount }, (_, i) => ({ id: 'p' + i, name: (localNames[i] || '').trim() || `プレイヤー${i + 1}` }));
+        lastMaster = Math.floor(Math.random() * localCount) - 1;
+        startTicker();
+        startNext();
+      } },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<div class="seg">${[3, 4, 5, 6, 7, 8].map(n => `<button data-n="${n}" class="${n === localCount ? 'on' : ''}">${n}人</button>`).join('')}</div>
+        <div class="names">${inputs}</div>${timeSeg()}`);
+    overlayExtra.querySelectorAll('[data-n]').forEach(b => b.addEventListener('click', () => { localCount = +b.dataset.n; showLocalSetup(); }));
+    overlayExtra.querySelectorAll('[data-i]').forEach(inp => inp.addEventListener('input', () => { localNames[+inp.dataset.i] = inp.value; }));
+    bindTimeSeg(showLocalSetup);
+  }
+
+  // ---------- online (PeerJS, ホストが進行) ----------
+  function cleanupPeer() {
+    for (const c of guests.values()) { try { c.close(); } catch (e) {} }
+    guests.clear();
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン対戦', '各自の端末で参加し、質問はチャットで行います（3〜8人）。まず名前を入力してください', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" style="width:200px" />
+        <div class="row"><input id="code-input" maxlength="4" placeholder="コード" autocomplete="off" />
+        <button id="join-btn" class="choice">部屋に入る</button></div>`);
+    $('join-btn').addEventListener('click', () => withName(joinRoom));
+    $('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
+  }
+  function withName(fn) {
+    const name = ($('name-input').value || '').trim();
+    if (!name) { $('name-input').focus(); $('name-input').placeholder = '名前を入力してください'; return; }
+    saveName(name);
+    fn(name, ($('code-input').value || '').trim().toUpperCase());
+  }
+  function hostRoom(name) {
+    cleanupPeer();
+    mode = 'online'; isHost = true; myId = 'host';
+    players = [{ id: 'host', name }];
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('insider-room-' + roomCode);
+    peer.on('open', renderLobby);
+    peer.on('connection', c => {
+      c.on('data', d => onHostData(c, d));
+      c.on('close', () => onGuestLeft(c.peer));
+      c.on('error', () => onGuestLeft(c.peer));
+    });
+    peer.on('error', () => { if (!G) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+  function renderLobby() {
+    if (G) return;
+    for (const c of guests.values()) { try { c.send({ type: 'lobby', names: players.map(p => p.name) }); } catch (e) {} }
+    showOverlay('部屋を作りました', 'コードを伝えて参加してもらいましょう（3人以上で開始できます）', [
+      { label: 'ゲーム開始', primary: true, disabled: players.length < 3, onClick: () => {
+        lastMaster = Math.floor(Math.random() * players.length) - 1;
+        hideOverlay();
+        startTicker();
+        startNext();
+      } },
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ], `<div id="room-code">${roomCode}</div>
+        <div class="member-list">${players.map(p => esc(p.name)).join('<br>')}</div>${timeSeg()}`);
+    bindTimeSeg(renderLobby);
+  }
+  function onHostData(c, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'hello') {
+      if (G || players.length >= 8) { c.send({ type: 'full' }); return; }
+      guests.set(c.peer, c);
+      players.push({ id: c.peer, name: String(data.name || '').trim().slice(0, 8) || 'ゲスト' });
+      renderLobby();
+    } else if (data.type === 'act' && G) {
+      const seat = players.findIndex(p => p.id === c.peer);
+      if (seat >= 0 && applyAction(seat, data.action || {})) afterChange();
+    }
+  }
+  function onGuestLeft(id) {
+    if (!guests.has(id)) return;
+    guests.delete(id);
+    const i = players.findIndex(p => p.id === id);
+    if (i < 0) return;
+    if (!G) { players.splice(i, 1); renderLobby(); return; }
+    // ゲーム中の退出：名前に印を付け、待ちが発生しないよう確認・投票は済ませた扱いにする
+    players[i] = { id: 'left-' + id, name: players[i].name + '(退出)' };
+    if (G.phase === 'roles') { G.ready[i] = true; if (G.ready.every(Boolean)) startQuestion(); }
+    if (G.phase === 'vote' && G.votes[i] === null) {
+      G.votes[i] = i !== G.master ? G.master : (i + 1) % G.n;
+      if (G.votes.every(v => v !== null)) finishVote();
+    }
+    afterChange();
+  }
+  function joinRoom(name, code) {
+    if (!code) { $('code-input').focus(); return; }
+    cleanupPeer();
+    mode = 'online'; isHost = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', id => {
+      myId = id;
+      conn = peer.connect('insider-room-' + code, { reliable: true });
+      conn.on('open', () => conn.send({ type: 'hello', name }));
+      conn.on('data', onGuestData);
+      conn.on('close', onHostLost);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+    });
+    peer.on('error', () => { if (!V) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+  function onGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'lobby') {
+      showOverlay('参加しました', 'ホストの開始を待っています', [
+        { label: '退出する', primary: false, onClick: showModeSelect }
+      ], `<div class="member-list">${data.names.map(esc).join('<br>')}</div>`);
+    } else if (data.type === 'sync') {
+      players = data.players;
+      clockOffset = data.view.hostNow - Date.now();
+      if (!V || (V.phase === 'result' && data.view.phase !== 'result')) { overlay.dataset.kind = ''; hideOverlay(); }
+      V = data.view;
+      if (!tickTimer) startTicker();
+      render();
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋は満員か、すでにゲームが始まっています。');
+      cleanupPeer();
+    }
+  }
+  function onHostLost() {
+    if (mode !== 'online' || isHost) return;
+    clearInterval(tickTimer); tickTimer = null;
+    showOverlay('ホストとの接続が切れました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  function sendChat() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    chatInput.value = '';
+    act({ type: 'post', text });
+  }
+  $('send-btn').addEventListener('click', sendChat);
+  chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) sendChat(); });
+  $('back-btn').addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+  showModeSelect();
+})();
+</script>
+</body>
+</html>
