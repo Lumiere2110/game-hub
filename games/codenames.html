@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>コードネーム</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 680px;
+    max-width: 94vw;
+  }
+  #topbar {
+    position: relative;
+    z-index: 60;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  h1 {
+    margin: 0;
+    font-size: 22px;
+    letter-spacing: 4px;
+    font-weight: 600;
+    color: #9fb4ff;
+    text-shadow: 0 0 12px rgba(120,150,255,0.6);
+  }
+  #back-btn, #hub-link {
+    background: transparent;
+    border: 1px solid #3a4278;
+    color: #b9c2f0;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #hud { display: flex; align-items: stretch; gap: 10px; width: 100%; }
+  .team-card {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #2a3160;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    min-width: 0;
+  }
+  .team-card.active { border-color: var(--tc); box-shadow: 0 0 14px var(--tc); }
+  .team-card.blue { flex-direction: row-reverse; text-align: right; }
+  .team-left { font-size: 28px; font-weight: 800; color: var(--tc); line-height: 1; }
+  .team-info { display: flex; flex-direction: column; line-height: 1.35; min-width: 0; }
+  .team-name { font-size: 13px; font-weight: 700; }
+  .team-members { font-size: 11px; color: #9aa3d6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  #hint-bar {
+    width: 100%;
+    text-align: center;
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid #2a3160;
+    font-size: 14px;
+    color: #c9d0f5;
+    min-height: 40px;
+  }
+  #hint-bar .clue { font-size: 18px; font-weight: 800; color: #ffe066; margin: 0 4px; }
+  #hint-bar .team-tag { font-weight: 800; }
+
+  #board-area { position: relative; width: 100%; }
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    width: 100%;
+  }
+  .card {
+    position: relative;
+    aspect-ratio: 1.55 / 1;
+    border-radius: 8px;
+    background: #f1ebdc;
+    color: #2a2a35;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4px;
+    font-weight: 700;
+    font-size: clamp(11px, 2.9vw, 18px);
+    line-height: 1.15;
+    word-break: break-all;
+    box-shadow: 0 3px 0 #b9ad90, 0 4px 10px rgba(0,0,0,0.4);
+    user-select: none;
+    transition: transform 0.12s, background 0.25s, color 0.25s, box-shadow 0.2s;
+  }
+  .card.clickable { cursor: pointer; }
+  .card.clickable:hover { transform: translateY(-2px); }
+  .card.selected { box-shadow: 0 0 0 3px #ffe066, 0 0 16px rgba(255,224,102,0.8); transform: translateY(-2px); }
+  .card .tap {
+    position: absolute;
+    bottom: 3px;
+    left: 0; right: 0;
+    font-size: 9px;
+    font-weight: 600;
+    color: #8a6d00;
+  }
+  /* スパイマスター表示（未公開カードを薄く色付け） */
+  .card.key-red { background: #f39c9f; box-shadow: inset 0 0 0 3px #d23c42, 0 3px 0 #b85a5d, 0 4px 10px rgba(0,0,0,0.4); }
+  .card.key-blue { background: #9fbcfb; box-shadow: inset 0 0 0 3px #2f66e0, 0 3px 0 #5f83d4, 0 4px 10px rgba(0,0,0,0.4); }
+  .card.key-neutral { background: #e9e0c6; }
+  .card.key-assassin { background: #3b3b44; color: #f1ebdc; box-shadow: 0 3px 0 #15151a, 0 4px 10px rgba(0,0,0,0.4); }
+  .card.key-assassin .tap { color: #ffe066; }
+  /* 公開済み */
+  .card.rev { color: rgba(255,255,255,0.92); box-shadow: inset 0 0 0 2px rgba(255,255,255,0.25); font-size: clamp(10px, 2.4vw, 15px); }
+  .card.rev::before {
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    font-size: clamp(10px, 2.2vw, 14px);
+  }
+  .card.rev.red { background: linear-gradient(160deg, #f0666a, #c22f35); }
+  .card.rev.blue { background: linear-gradient(160deg, #6b9bff, #2c5fd6); }
+  .card.rev.neutral { background: linear-gradient(160deg, #cdbb8e, #a8956a); }
+  .card.rev.assassin { background: linear-gradient(160deg, #3a3a42, #0c0c10); }
+  .card.rev.red::before, .card.rev.blue::before { content: '🕵'; }
+  .card.rev.neutral::before { content: '🚶'; }
+  .card.rev.assassin::before { content: '☠'; }
+  .card.rev.dim { opacity: 0.55; }
+  .card.pop { animation: pop 0.35s ease-out; }
+  @keyframes pop { 0% { transform: rotateY(90deg); } 100% { transform: rotateY(0); } }
+
+  #controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 42px;
+  }
+  #controls input, #controls select, #overlay input {
+    font-size: 15px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06);
+    color: #eef0ff;
+  }
+  #controls input:focus, #controls select:focus, #overlay input:focus { outline: none; border-color: #6ea8ff; }
+  #controls select option { color: #000; }
+  #hint-word { width: 170px; }
+  #ctrl-note { font-size: 12px; color: #9aa3d6; width: 100%; text-align: center; }
+
+  #history {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: #b9c2f0;
+  }
+  #history:empty { display: none; }
+  .hist-row { padding: 5px 10px; border-radius: 8px; background: rgba(255,255,255,0.03); border-left: 3px solid var(--tc); }
+  .hist-row b { color: #eef0ff; }
+  .chip { display: inline-block; padding: 0 6px; margin: 1px 2px; border-radius: 6px; font-size: 11px; color: #fff; }
+  .chip.red { background: #c22f35; }
+  .chip.blue { background: #2c5fd6; }
+  .chip.neutral { background: #a8956a; }
+  .chip.assassin { background: #111; }
+
+  #banner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: rgba(10, 12, 26, 0.94);
+    border: 1px solid #3a4278;
+    padding: 10px 22px;
+    border-radius: 999px;
+    font-size: 15px;
+    color: #ffe066;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    white-space: nowrap;
+    z-index: 6;
+  }
+  #banner.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+  #overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    background: rgba(5,7,15,0.94);
+    text-align: center;
+    padding: 64px 16px 20px;
+    z-index: 50;
+    overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #ffe066;
+    text-shadow: 0 0 14px rgba(255,224,102,0.6);
+  }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4);
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    font-size: 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(60,80,255,0.5);
+    transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice.small { padding: 7px 16px; font-size: 13px; }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 460px; margin: 0; padding-left: 20px; }
+  #room-code {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: 8px;
+    color: #ffe066;
+    background: rgba(255,224,102,0.08);
+    border: 1px solid rgba(255,224,102,0.4);
+    padding: 4px 22px;
+    border-radius: 12px;
+    text-shadow: 0 0 14px rgba(255,224,102,0.5);
+  }
+  #code-input { width: 160px; font-size: 22px !important; letter-spacing: 6px; text-align: center; text-transform: uppercase; }
+  #name-input { width: 200px; text-align: center; }
+  .slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; max-width: 460px; }
+  .slot {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--tc);
+    min-height: 82px;
+  }
+  .slot-title { font-size: 12px; font-weight: 700; color: var(--tc); }
+  .slot-names { flex: 1; font-size: 13px; color: #eef0ff; line-height: 1.5; }
+  .slot-names .me { color: #ffe066; font-weight: 700; }
+  .slot button { align-self: center; }
+  .unassigned { font-size: 12px; color: #9aa3d6; }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  @media (max-width: 480px) {
+    #overlay { gap: 9px; padding: 60px 12px 12px; }
+    #overlay h2 { font-size: 20px; }
+    #overlay p { font-size: 12px; }
+    #room-code { font-size: 26px; }
+    .slot { min-height: 70px; }
+    #grid { gap: 4px; }
+    .card { border-radius: 6px; padding: 2px; }
+    .team-left { font-size: 22px; }
+    .card .tap { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>コードネーム</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+
+    <div id="hud">
+      <div class="team-card red" id="card-red" style="--tc:#e5484d">
+        <div class="team-left" id="left-red">-</div>
+        <div class="team-info"><span class="team-name">赤チーム</span><span class="team-members" id="mem-red"></span></div>
+      </div>
+      <div class="team-card blue" id="card-blue" style="--tc:#3e7bfa">
+        <div class="team-left" id="left-blue">-</div>
+        <div class="team-info"><span class="team-name">青チーム</span><span class="team-members" id="mem-blue"></span></div>
+      </div>
+    </div>
+
+    <div id="hint-bar"></div>
+
+    <div id="board-area">
+      <div id="grid"></div>
+      <div id="banner"></div>
+      <div id="overlay">
+        <h2 id="overlay-title">コードネーム</h2>
+        <p id="overlay-text"></p>
+        <div id="overlay-extra"></div>
+        <div id="overlay-buttons"></div>
+      </div>
+    </div>
+
+    <div id="controls"></div>
+    <div id="history"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  const WORDS = [...new Set(`
+    イヌ ネコ ウマ ウシ ブタ ヒツジ ヤギ ウサギ ネズミ トラ ライオン ゾウ キリン サル クマ パンダ オオカミ キツネ タヌキ シカ
+    カメ ヘビ ワニ カエル クジラ イルカ サメ タコ イカ カニ エビ ペンギン ワシ フクロウ ハト カラス ツル ハチ アリ クモ チョウ セミ ホタル
+    リンゴ バナナ ミカン ブドウ イチゴ スイカ モモ レモン トマト キャベツ ニンジン ダイコン タマネギ ジャガイモ カボチャ キノコ
+    パン ごはん ラーメン うどん そば カレー すし 天ぷら 餃子 ケーキ チョコ アイス プリン クッキー 牛乳 チーズ たまご 豆腐 納豆
+    みそ しょうゆ 塩 砂糖 コーヒー お茶 ワイン ビール
+    太陽 月 星 地球 火星 銀河 宇宙 空 雲 雨 雪 雷 虹 風 嵐 台風 地震 火山 山 川 海 湖 島 森 砂漠 氷 炎 石 砂 岩 波 滝 谷 洞窟
+    花 桜 バラ ヒマワリ 竹 松 葉 根 種
+    本 ペン 鉛筆 消しゴム ノート 紙 はさみ のり 時計 眼鏡 鍵 財布 傘 帽子 靴 手袋 マフラー ボタン 指輪 ネックレス 王冠 鏡
+    カメラ 電話 テレビ ラジオ パソコン ロボット 電池 電球 ろうそく 箱 袋 瓶 皿 箸 フォーク ナイフ スプーン 鍋 やかん 冷蔵庫
+    椅子 机 ベッド 枕 毛布 窓 ドア 階段 屋根 壁 柱 橋 塔 城 寺 神社 教会 学校 病院 銀行 図書館 駅 空港 港 公園 動物園 劇場
+    映画館 ホテル 工場 農場 牧場 刑務所 博物館
+    車 バス 電車 新幹線 飛行機 ヘリコプター 船 潜水艦 ロケット 自転車 バイク タクシー 救急車 消防車 トラック 気球
+    医者 先生 警察 消防士 忍者 侍 王様 女王 姫 騎士 海賊 魔法使い 探偵 スパイ 泥棒 宇宙人 幽霊 天使 悪魔 鬼 ドラゴン 巨人
+    小人 ピエロ 料理人 歌手 画家 選手 審判 社長 王子 ヒーロー
+    頭 顔 目 耳 鼻 口 歯 手 足 心臓 骨 血 髪 指
+    夢 愛 時間 お金 宝 地図 旗 手紙 切手 写真 絵 歌 ダンス 映画 漫画 ゲーム 試合 戦争 平和 秘密 約束 魔法 呪い 奇跡 未来 過去
+    歴史 科学 数学 音楽 言葉 名前 影 光 闇 音 声 匂い 熱 電気 毒 薬 ウイルス 細胞 原子 磁石 鉄 金 銀 銅 ダイヤ 真珠 ガラス
+    木 布 糸 針 網 縄 鎖 釘 ハンマー 斧 剣 弓 矢 盾 大砲 爆弾 ミサイル 戦車
+    サッカー 野球 テニス 卓球 ゴルフ 水泳 スキー 柔道 相撲 マラソン ボール
+    日本 アメリカ 中国 フランス エジプト ローマ アフリカ 南極 北極 東京 京都 大阪 富士山
+    春 夏 秋 冬 正月 誕生日 結婚 祭り 花火 クリスマス ハロウィン
+    トランプ サイコロ パズル 人形 風船 凧 コマ 鈴 太鼓 ピアノ ギター バイオリン ラッパ 笛 ベル カード チケット 新聞 雑誌 辞書
+    カレンダー ポスト 信号 標識 道 トンネル ビル エレベーター プール 温泉 キャンプ テント 地下鉄 迷路 ピラミッド 恐竜 化石
+    ミイラ ゾンビ 吸血鬼 人魚 ユニコーン 不死鳥 雪だるま
+  `.trim().split(/\s+/))];
+
+  const TEAM = {
+    red: { name: '赤', hex: '#e5484d' },
+    blue: { name: '青', hex: '#3e7bfa' }
+  };
+  const COLOR_NAME = { red: '赤', blue: '青', neutral: '一般人', assassin: '暗殺者' };
+  const other = t => t === 'red' ? 'blue' : 'red';
+
+  const gridEl = document.getElementById('grid');
+  const hintBar = document.getElementById('hint-bar');
+  const controls = document.getElementById('controls');
+  const historyEl = document.getElementById('history');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlayText = document.getElementById('overlay-text');
+  const overlayButtons = document.getElementById('overlay-buttons');
+  const overlayExtra = document.getElementById('overlay-extra');
+  const banner = document.getElementById('banner');
+  const backBtn = document.getElementById('back-btn');
+
+  let mode = null;          // 'local' | 'online'
+  let isHost = false;
+  let myId = 'local';
+  let S = null;             // ゲーム状態（ホスト/ローカルは完全版、ゲストは鍵が隠された版）
+  let players = [];         // online: { id, name, team, role: 'spy' | 'op' | null }
+  let inGame = false;
+  let spyView = false;      // local: 鍵を表示中か
+  let selected = -1;
+  let lastRevealed = null;
+  let membersOpen = false;
+  let bannerTimer = null;
+
+  let peer = null, conn = null, roomCode = null;
+  const guests = new Map(); // peerId -> conn (host only)
+
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function loadName() { try { return localStorage.getItem('codenames-name') || ''; } catch (e) { return ''; } }
+  function saveName(n) { try { localStorage.setItem('codenames-name', n); } catch (e) {} }
+
+  function showBanner(text, ms = 1400) {
+    banner.textContent = text;
+    banner.classList.add('show');
+    clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(() => banner.classList.remove('show'), ms);
+  }
+
+  // ---------- game rules (ローカル/ホストのみ実行) ----------
+  function newGame() {
+    const startTeam = Math.random() < 0.5 ? 'red' : 'blue';
+    const key = shuffle([
+      ...Array(9).fill(startTeam), ...Array(8).fill(other(startTeam)),
+      ...Array(7).fill('neutral'), 'assassin'
+    ]);
+    S = {
+      words: shuffle(WORDS.slice()).slice(0, 25),
+      key,
+      revealed: Array(25).fill(false),
+      startTeam,
+      turn: startTeam,
+      phase: 'hint',       // 'hint' | 'guess' | 'over'
+      hint: null,          // { word, num }
+      guessesLeft: null,   // null = 制限なし
+      guessesMade: 0,
+      history: [],         // { team, word, num, guesses: [{ word, color }] }
+      winner: null,
+      reason: null,
+      left: null,
+      last: null           // 直前にめくったカード（演出用）
+    };
+    updateLeft();
+  }
+
+  function updateLeft() {
+    S.left = { red: 0, blue: 0 };
+    S.key.forEach((k, i) => { if (!S.revealed[i] && (k === 'red' || k === 'blue')) S.left[k]++; });
+  }
+
+  function hasPermission(from, action) {
+    if (mode === 'local') return true;
+    const p = players.find(pl => pl.id === from);
+    if (!p || p.team !== S.turn) return false;
+    if (action.type === 'hint') return p.role === 'spy';
+    return p.role === 'op';
+  }
+
+  function hintError(word) {
+    if (!word) return 'ヒントを入力してください';
+    if (word.length > 20) return 'ヒントは20文字以内にしてください';
+    if (/\s/.test(word)) return 'ヒントは1語で入力してください';
+    if (S.words.some((w, i) => !S.revealed[i] && w === word)) return '盤面にある言葉はヒントにできません';
+    return null;
+  }
+
+  function endTurn() {
+    S.turn = other(S.turn);
+    S.phase = 'hint';
+    S.hint = null;
+    S.guessesLeft = null;
+    S.guessesMade = 0;
+  }
+
+  // 成功したら true（ホストは全員へ同期、ローカルは再描画）
+  function applyAction(action, from) {
+    if (!S || S.phase === 'over' || !hasPermission(from, action)) return false;
+    if (action.type === 'hint') {
+      if (S.phase !== 'hint') return false;
+      const word = String(action.word || '').trim();
+      const num = action.num === '∞' ? '∞' : Math.max(0, Math.min(9, parseInt(action.num, 10) || 0));
+      if (hintError(word)) return false;
+      S.hint = { word, num };
+      S.phase = 'guess';
+      S.guessesMade = 0;
+      S.guessesLeft = (num === 0 || num === '∞') ? null : num + 1;
+      S.history.push({ team: S.turn, word, num, guesses: [] });
+      S.last = null;
+      return true;
+    }
+    if (action.type === 'guess') {
+      const i = action.i;
+      if (S.phase !== 'guess' || !(i >= 0 && i < 25) || S.revealed[i]) return false;
+      const team = S.turn;
+      const color = S.key[i];
+      S.revealed[i] = true;
+      S.guessesMade++;
+      S.last = { i, color, team };
+      S.history[S.history.length - 1].guesses.push({ word: S.words[i], color });
+      updateLeft();
+      if (color === 'assassin') { finish(other(team), 'assassin'); return true; }
+      if (S.left.red === 0) { finish('red', 'all'); return true; }
+      if (S.left.blue === 0) { finish('blue', 'all'); return true; }
+      if (color === team) {
+        if (S.guessesLeft !== null) {
+          S.guessesLeft--;
+          if (S.guessesLeft <= 0) endTurn();
+        }
+      } else {
+        endTurn();
+      }
+      return true;
+    }
+    if (action.type === 'end') {
+      if (S.phase !== 'guess' || S.guessesMade < 1) return false;
+      S.last = null;
+      endTurn();
+      return true;
+    }
+    return false;
+  }
+
+  function finish(winner, reason) {
+    S.phase = 'over';
+    S.winner = winner;
+    S.reason = reason;
+  }
+
+  // ---------- 権限ごとの見え方 ----------
+  const me = () => players.find(p => p.id === myId);
+  function seesKey() {
+    if (!S) return false;
+    if (S.phase === 'over') return true;
+    if (mode === 'local') return spyView;
+    const m = me();
+    return !!m && m.role === 'spy';
+  }
+  function canHint() {
+    if (!S || !inGame || S.phase !== 'hint') return false;
+    if (mode === 'local') return true;
+    const m = me();
+    return !!m && m.team === S.turn && m.role === 'spy';
+  }
+  function canGuess() {
+    if (!S || !inGame || S.phase !== 'guess') return false;
+    if (mode === 'local') return !spyView;
+    const m = me();
+    return !!m && m.team === S.turn && m.role === 'op';
+  }
+
+  // ---------- actions from this device ----------
+  function act(action) {
+    if (mode === 'online' && !isHost) {
+      if (conn) conn.send({ type: 'act', action });
+      return;
+    }
+    if (applyAction(action, myId)) afterChange();
+  }
+
+  function afterChange() {
+    if (mode === 'local' && S.phase !== 'hint') spyView = false;
+    if (isHost) syncAll();
+    render();
+  }
+
+  // ---------- rendering ----------
+  function teamTag(t) { return `<span class="team-tag" style="color:${TEAM[t].hex}">${TEAM[t].name}チーム</span>`; }
+  function numLabel(n) { return n === '∞' ? '∞' : String(n); }
+
+  function render() {
+    if (!S) { gridEl.innerHTML = ''; return; }
+    const sk = seesKey();
+    const guess = canGuess();
+    if (!guess) selected = -1;
+
+    // cards
+    if (gridEl.children.length !== 25) {
+      gridEl.innerHTML = '';
+      for (let i = 0; i < 25; i++) {
+        const c = document.createElement('div');
+        c.addEventListener('click', () => onCardClick(i));
+        gridEl.appendChild(c);
+      }
+    }
+    const lastKey = S.last ? S.last.i + ':' + S.history.length : null;
+    for (let i = 0; i < 25; i++) {
+      const el = gridEl.children[i];
+      const k = S.key[i];
+      let cls = 'card';
+      if (S.revealed[i]) {
+        cls += ' rev ' + k;
+      } else if (sk && k) {
+        cls += ' key-' + k;
+      }
+      if (S.phase === 'over' && !S.revealed[i] && k) cls = 'card rev dim ' + k;
+      if (guess && !S.revealed[i]) cls += ' clickable';
+      if (i === selected) cls += ' selected';
+      el.className = cls;
+      el.innerHTML = esc(S.words[i]) + (i === selected ? '<span class="tap">もう一度タップでめくる</span>' : '');
+    }
+    if (lastKey && lastKey !== lastRevealed) {
+      const el = gridEl.children[S.last.i];
+      el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+      const who = TEAM[S.last.team].name;
+      const msg = S.last.color === S.last.team ? `正解！ ${who}チームの諜報員`
+        : S.last.color === 'assassin' ? '暗殺者に接触してしまった…'
+        : S.last.color === 'neutral' ? '一般人でした。ターン終了'
+        : `${TEAM[S.last.color].name}チームの諜報員でした…ターン終了`;
+      if (S.phase !== 'over') showBanner(msg);
+    }
+    lastRevealed = lastKey;
+
+    // hud
+    document.getElementById('left-red').textContent = S.left.red;
+    document.getElementById('left-blue').textContent = S.left.blue;
+    document.getElementById('card-red').classList.toggle('active', S.phase !== 'over' && S.turn === 'red');
+    document.getElementById('card-blue').classList.toggle('active', S.phase !== 'over' && S.turn === 'blue');
+    for (const t of ['red', 'blue']) {
+      let mem = '';
+      if (mode === 'online') {
+        const spy = players.find(p => p.team === t && p.role === 'spy');
+        const ops = players.filter(p => p.team === t && p.role === 'op');
+        mem = `🔑${spy ? spy.name : '未定'}　` + (ops.map(p => p.name).join('・') || '諜報員なし');
+      } else {
+        mem = t === S.startTeam ? '先攻（9枚）' : '後攻（8枚）';
+      }
+      document.getElementById('mem-' + t).textContent = mem;
+    }
+
+    // hint bar
+    if (S.phase === 'over') {
+      const reason = S.reason === 'assassin' ? `${TEAM[other(S.winner)].name}チームが暗殺者に接触` : '諜報員を全員発見';
+      hintBar.innerHTML = `${teamTag(S.winner)}の勝ち！（${reason}）`;
+    } else if (S.phase === 'hint') {
+      if (mode === 'local') {
+        hintBar.innerHTML = spyView
+          ? `${teamTag(S.turn)}のスパイマスター：自分の色の言葉をつなぐヒントを考えて入力`
+          : `${teamTag(S.turn)}のスパイマスターの番です。「鍵を見る」で色を確認してください`;
+      } else {
+        hintBar.innerHTML = canHint()
+          ? `あなた（${teamTag(S.turn)}のスパイマスター）がヒントを出す番です`
+          : `${teamTag(S.turn)}のスパイマスターがヒントを考えています…`;
+      }
+    } else {
+      const left = S.guessesLeft === null ? '回数制限なし' : `あと ${S.guessesLeft} 回`;
+      hintBar.innerHTML = `${teamTag(S.turn)} ヒント：<span class="clue">「${esc(S.hint.word)}」${numLabel(S.hint.num)}</span>（${left}）`;
+    }
+
+    renderControls();
+    renderHistory();
+  }
+
+  function renderControls() {
+    controls.innerHTML = '';
+    const note = (text) => {
+      const d = document.createElement('div');
+      d.id = 'ctrl-note';
+      d.textContent = text;
+      controls.appendChild(d);
+    };
+    const button = (label, onClick, opts = {}) => {
+      const b = document.createElement('button');
+      b.className = 'choice small' + (opts.secondary ? ' secondary' : '');
+      b.textContent = label;
+      b.disabled = !!opts.disabled;
+      b.addEventListener('click', onClick);
+      controls.appendChild(b);
+      return b;
+    };
+
+    if (S.phase === 'over') {
+      if (mode === 'local' || isHost) button('もう一度（新しいお題）', () => { newGame(); spyView = false; lastRevealed = null; afterChange(); });
+      else note('ホストが次のゲームを始めるのを待っています');
+      if (mode === 'online') button('メンバー・役割', openMembers, { secondary: true });
+      return;
+    }
+
+    if (mode === 'local' && S.phase === 'hint') {
+      button(spyView ? '🔒 鍵を隠す' : '🔑 鍵を見る（スパイマスター用）', toggleSpyView, { secondary: spyView });
+    }
+
+    if (canHint() && (mode !== 'local' || spyView)) {
+      const input = document.createElement('input');
+      input.id = 'hint-word';
+      input.maxLength = 20;
+      input.placeholder = 'ヒント（1語）';
+      input.autocomplete = 'off';
+      const sel = document.createElement('select');
+      sel.id = 'hint-num';
+      for (const v of ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '∞']) {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = v;
+        sel.appendChild(o);
+      }
+      controls.appendChild(input);
+      controls.appendChild(sel);
+      const submit = () => {
+        const word = input.value.trim();
+        const err = hintError(word);
+        if (err) { showBanner(err); return; }
+        act({ type: 'hint', word, num: sel.value === '∞' ? '∞' : +sel.value });
+      };
+      button('ヒントを出す', submit);
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+      note('数字は「そのヒントに関係する自分のチームの言葉の数」。0と∞は回数制限なし');
+    }
+
+    if (canGuess()) {
+      button('ターン終了', () => act({ type: 'end' }), { secondary: true, disabled: S.guessesMade < 1 });
+      note(S.guessesMade < 1 ? 'カードをタップして選び、もう一度タップでめくります（最低1枚）' : '続けて推理するか、ターンを終了できます');
+    } else if (mode === 'online' && S.phase === 'guess') {
+      const m = me();
+      note(m && m.team === S.turn && m.role === 'spy' ? 'チームの推理を見守りましょう（言葉や表情でヒントを出すのは禁止）' : `${TEAM[S.turn].name}チームが推理中です`);
+    }
+
+    if (mode === 'online') button('メンバー・役割', openMembers, { secondary: true });
+  }
+
+  function renderHistory() {
+    historyEl.innerHTML = S.history.slice().reverse().map(h => {
+      const chips = h.guesses.map(g => `<span class="chip ${g.color}">${esc(g.word)}</span>`).join('');
+      return `<div class="hist-row" style="--tc:${TEAM[h.team].hex}">${TEAM[h.team].name}：<b>「${esc(h.word)}」${numLabel(h.num)}</b> ${chips}</div>`;
+    }).join('');
+  }
+
+  function onCardClick(i) {
+    if (!canGuess() || S.revealed[i]) return;
+    if (selected === i) { selected = -1; act({ type: 'guess', i }); }
+    else selected = i;
+    render();
+  }
+
+  function toggleSpyView() {
+    if (spyView) { spyView = false; render(); return; }
+    showOverlay('スパイマスター専用', `${TEAM[S.turn].name}チームのスパイマスター以外は画面を見ないでください`, [
+      { label: '鍵を表示する', primary: true, onClick: () => { hideOverlay(); spyView = true; render(); } },
+      { label: 'やめる', primary: false, onClick: hideOverlay }
+    ]);
+  }
+
+  // ---------- overlay ----------
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); membersOpen = false; }
+
+  function showModeSelect() {
+    cleanupPeer();
+    mode = null; isHost = false; myId = 'local'; players = []; inGame = false; spyView = false;
+    newGame();
+    S.phase = 'hint';
+    lastRevealed = null;
+    render();
+    controls.innerHTML = '';
+    historyEl.innerHTML = '';
+    hintBar.textContent = '2チームに分かれて、スパイマスターのヒントから仲間の諜報員を探し出そう';
+    showOverlay('コードネーム', 'ヒントから味方の言葉を当てるチーム対戦ゲーム（4人〜）', [
+      { label: '同じ画面で遊ぶ', primary: true, onClick: startLocal },
+      { label: 'オンライン対戦（各自の端末）', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>赤と青の2チームに分かれ、各チーム1人が<b>スパイマスター</b>、残りが<b>諜報員</b>になります。</li>
+        <li>25枚の言葉のうち、先攻チームの諜報員が9枚、後攻が8枚、一般人が7枚、<b>暗殺者</b>が1枚。どれがどれかはスパイマスターだけが知っています。</li>
+        <li>スパイマスターは「1語＋数字」のヒントを出します（例：「果物 2」）。盤面にある言葉はヒントにできません。</li>
+        <li>諜報員は相談してカードをめくります。自分のチームの色なら続行（最大で数字＋1回）。一般人か相手の色ならターン終了。</li>
+        <li>相手チームの言葉を全部めくってしまうと相手の勝ち。<b>暗殺者をめくったチームは即負け</b>です。</li>
+        <li>自分のチームの言葉を先に全部見つけたチームの勝ち！</li>
+        <li>同じ画面で遊ぶときは、スパイマスターが「鍵を見る」で色を確認し、ヒントを入力します。その間ほかの人は画面を見ないでください。</li>
+      </ul>`);
+  }
+
+  function startLocal() {
+    mode = 'local'; isHost = false; myId = 'local'; players = [];
+    newGame();
+    inGame = true;
+    spyView = false;
+    lastRevealed = null;
+    hideOverlay();
+    render();
+    showBanner(`${TEAM[S.startTeam].name}チームが先攻です`);
+  }
+
+  // ---------- online (WebRTC via PeerJS, ホストがゲームを管理) ----------
+  function cleanupPeer() {
+    for (const c of guests.values()) { try { c.close(); } catch (e) {} }
+    guests.clear();
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 見分けにくい文字は除外
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン対戦', '各自のスマホやPCで参加します。まず名前を入力してください', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" />
+        <div class="row"><input id="code-input" maxlength="4" placeholder="コード" autocomplete="off" />
+        <button id="join-btn" class="choice">部屋に入る</button></div>`);
+    document.getElementById('join-btn').addEventListener('click', () => withName(joinRoom));
+    document.getElementById('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
+  }
+
+  function withName(fn) {
+    const input = document.getElementById('name-input');
+    const name = input ? input.value.trim() : '';
+    if (!name) { showBanner('名前を入力してください'); if (input) input.focus(); return; }
+    saveName(name);
+    const codeInput = document.getElementById('code-input');
+    fn(name, codeInput ? codeInput.value.trim().toUpperCase() : '');
+  }
+
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+
+  function validTeams() {
+    return ['red', 'blue'].every(t =>
+      players.filter(p => p.team === t && p.role === 'spy').length === 1 &&
+      players.some(p => p.team === t && p.role === 'op'));
+  }
+
+  function setRole(id, team, role) {
+    const p = players.find(pl => pl.id === id);
+    if (!p || !TEAM[team] || !['spy', 'op'].includes(role)) return false;
+    if (role === 'spy' && players.some(pl => pl.id !== id && pl.team === team && pl.role === 'spy')) return false;
+    p.team = team; p.role = role;
+    return true;
+  }
+
+  // 暗殺者などの色はスパイマスターにだけ送る
+  function viewFor(p) {
+    if (!S) return null;
+    if (S.phase === 'over' || (p && p.role === 'spy')) return S;
+    return { ...S, key: S.key.map((k, i) => S.revealed[i] ? k : null) };
+  }
+
+  function syncAll() {
+    for (const [id, c] of guests) {
+      const p = players.find(pl => pl.id === id);
+      try { c.send({ type: 'sync', players, inGame, state: inGame ? viewFor(p) : null }); } catch (e) {}
+    }
+    refreshLobbyOrMembers();
+  }
+
+  // --- host ---
+  function hostRoom(name) {
+    cleanupPeer();
+    mode = 'online'; isHost = true; myId = 'host'; inGame = false;
+    players = [{ id: 'host', name, team: 'red', role: 'spy' }];
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('codenames-room-' + roomCode);
+    peer.on('open', renderLobby);
+    peer.on('connection', (c) => {
+      c.on('data', d => onHostData(c, d));
+      c.on('close', () => onGuestLeft(c.peer));
+      c.on('error', () => onGuestLeft(c.peer));
+    });
+    peer.on('error', () => { if (!inGame) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+
+  function onHostData(c, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'hello') {
+      if (guests.size >= 11) { c.send({ type: 'full' }); return; }
+      guests.set(c.peer, c);
+      const name = String(data.name || '').trim().slice(0, 8) || 'ゲスト';
+      players.push({ id: c.peer, name, team: null, role: null });
+      if (inGame) showBanner(`${name}さんが参加しました`);
+      syncAll();
+      if (inGame) render();
+    } else if (data.type === 'role') {
+      if (setRole(c.peer, data.team, data.role)) { syncAll(); if (inGame) render(); }
+    } else if (data.type === 'act' && inGame && data.action) {
+      if (applyAction(data.action, c.peer)) afterChange();
+    }
+  }
+
+  function onGuestLeft(id) {
+    if (!guests.has(id)) return;
+    guests.delete(id);
+    const p = players.find(pl => pl.id === id);
+    players = players.filter(pl => pl.id !== id);
+    if (p && inGame) showBanner(`${p.name}さんが退出しました`, 2000);
+    syncAll();
+    if (inGame) render();
+  }
+
+  function hostStart() {
+    if (!validTeams()) return;
+    newGame();
+    inGame = true;
+    lastRevealed = null;
+    hideOverlay();
+    syncAll();
+    render();
+    showBanner(`${TEAM[S.startTeam].name}チームが先攻です`);
+  }
+
+  // --- guest ---
+  function joinRoom(name, code) {
+    if (!code) { showBanner('コードを入力してください'); return; }
+    cleanupPeer();
+    mode = 'online'; isHost = false; inGame = false; players = [];
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', (id) => {
+      myId = id;
+      conn = peer.connect('codenames-room-' + code, { reliable: true });
+      conn.on('open', () => conn.send({ type: 'hello', name }));
+      conn.on('data', onGuestData);
+      conn.on('close', onHostLost);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+    });
+    peer.on('error', () => { if (!inGame) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+
+  function onGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'sync') {
+      players = data.players;
+      const wasInGame = inGame;
+      inGame = data.inGame;
+      if (inGame && data.state) {
+        S = data.state;
+        if (!wasInGame) { lastRevealed = null; hideOverlay(); showBanner(`${TEAM[S.startTeam].name}チームが先攻です`); }
+        render();
+      }
+      refreshLobbyOrMembers();
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋は満員です。');
+      cleanupPeer();
+    }
+  }
+
+  function onHostLost() {
+    if (mode !== 'online' || isHost) return;
+    inGame = false;
+    showOverlay('ホストとの接続が切れました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  // --- lobby / members (共通) ---
+  function chooseRole(team, role) {
+    if (isHost) { if (setRole(myId, team, role)) { syncAll(); if (inGame) render(); } }
+    else if (conn) conn.send({ type: 'role', team, role });
+  }
+
+  function slotsHtml() {
+    const slot = (team, role) => {
+      const list = players.filter(p => p.team === team && p.role === role);
+      const mine = list.some(p => p.id === myId);
+      const taken = role === 'spy' && list.length > 0 && !mine;
+      const names = list.map(p => `<span class="${p.id === myId ? 'me' : ''}">${esc(p.name)}</span>`).join('<br>') || '<span style="color:#6b74a8">（空き）</span>';
+      return `<div class="slot" style="--tc:${TEAM[team].hex}">
+        <span class="slot-title">${TEAM[team].name}・${role === 'spy' ? '🔑スパイマスター' : '🕵諜報員'}</span>
+        <div class="slot-names">${names}</div>
+        ${mine || taken ? '' : `<button class="choice secondary small" data-team="${team}" data-role="${role}">ここに入る</button>`}
+      </div>`;
+    };
+    const none = players.filter(p => !p.team);
+    return `<div class="slots">${slot('red', 'spy')}${slot('blue', 'spy')}${slot('red', 'op')}${slot('blue', 'op')}</div>
+      ${none.length ? `<div class="unassigned">未選択：${none.map(p => esc(p.name)).join('、')}</div>` : ''}`;
+  }
+
+  function bindSlots() {
+    overlayExtra.querySelectorAll('[data-team]').forEach(b =>
+      b.addEventListener('click', () => chooseRole(b.dataset.team, b.dataset.role)));
+  }
+
+  function renderLobby() {
+    if (inGame) return;
+    if (isHost) {
+      showOverlay('部屋を作りました', 'コードを伝えて、全員にチームと役割を選んでもらいましょう（各チーム スパイマスター1人＋諜報員1人以上）', [
+        { label: 'ゲーム開始', primary: true, disabled: !validTeams(), onClick: hostStart },
+        { label: 'キャンセル', primary: false, onClick: showModeSelect }
+      ], `<div id="room-code">${roomCode}</div>
+          <button id="copy-code-btn" class="choice secondary small">コードをコピー</button>
+          ${slotsHtml()}`);
+      const copyBtn = document.getElementById('copy-code-btn');
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(roomCode).then(() => {
+          copyBtn.textContent = 'コピーしました！';
+          setTimeout(() => { copyBtn.textContent = 'コードをコピー'; }, 1500);
+        });
+      });
+    } else {
+      showOverlay('参加しました', 'チームと役割を選んで、ホストの開始を待ってください', [
+        { label: '退出する', primary: false, onClick: showModeSelect }
+      ], slotsHtml());
+    }
+    bindSlots();
+  }
+
+  function openMembers() {
+    membersOpen = true;
+    renderMembers();
+  }
+  function renderMembers() {
+    showOverlay('メンバー・役割', '途中で役割を変えることもできます（退出した人の代わりなど）', [
+      { label: '閉じる', primary: true, onClick: hideOverlay }
+    ], slotsHtml());
+    membersOpen = true;
+    bindSlots();
+  }
+
+  function refreshLobbyOrMembers() {
+    if (mode !== 'online') return;
+    if (!inGame) renderLobby();
+    else if (membersOpen) renderMembers();
+  }
+
+  backBtn.addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+
+  showModeSelect();
+})();
+</script>
+</body>
+</html>
