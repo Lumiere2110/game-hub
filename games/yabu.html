@@ -69,6 +69,19 @@
   #turn-indicator { text-align: center; font-size: 14px; color: #9fb4ff; min-height: 20px; margin-bottom: 10px; }
 
   #suspects-row { display: flex; gap: 14px; justify-content: center; margin: 18px 0 34px; }
+  #side-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: flex-start; margin: 0 0 8px; }
+  .side-group { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .side-group-label { font-size: 11px; color: #7c86c2; letter-spacing: 1px; }
+  .side-tiles { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .suspect-tile.small { width: 56px; height: 74px; font-size: 24px; border-radius: 10px; }
+  .suspect-tile.victim { border-style: dashed; border-color: #6b3a4a; }
+  .suspect-tile.victim.known { color: #ff9fae; border-color: #ff5d73; }
+  .suspect-tile.witness.known { color: #8fe3b0; }
+  .seers { display: flex; gap: 3px; justify-content: center; min-height: 10px; }
+  .seer { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,0.4); }
+  .seer.me { box-shadow: 0 0 0 2px #fff; }
+  .seer-none { font-size: 9px; color: #5a6290; line-height: 10px; }
+  #seer-note { text-align: center; font-size: 11px; color: #7c86c2; margin-top: 6px; min-height: 14px; }
   .suspect-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .suspect-label { font-size: 12px; font-weight: 700; color: #7c86c2; letter-spacing: 2px; }
   .suspect-tile {
@@ -278,10 +291,12 @@
       <div id="round-banner">ラウンド <span id="round-num">-</span>　／　しくじりチップ<span id="limit-num">5</span>枚で終了</div>
       <div id="turn-indicator"></div>
       <div id="suspects-row">
-        <div class="suspect-wrap"><div class="suspect-label">A</div><div class="suspect-tile facedown" id="suspect-0"><div class="s-value">?</div></div></div>
-        <div class="suspect-wrap"><div class="suspect-label">B</div><div class="suspect-tile facedown" id="suspect-1"><div class="s-value">?</div></div></div>
-        <div class="suspect-wrap"><div class="suspect-label">C</div><div class="suspect-tile facedown" id="suspect-2"><div class="s-value">?</div></div></div>
+        <div class="suspect-wrap"><div class="suspect-label">A</div><div class="seers" id="seers-0"></div><div class="suspect-tile facedown" id="suspect-0"><div class="s-value">?</div></div></div>
+        <div class="suspect-wrap"><div class="suspect-label">B</div><div class="seers" id="seers-1"></div><div class="suspect-tile facedown" id="suspect-1"><div class="s-value">?</div></div></div>
+        <div class="suspect-wrap"><div class="suspect-label">C</div><div class="seers" id="seers-2"></div><div class="suspect-tile facedown" id="suspect-2"><div class="s-value">?</div></div></div>
       </div>
+      <div id="side-row"></div>
+      <div id="seer-note"></div>
       <div id="players-row"></div>
 
       <div id="overlay">
@@ -322,22 +337,45 @@
     return a;
   }
 
-  function buildPool(n) {
-    const nums = [2, 3, 4, 5, 6, 7, 8].map(v => ({ type: 'num', value: v }));
-    if (n === 3) return nums;
-    if (n === 4) return nums.concat([{ type: 'x' }]);
-    return nums.concat([{ type: 'x' }, { type: 'x' }]);
-  }
-
+  // 人型タイルは 1〜(人数+4)：3人なら1〜7、4人なら1〜8、5人なら1〜9
+  // 容疑者3枚・被害者1枚（全員に伏せる）・残りは証人（人数と同じ枚数）
   function dealRound(playerCount) {
-    const pool = shuffle(buildPool(playerCount));
-    const suspects = pool.slice(0, 3);
-    const hiddenOffset = Math.floor(Math.random() * 3);
-    return { suspects, hiddenOffset };
+    const tiles = shuffle(Array.from({ length: playerCount + 4 }, (_, i) => i + 1));
+    return {
+      suspects: tiles.slice(0, 3).map(v => ({ type: 'num', value: v })),
+      victim: tiles[3],
+      witnesses: tiles.slice(4),
+      hiddenOffset: Math.floor(Math.random() * 3),
+      witnessOffset: Math.floor(Math.random() * playerCount)
+    };
   }
 
+  // 容疑者は3枚のうち2枚が見える（見えない1枚が人によって違う）
   function hiddenIndexFor(hiddenOffset, playerIdx) {
     return (playerIdx + hiddenOffset) % 3;
+  }
+  // 証人は隣り合う2枚が見える
+  function witnessIndexesFor(witnessOffset, playerIdx, count) {
+    return [(playerIdx + witnessOffset) % count, (playerIdx + witnessOffset + 1) % count];
+  }
+  // 誰がどのタイルを見られるか（全員に公開する情報）
+  function buildSeers(deal, keys) {
+    const suspects = [[], [], []];
+    const witnesses = deal.witnesses.map(() => []);
+    keys.forEach((k, idx) => {
+      const h = hiddenIndexFor(deal.hiddenOffset, idx);
+      for (let i = 0; i < 3; i++) if (i !== h) suspects[i].push(k);
+      for (const w of witnessIndexesFor(deal.witnessOffset, idx, deal.witnesses.length)) witnesses[w].push(k);
+    });
+    return { suspects, witnesses };
+  }
+  function privateViewFor(deal, idx) {
+    const h = hiddenIndexFor(deal.hiddenOffset, idx);
+    const ws = witnessIndexesFor(deal.witnessOffset, idx, deal.witnesses.length);
+    return {
+      suspects: deal.suspects.map((s, i) => i === h ? null : s.value),
+      witnesses: deal.witnesses.map((v, i) => ws.includes(i) ? v : null)
+    };
   }
 
   function determineCulprit(suspects) {
@@ -397,6 +435,36 @@
       tile.onclick = null;
     }
     playersRowEl.innerHTML = '';
+    document.getElementById('side-row').innerHTML = '';
+    document.getElementById('seer-note').textContent = '';
+    for (let i = 0; i < 3; i++) document.getElementById('seers-' + i).innerHTML = '';
+  }
+
+  function seersHtml(keys) {
+    if (!keys) return '';
+    if (!keys.length) return '<span class="seer-none">誰も見ていない</span>';
+    return keys.map(k => {
+      const p = playerByKey(k);
+      return p ? `<span class="seer${k === G.myKey ? ' me' : ''}" style="background:${p.color}" title="${p.name}が見ています"></span>` : '';
+    }).join('');
+  }
+
+  // 被害者タイルと証人タイルの列
+  function renderSideRow() {
+    const row = document.getElementById('side-row');
+    const n = G.players.length;
+    if (!G.seers || !n) { row.innerHTML = ''; return; }
+    const reveal = G.phase === 'reveal-final' && G._witnesses;
+    const priv = G.phase === 'private' && G.myPrivate ? G.myPrivate : null;
+    const tile = (cls, val, known) => `<div class="suspect-tile small ${cls} ${known ? 'known' : 'facedown'}"><div class="s-value">${known ? val : '?'}</div></div>`;
+    const victim = reveal ? tile('victim', G._victim, true) : tile('victim', '?', false);
+    const ws = G.seers.witnesses.map((keys, i) => {
+      const v = reveal ? G._witnesses[i] : (priv ? priv.witnesses[i] : null);
+      return `<div class="side-group"><div class="seers">${seersHtml(keys)}</div>${tile('witness', v, v !== null && v !== undefined)}<div class="side-group-label">証人${i + 1}</div></div>`;
+    }).join('');
+    row.innerHTML = `<div class="side-group"><div class="seers"><span class="seer-none">${reveal ? '' : '全員伏せ'}</span></div>${victim}<div class="side-group-label">被害者</div></div>
+      <div class="side-tiles">${ws}</div>`;
+    document.getElementById('seer-note').textContent = '● タイルの上の色の点は、そのタイルの数字を見られる人です';
   }
 
   function render() {
@@ -408,13 +476,13 @@
       tile.className = 'suspect-tile';
       if (G.phase === 'reveal-final' && G._suspects) {
         const s = G._suspects[i];
-        valEl.textContent = s.type === 'x' ? 'X' : s.value;
+        valEl.textContent = s.value;
         tile.classList.add('known');
         if (i === G._culpritIndex) tile.classList.add('culprit');
         tile.onclick = null;
       } else if (G.phase === 'private' && G.myPrivate) {
-        if (G.myPrivate[i] === null) { valEl.textContent = '?'; tile.classList.add('facedown'); }
-        else { valEl.textContent = G.myPrivate[i]; tile.classList.add('known'); }
+        if (G.myPrivate.suspects[i] === null) { valEl.textContent = '?'; tile.classList.add('facedown'); }
+        else { valEl.textContent = G.myPrivate.suspects[i]; tile.classList.add('known'); }
         const canVote = G.currentTurnKey === G.myKey && G.votes[G.myKey] === undefined;
         if (canVote) { tile.classList.add('clickable'); tile.onclick = () => onSuspectClick(i); }
         else tile.onclick = null;
@@ -424,7 +492,9 @@
         tile.onclick = null;
       }
       renderVoteBadges(tile, i);
+      document.getElementById('seers-' + i).innerHTML = G.seers ? seersHtml(G.seers.suspects[i]) : '';
     }
+    renderSideRow();
     renderTurnIndicator();
     renderPlayersRow();
   }
@@ -499,7 +569,8 @@
     const summary = settle.bySuspect.length
       ? settle.bySuspect.map(b => `容疑者${SUSPECT_LABELS[b.suspect]}のチップ${b.count}枚 → 最後に置いた <b>${(playerByKey(b.receiver) || {}).name}</b> が受け取り`).join('<br>')
       : '全員正解！しくじりチップはありません';
-    return `<div class="culprit-banner">犯人は <strong>容疑者${SUSPECT_LABELS[culpritIndex]}</strong>（数字 ${culpritValue}）でした</div>
+    const extra = G._witnesses ? `<div class="suspect-summary">被害者 <b>${G._victim}</b>　／　証人 ${G._witnesses.map((v, i) => `${i + 1}:${v}`).join('　')}</div>` : '';
+    return `<div class="culprit-banner">犯人は <strong>容疑者${SUSPECT_LABELS[culpritIndex]}</strong>（数字 ${culpritValue}）でした</div>${extra}
       <div class="suspect-summary">${summary}</div>
       <div class="result-list">${rows}</div>`;
   }
@@ -569,10 +640,11 @@
     showOverlay('遊び方', '', [
       { label: '閉じる', primary: true, onClick: showModeSelect }
     ], `<div class="rules-text">
-      <p>場に3人の「容疑者」タイルが伏せて並びます。数字は2〜8、まれに犯人になり得ない「X」も混じります。</p>
-      <p>あなたは3人のうち<strong>2人の数字だけ</strong>を見ることができます。誰が見えないかは人によって違うため、みんなの証言が食い違います。</p>
+      <p>人型タイルは人数によって変わります（3人：1〜7、4人：1〜8、5人：1〜9）。毎ラウンドすべて伏せて配り、<strong>容疑者3枚</strong>・<strong>被害者1枚</strong>・残りを<strong>証人</strong>にします。</p>
+      <p>あなたは容疑者3人のうち<strong>2人の数字</strong>と、証人のうち<strong>2人の数字</strong>を見ることができます。被害者は誰にも見えず、答え合わせのときに公開されます。</p>
+      <p>誰がどのタイルを見ているかは、タイルの上の色の点で全員にわかります。見えている数字と、他の人の置き方から推理しましょう。</p>
       <p>自分の番が来たら、犯人だと思う容疑者に自分のチップを置きます。他の人がどこに置いたかも参考にしつつ、時にはハッタリで揺さぶりましょう。</p>
-      <p>全員が置き終わったら数字を公開。<strong>最大の数字</strong>の人が犯人です。ただし<strong>5がいる場合は最小の数字</strong>が犯人になります(Xは犯人になりません)。</p>
+      <p>全員が置き終わったら数字を公開。<strong>最大の数字</strong>の人が犯人です。ただし<strong>5がいる場合は最小の数字</strong>が犯人になります。</p>
       <p>全員が置き終えたら犯人を公開します。推理を外した人のチップは<strong>「しくじりチップ」</strong>となり、その容疑者に<strong>最後にチップを置いた人</strong>がまとめて受け取ります。正解した人のチップは戻ります。</p>
       <p>誰かがしくじりチップを<strong>規定数（標準5枚、3〜7枚で設定可）</strong>受け取ったらゲーム終了。しくじりチップが最も少ない人の勝利です。</p>
       <p style="color:#7c86c2;font-size:12px;">※オインクゲームズ「藪の中」にインスパイアされた非公式のファンメイド実装です。</p>
@@ -633,9 +705,12 @@
 
   function nextLocalRound() {
     G.round++;
-    const { suspects, hiddenOffset } = dealRound(G.players.length);
-    G._suspects = suspects;
-    G._hiddenOffset = hiddenOffset;
+    const deal = dealRound(G.players.length);
+    G._deal = deal;
+    G._suspects = deal.suspects;
+    G._victim = deal.victim;
+    G._witnesses = deal.witnesses;
+    G.seers = buildSeers(deal, G.players.map(p => p.key));
     G.votes = {};
     const startIdx = (G.round - 1) % G.players.length;
     L.turnOrder = [];
@@ -660,11 +735,9 @@
   function localShowPrivate() {
     hideOverlay();
     const key = G.currentTurnKey;
-    const idx = Number(key);
-    const hiddenIdx = hiddenIndexFor(G._hiddenOffset, idx);
     G.myKey = key;
     G.phase = 'private';
-    G.myPrivate = G._suspects.map((s, i) => i === hiddenIdx ? null : (s.type === 'x' ? 'X' : s.value));
+    G.myPrivate = privateViewFor(G._deal, Number(key));
     render();
   }
 
@@ -845,18 +918,19 @@
 
   function hostNextRound() {
     H.round = (H.round || 0) + 1;
-    const { suspects, hiddenOffset } = dealRound(onlinePlayers.length);
-    H.suspects = suspects;
+    const deal = dealRound(onlinePlayers.length);
+    H.deal = deal;
+    H.suspects = deal.suspects;
     H.votes = {};
+    const seers = buildSeers(deal, onlinePlayers.map(p => p.key));
     const startIdx = (H.round - 1) % onlinePlayers.length;
     H.turnOrder = [];
     for (let k = 0; k < onlinePlayers.length; k++) H.turnOrder.push(onlinePlayers[(startIdx + k) % onlinePlayers.length].key);
     H.turnPos = 0;
     const publicPlayers = onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, blunders: p.blunders, history: p.history }));
     onlinePlayers.forEach((p, idx) => {
-      const hiddenIdx = hiddenIndexFor(hiddenOffset, idx);
-      const priv = suspects.map((s, i) => i === hiddenIdx ? null : (s.type === 'x' ? 'X' : s.value));
-      const msg = { type: 'roundStart', round: H.round, limit: blunderLimit, myPrivate: priv, players: publicPlayers, currentTurnKey: H.turnOrder[0], votes: {} };
+      const priv = privateViewFor(deal, idx);
+      const msg = { type: 'roundStart', round: H.round, limit: blunderLimit, myPrivate: priv, seers, players: publicPlayers, currentTurnKey: H.turnOrder[0], votes: {} };
       if (p.key === 'host') applyRoundStart(msg);
       else if (hostConns[p.key]) hostConns[p.key].send(msg);
     });
@@ -867,6 +941,9 @@
     if (msg.limit) blunderLimit = msg.limit;
     G.players = msg.players;
     G.myPrivate = msg.myPrivate;
+    G.seers = msg.seers;
+    G._victim = null;
+    G._witnesses = null;
     G.phase = 'private';
     G.currentTurnKey = msg.currentTurnKey;
     G.votes = msg.votes || {};
@@ -914,7 +991,9 @@
     const settle = settleRound(onlinePlayers, H.votes, H.turnOrder, culprit);
     const msg = {
       type: 'reveal',
-      suspects: H.suspects.map(s => s.type === 'x' ? 'X' : s.value),
+      suspects: H.suspects.map(s => s.value),
+      victim: H.deal.victim,
+      witnesses: H.deal.witnesses,
       culpritIndex: culprit,
       votes: H.votes,
       players: onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, blunders: p.blunders, history: p.history })),
@@ -928,7 +1007,9 @@
 
   function applyReveal(msg) {
     G._culpritIndex = msg.culpritIndex;
-    G._suspects = msg.suspects.map(v => v === 'X' ? { type: 'x' } : { type: 'num', value: v });
+    G._suspects = msg.suspects.map(v => ({ type: 'num', value: v }));
+    G._victim = msg.victim;
+    G._witnesses = msg.witnesses;
     G.players = msg.players;
     G.votes = msg.votes;
     G.phase = 'reveal-final';
