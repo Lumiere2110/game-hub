@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>ito</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; width: 660px; max-width: 94vw; }
+  #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 { margin: 0; font-size: 26px; letter-spacing: 6px; font-weight: 800; color: #ffb0c8; text-shadow: 0 0 14px rgba(255,140,180,0.6); }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none; white-space: nowrap;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+  #status { display: flex; gap: 18px; align-items: center; font-size: 13px; color: #9aa3d6; }
+  #status b { color: #ffe066; font-size: 16px; }
+  #lives { color: #ff6b81; letter-spacing: 2px; font-size: 18px; }
+  #theme {
+    width: 100%; padding: 14px 18px; border-radius: 16px; text-align: center;
+    background: linear-gradient(160deg, #4a1f3a, #1d1430); border: 1px solid #8a3a64;
+  }
+  #theme:empty { display: none; }
+  #theme .t { font-size: 24px; font-weight: 900; color: #fff; }
+  #theme .scale { display: flex; justify-content: space-between; font-size: 12px; color: #ffb0c8; margin-top: 4px; }
+  #my-cards { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .num-card {
+    width: 70px; height: 96px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, #fff4f8, #ffd6e6); color: #8a1f4f; font-size: 32px; font-weight: 900;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5), inset 0 0 0 3px #ff8fb8;
+  }
+  .num-card small { font-size: 10px; color: #b04a7a; font-weight: 600; }
+  #line {
+    width: 100%; min-height: 110px; padding: 12px; border-radius: 16px; background: rgba(0,0,0,0.25); border: 1px solid #2a3160;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+  }
+  .played { display: flex; flex-direction: column; align-items: center; gap: 2px; animation: drop 0.35s ease-out; }
+  @keyframes drop { from { transform: translateY(-16px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .played .c { width: 52px; height: 72px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900;
+    background: #fff4f8; color: #8a1f4f; box-shadow: inset 0 0 0 2px #ff8fb8; }
+  .played.bad .c { background: #ffdede; color: #c22f35; box-shadow: inset 0 0 0 3px #ff5d73; }
+  .played.lost .c { background: #3a3a46; color: #aaa; box-shadow: inset 0 0 0 2px #666; text-decoration: line-through; }
+  .played .who { font-size: 10px; color: #9aa3d6; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .line-empty { font-size: 13px; color: #6b74a8; }
+  #players { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+  .pl { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid #2a3160; }
+  .pl.me { background: rgba(255,143,184,0.08); border-color: #8a3a64; }
+  .pl .nm { font-size: 13px; font-weight: 700; min-width: 70px; }
+  .pl .left { font-size: 11px; color: #9aa3d6; white-space: nowrap; }
+  .pl .exprs { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; }
+  .expr { font-size: 13px; padding: 2px 10px; border-radius: 999px; background: rgba(255,176,200,0.12); color: #ffd6e6; }
+  .expr.none { color: #6b74a8; background: none; }
+  .pl button { flex-shrink: 0; }
+  #msg { font-size: 14px; color: #b9c2f0; text-align: center; min-height: 20px; line-height: 1.6; }
+  #expr-row { display: none; gap: 8px; width: 100%; max-width: 460px; }
+  #expr-row input, #expr-row select {
+    font-size: 15px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278; background: rgba(255,255,255,0.06); color: #eef0ff;
+  }
+  #expr-row input { flex: 1; min-width: 0; }
+  #expr-row select option { color: #000; }
+  #actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
+  button.choice {
+    background: linear-gradient(180deg, #ff7ab0, #c43a7d); color: #fff; border: none; padding: 10px 22px; font-size: 14px;
+    border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(255,90,150,0.45); transition: transform 0.1s ease; white-space: nowrap;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #ff8fb8; box-shadow: none; color: #ffd6e6; }
+  button.choice.small { padding: 6px 14px; font-size: 12px; }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  #overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 14px; background: rgba(5,7,15,0.95); text-align: center; padding: 64px 16px 20px; z-index: 50; overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; max-width: 520px; line-height: 1.7; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 480px; margin: 0; padding-left: 20px; }
+  .seg { display: flex; border: 1px solid #3a4278; border-radius: 999px; overflow: hidden; }
+  .seg button { background: transparent; border: none; color: #9aa3d6; font-size: 13px; padding: 6px 12px; cursor: pointer; }
+  .seg button.on { background: #c43a7d; color: #fff; }
+  .names { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #overlay input {
+    font-size: 16px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center; width: 160px;
+  }
+  #overlay input:focus { outline: none; border-color: #ff8fb8; }
+  #code-input { font-size: 22px !important; letter-spacing: 6px; text-transform: uppercase; }
+  #room-code {
+    font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4); padding: 4px 22px; border-radius: 12px;
+  }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .member-list { font-size: 14px; color: #dfe4ff; line-height: 1.8; }
+  @media (max-width: 480px) { .names { grid-template-columns: 1fr; } #theme .t { font-size: 20px; } .pl { flex-wrap: wrap; } }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>ito</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+    <div id="status"></div>
+    <div id="theme"></div>
+    <div id="my-cards"></div>
+    <div id="line"></div>
+    <div id="msg"></div>
+    <div id="expr-row"><select id="expr-card"></select><input id="expr-input" maxlength="20" autocomplete="off" placeholder="テーマに沿って数字を表現"><button id="expr-btn" class="choice">表現する</button></div>
+    <div id="players"></div>
+    <div id="actions"></div>
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">ito</h2>
+    <p id="overlay-text"></p>
+    <div id="overlay-extra"></div>
+    <div id="overlay-buttons"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  // テーマ: [テーマ, 1の側, 100の側]
+  const THEMES = [
+    ['人気の食べ物', '人気がない', '大人気'], ['怖いもの', '怖くない', 'すごく怖い'], ['強そうな動物', '弱そう', '最強'], ['大きいもの', '小さい', '巨大'],
+    ['もらってうれしいプレゼント', 'うれしくない', '最高にうれしい'], ['行ってみたい旅行先', '行きたくない', '絶対行きたい'], ['重いもの', '軽い', '超重い'],
+    ['値段が高いもの', '安い', '高級'], ['痛いもの', '痛くない', '激痛'], ['子どもに人気なもの', '不人気', '大人気'], ['かっこいいもの', 'かっこ悪い', '最高にかっこいい'],
+    ['かわいいもの', 'かわいくない', '超かわいい'], ['うるさいもの', '静か', '超うるさい'], ['速い乗り物・生き物', '遅い', '超速い'], ['熱いもの', '冷たい', '激アツ'],
+    ['便利な道具', '不便', '超便利'], ['朝ごはんにしたいもの', 'したくない', 'ぜひ食べたい'], ['ドキドキすること', '平気', '心臓バクバク'], ['なくなったら困るもの', '困らない', '生きていけない'],
+    ['いい匂いのもの', 'くさい', 'いい匂い'], ['長生きしそうな生き物', '短命', '長寿'], ['難しいこと', '簡単', '超難しい'], ['ストレス解消になること', 'ならない', '最高のストレス解消'],
+    ['有名人・キャラクターの人気', 'マイナー', '国民的'], ['甘いもの', '甘くない', '激甘'], ['辛いもの', '辛くない', '激辛'], ['無人島に持っていきたいもの', 'いらない', '必需品'],
+    ['お祭りの屋台の人気', '不人気', '大行列'], ['長いもの', '短い', '超長い'], ['頭がよさそうな動物', 'おバカ', '天才'], ['テンションが上がるもの', '下がる', '最高潮'],
+    ['眠くなるもの', '目が覚める', '一瞬で寝る'], ['お金持ちが持っていそうなもの', '庶民的', '超セレブ'], ['恥ずかしいこと', '平気', '顔から火が出る'], ['夏らしいもの', '夏っぽくない', 'THE夏']
+  ];
+  const START_LIVES = 3;
+  const $ = id => document.getElementById(id);
+  const statusEl = $('status'), themeEl = $('theme'), myCardsEl = $('my-cards'), lineEl = $('line'), msgEl = $('msg');
+  const exprRow = $('expr-row'), exprCard = $('expr-card'), exprInput = $('expr-input'), playersEl = $('players'), actionsEl = $('actions');
+  const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
+  const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  function loadName() { try { return localStorage.getItem('cardgame-name') || ''; } catch (e) { return ''; } }
+  function saveName(n) { try { localStorage.setItem('cardgame-name', n); } catch (e) {} }
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  // ---------- state ----------
+  let mode = null;          // 'local' | 'online'
+  let isHost = false;
+  let myId = 'local';
+  let players = [];
+  let G = null, V = null;
+  let goalLevel = 3;
+  let localCount = 4;
+  let localNames = [];
+  let peer = null, conn = null, roomCode = null;
+  const guests = new Map();
+  const mySeat = () => players.findIndex(p => p.id === myId);
+  const isAuthority = () => mode === 'local' || isHost;
+
+  // ---------- engine (ローカル/ホスト) ----------
+  // クモノイト（協力）モード：レベルnでは1人n枚。ライフ3で目標レベルのクリアを目指す
+  function newMatch() {
+    G = { level: 0, goal: goalLevel, lives: START_LIVES, themes: shuffle(THEMES.slice()) };
+    nextLevel();
+  }
+  function cardsPerPlayer() { return Math.min(G.level, Math.floor(100 / players.length)); }
+  function nextLevel() {
+    G.level++;
+    if (!G.themes.length) G.themes = shuffle(THEMES.slice());
+    G.theme = G.themes.pop();
+    const k = cardsPerPlayer();
+    const nums = shuffle(Array.from({ length: 100 }, (_, i) => i + 1));
+    G.hands = players.map(() => nums.splice(0, k).sort((a, b) => a - b));
+    G.exprs = players.map((p, i) => G.hands[i].map(() => ''));
+    G.line = [];            // { seat, n, kind: 'ok' | 'bad' | 'lost' }
+    G.phase = 'play';       // play → clear / win / fail
+  }
+  function rerollTheme() {
+    if (G.phase !== 'play' || G.line.length) return false;
+    if (!G.themes.length) G.themes = shuffle(THEMES.slice());
+    G.theme = G.themes.pop();
+    G.exprs = G.hands.map(h => h.map(() => ''));
+    return true;
+  }
+  function doExpr(seat, idx, text) {
+    if (G.phase !== 'play' || !G.hands[seat] || !(idx >= 0 && idx < G.exprs[seat].length)) return false;
+    G.exprs[seat][idx] = String(text || '').trim().slice(0, 20);
+    return true;
+  }
+  // 自分の一番小さいカードを出す。まだ出ていないもっと小さいカードがあれば失敗（ライフ−1、そのカードは捨てる）
+  function doPlay(seat) {
+    if (G.phase !== 'play' || !G.hands[seat] || !G.hands[seat].length) return false;
+    const n = G.hands[seat].shift();
+    G.exprs[seat].shift();
+    const lower = [];
+    G.hands.forEach((h, i) => {
+      while (h.length && h[0] < n) { lower.push({ seat: i, n: h.shift(), kind: 'lost' }); G.exprs[i].shift(); }
+    });
+    lower.sort((a, b) => a.n - b.n);
+    if (lower.length) {
+      G.lives--;
+      G.line.push(...lower);
+      G.line.push({ seat, n, kind: 'bad' });
+    } else {
+      G.line.push({ seat, n, kind: 'ok' });
+    }
+    if (G.lives <= 0) { G.phase = 'fail'; revealAll(); return true; }
+    if (G.hands.every(h => !h.length)) G.phase = G.level >= G.goal ? 'win' : 'clear';
+    return true;
+  }
+  function revealAll() {
+    G.hands.forEach((h, i) => { h.forEach(n => G.line.push({ seat: i, n, kind: 'lost' })); h.length = 0; });
+  }
+  function doNext() {
+    if (G.phase === 'clear') { nextLevel(); return true; }
+    if (G.phase === 'fail' || G.phase === 'win') { newMatch(); return true; }
+    return false;
+  }
+
+  // ---------- views ----------
+  function viewFor(seat) {
+    if (!G) return null;
+    return { ...G, themes: null, hands: G.hands.map((h, i) => i === seat ? h : h.length), me: seat };
+  }
+  function afterChange() {
+    if (isHost) for (const [id, c] of guests) { try { c.send({ type: 'sync', players, view: viewFor(players.findIndex(p => p.id === id)) }); } catch (e) {} }
+    V = mode === 'online' ? viewFor(mySeat()) : viewFor(-1);
+    render();
+  }
+  function act(a) {
+    if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action: a }); return; }
+    if (applyAction(mode === 'online' ? mySeat() : -1, a)) afterChange();
+  }
+  function applyAction(seat, a) {
+    if (!G) return false;
+    const local = mode === 'local';
+    const who = local ? a.seat : seat;
+    if (a.type === 'expr') return doExpr(who, a.idx, a.text);
+    if (a.type === 'play') return doPlay(who);
+    if (a.type === 'reroll' && (local || seat === 0)) return rerollTheme();
+    if (a.type === 'next' && (local || seat === 0)) return doNext();
+    return false;
+  }
+
+  // ---------- render ----------
+  function render() {
+    const S = V;
+    if (!S) return;
+    const me = S.me;
+    statusEl.innerHTML = `<span>レベル <b>${S.level}</b> / ${S.goal}</span><span>ライフ <span id="lives">${'♥'.repeat(Math.max(0, S.lives))}<span style="opacity:.25">${'♥'.repeat(Math.max(0, START_LIVES - S.lives))}</span></span></span><span>1人 <b>${Math.min(S.level, Math.floor(100 / players.length))}</b> 枚</span>`;
+    themeEl.innerHTML = `<div class="t">${esc(S.theme[0])}</div><div class="scale"><span>1：${esc(S.theme[1])}</span><span>100：${esc(S.theme[2])}</span></div>`;
+    const myHand = Array.isArray(S.hands[me]) ? S.hands[me] : [];
+    myCardsEl.innerHTML = mode === 'online' ? myHand.map(n => `<div class="num-card"><small>あなたの数字</small>${n}</div>`).join('') : '';
+    lineEl.innerHTML = S.line.length ? S.line.map(c => `<div class="played ${c.kind === 'ok' ? '' : c.kind}"><div class="c">${c.n}</div><span class="who">${esc(players[c.seat] ? players[c.seat].name : '')}</span></div>`).join('')
+      : '<span class="line-empty">小さい数字だと思う人から順にカードを出そう</span>';
+
+    playersEl.innerHTML = '';
+    players.forEach((p, i) => {
+      const left = Array.isArray(S.hands[i]) ? S.hands[i].length : S.hands[i];
+      const d = document.createElement('div');
+      d.className = 'pl' + (i === me ? ' me' : '');
+      const exprs = S.exprs[i].length ? S.exprs[i].map(e => e ? `<span class="expr">${esc(e)}</span>` : '<span class="expr none">（未表現）</span>').join('') : '';
+      d.innerHTML = `<span class="nm">${esc(p.name)}${i === me ? '（あなた）' : ''}</span><span class="left">残り${left}枚</span><span class="exprs">${exprs}</span>`;
+      const canPlay = S.phase === 'play' && left > 0 && (mode === 'local' || i === me);
+      if (canPlay) {
+        const b = document.createElement('button');
+        b.className = 'choice small';
+        b.textContent = mode === 'local' ? 'カードを出す' : '出す';
+        b.addEventListener('click', () => act({ type: 'play', seat: i }));
+        d.appendChild(b);
+        if (mode === 'local') {
+          const v = document.createElement('button');
+          v.className = 'choice small secondary';
+          v.textContent = '数字を見る';
+          v.addEventListener('click', () => localPeek(i));
+          d.appendChild(v);
+        }
+      }
+      playersEl.appendChild(d);
+    });
+
+    // 表現の入力（オンラインのみ。ローカルは口頭で）
+    const showExpr = mode === 'online' && S.phase === 'play' && myHand.length > 0;
+    exprRow.style.display = showExpr ? 'flex' : 'none';
+    if (showExpr) {
+      const prev = exprCard.value;
+      exprCard.innerHTML = myHand.map((n, k) => `<option value="${k}">${n}</option>`).join('');
+      exprCard.style.display = myHand.length > 1 ? '' : 'none';
+      if (prev && +prev < myHand.length) exprCard.value = prev;
+    }
+
+    actionsEl.innerHTML = '';
+    const button = (text, onClick, sec) => {
+      const b = document.createElement('button');
+      b.className = 'choice' + (sec ? ' secondary' : '');
+      b.textContent = text;
+      b.addEventListener('click', onClick);
+      actionsEl.appendChild(b);
+    };
+    if (S.phase === 'play') {
+      msgEl.textContent = mode === 'local'
+        ? '自分の数字の大きさを、テーマに沿った言葉で口に出して表現しよう。数字そのものを言うのは禁止！小さいと思う人から「カードを出す」'
+        : 'テーマに沿って自分の数字を表現しよう（数字は言わない）。みんなの表現を見て、小さいと思う人から「出す」';
+      if (isAuthority() && !S.line.length) button('テーマを変える', () => act({ type: 'reroll' }), true);
+    } else if (S.phase === 'clear') {
+      msgEl.textContent = `レベル${S.level}クリア！ 次は1人${Math.min(S.level + 1, Math.floor(100 / players.length))}枚です`;
+      if (isAuthority()) button('次のレベルへ', nextAndDeal);
+    } else if (S.phase === 'win') {
+      msgEl.textContent = `🎉 全レベルクリア！ ライフ${S.lives}つを残して目標達成！`;
+      if (isAuthority()) button('もう一度', nextAndDeal);
+    } else if (S.phase === 'fail') {
+      msgEl.textContent = `ライフがなくなりました…（レベル${S.level}で終了）`;
+      if (isAuthority()) button('もう一度', nextAndDeal);
+    }
+    if (!isAuthority() && S.phase !== 'play') msgEl.textContent += '　ホストが次に進めるのを待っています';
+  }
+
+  // 1台モードでは新しいレベルのたびに端末を回して数字を確認する
+  function nextAndDeal() {
+    act({ type: 'next' });
+    if (mode === 'local') localDealFlow(0);
+  }
+
+  // ---------- local ----------
+  function localPeek(i) {
+    showOverlay(`${players[i].name}さんの数字`, 'ほかの人は見ないでください', [{ label: '閉じる', primary: true, onClick: hideOverlay }],
+      `<div class="row">${G.hands[i].map(n => `<div class="num-card"><small>あなたの数字</small>${n}</div>`).join('')}</div>`);
+  }
+  function localDealFlow(i) {
+    if (i >= players.length) { hideOverlay(); return; }
+    showOverlay(`レベル${G.level}：数字の確認`, `端末を「${players[i].name}」さんに渡してください`, [
+      { label: '数字を見る', primary: true, onClick: () => {
+        showOverlay(`${players[i].name}さんの数字`, `テーマ「${G.theme[0]}」（1：${G.theme[1]} 〜 100：${G.theme[2]}）`, [
+          { label: '覚えた（次の人へ）', primary: true, onClick: () => localDealFlow(i + 1) }
+        ], `<div class="row">${G.hands[i].map(n => `<div class="num-card"><small>あなたの数字</small>${n}</div>`).join('')}</div>`);
+      } }
+    ]);
+  }
+
+  // ---------- menus ----------
+  function resetAll() {
+    cleanupPeer();
+    mode = null; isHost = false; myId = 'local'; players = []; G = null; V = null;
+    statusEl.innerHTML = ''; themeEl.innerHTML = ''; myCardsEl.innerHTML = ''; lineEl.innerHTML = ''; msgEl.textContent = '';
+    exprRow.style.display = 'none'; playersEl.innerHTML = ''; actionsEl.innerHTML = '';
+  }
+  function showModeSelect() {
+    resetAll();
+    showOverlay('ito', '数字を言わずに、テーマに沿った言葉で伝え合って小さい順に並べる協力ゲーム（2〜10人）', [
+      { label: '1台で遊ぶ（集まって）', primary: true, onClick: showLocalSetup },
+      { label: 'オンライン（各自の端末）', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>全員に1〜100の数字が配られます（自分の数字しか見えません）。</li>
+        <li>「人気の食べ物」のようなテーマが出ます。数字が大きいほど人気、小さいほど不人気というように、<b>テーマに沿った言葉で自分の数字を表現</b>します（数字そのものを言うのは禁止）。</li>
+        <li>みんなの表現を聞いて、自分が一番小さいと思う人からカードを出していきます。</li>
+        <li>出したカードより小さい数字をまだ持っている人がいたら失敗。ライフが1減り、そのカードは捨て札になります。</li>
+        <li>全員がカードを出し切ればレベルクリア。レベルが上がるごとに1人の枚数が増えます（レベル2なら2枚）。</li>
+        <li>ライフ3つがなくなる前に、目標のレベルまでクリアできればみんなの勝ち！</li>
+      </ul>`);
+  }
+  function goalSeg() {
+    return `<div class="row" style="font-size:13px;color:#9aa3d6">目標レベル <div class="seg">${[1, 2, 3, 4].map(n => `<button data-g="${n}" class="${n === goalLevel ? 'on' : ''}">${n}</button>`).join('')}</div></div>`;
+  }
+  function bindGoal(rerender) { overlayExtra.querySelectorAll('[data-g]').forEach(b => b.addEventListener('click', () => { goalLevel = +b.dataset.g; rerender(); })); }
+  function showLocalSetup() {
+    while (localNames.length < 10) localNames.push('');
+    const inputs = Array.from({ length: localCount }, (_, i) => `<input data-i="${i}" maxlength="8" placeholder="プレイヤー${i + 1}" value="${esc(localNames[i])}">`).join('');
+    showOverlay('1台で遊ぶ', '人数と名前を決めてください', [
+      { label: 'ゲーム開始', primary: true, onClick: () => {
+        mode = 'local'; myId = 'local';
+        players = Array.from({ length: localCount }, (_, i) => ({ id: 'p' + i, name: (localNames[i] || '').trim() || `プレイヤー${i + 1}` }));
+        newMatch(); afterChange(); localDealFlow(0);
+      } },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<div class="seg">${[2, 3, 4, 5, 6, 7, 8].map(n => `<button data-n="${n}" class="${n === localCount ? 'on' : ''}">${n}人</button>`).join('')}</div>
+        <div class="names">${inputs}</div>${goalSeg()}`);
+    overlayExtra.querySelectorAll('[data-n]').forEach(b => b.addEventListener('click', () => { localCount = +b.dataset.n; showLocalSetup(); }));
+    overlayExtra.querySelectorAll('[data-i]').forEach(inp => inp.addEventListener('input', () => { localNames[+inp.dataset.i] = inp.value; }));
+    bindGoal(showLocalSetup);
+  }
+
+  // ---------- online (PeerJS, ホストが進行) ----------
+  function cleanupPeer() {
+    for (const c of guests.values()) { try { c.close(); } catch (e) {} }
+    guests.clear();
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン', '各自の端末で参加します（2〜10人）。まず名前を入力してください', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" style="width:200px" />
+        <div class="row"><input id="code-input" maxlength="4" placeholder="コード" autocomplete="off" />
+        <button id="join-btn" class="choice">部屋に入る</button></div>`);
+    $('join-btn').addEventListener('click', () => withName(joinRoom));
+    $('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
+  }
+  function withName(fn) {
+    const name = ($('name-input').value || '').trim();
+    if (!name) { $('name-input').focus(); $('name-input').placeholder = '名前を入力してください'; return; }
+    saveName(name);
+    fn(name, ($('code-input').value || '').trim().toUpperCase());
+  }
+  function hostRoom(name) {
+    cleanupPeer();
+    mode = 'online'; isHost = true; myId = 'host';
+    players = [{ id: 'host', name }];
+    roomCode = randomCode();
+    showOverlay('オンライン', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('ito-room-' + roomCode);
+    peer.on('open', renderLobby);
+    peer.on('connection', c => {
+      c.on('data', d => onHostData(c, d));
+      c.on('close', () => onGuestLeft(c.peer));
+      c.on('error', () => onGuestLeft(c.peer));
+    });
+    peer.on('error', () => { if (!G) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+  function renderLobby() {
+    if (G) return;
+    for (const c of guests.values()) { try { c.send({ type: 'lobby', names: players.map(p => p.name) }); } catch (e) {} }
+    showOverlay('部屋を作りました', 'コードを伝えて参加してもらいましょう（2人以上で開始できます）', [
+      { label: 'ゲーム開始', primary: true, disabled: players.length < 2, onClick: () => { hideOverlay(); newMatch(); afterChange(); } },
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ], `<div id="room-code">${roomCode}</div><div class="member-list">${players.map(p => esc(p.name)).join('<br>')}</div>${goalSeg()}`);
+    bindGoal(renderLobby);
+  }
+  function onHostData(c, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'hello') {
+      if (G || players.length >= 10) { c.send({ type: 'full' }); return; }
+      guests.set(c.peer, c);
+      players.push({ id: c.peer, name: String(data.name || '').trim().slice(0, 8) || 'ゲスト' });
+      renderLobby();
+    } else if (data.type === 'act' && G) {
+      const seat = players.findIndex(p => p.id === c.peer);
+      if (seat >= 0 && applyAction(seat, data.action || {})) afterChange();
+    }
+  }
+  function onGuestLeft(id) {
+    if (!guests.has(id)) return;
+    guests.delete(id);
+    const i = players.findIndex(p => p.id === id);
+    if (i < 0) return;
+    if (!G) { players.splice(i, 1); renderLobby(); return; }
+    // 抜けた人のカードは公開して場から外す（進行が止まらないように）
+    players[i] = { id: 'left-' + id, name: players[i].name + '(退出)' };
+    if (G.phase === 'play') {
+      G.hands[i].forEach(n => G.line.push({ seat: i, n, kind: 'lost' }));
+      G.hands[i] = []; G.exprs[i] = [];
+      if (G.hands.every(h => !h.length)) G.phase = G.level >= G.goal ? 'win' : 'clear';
+    }
+    afterChange();
+  }
+  function joinRoom(name, code) {
+    if (!code) { $('code-input').focus(); return; }
+    cleanupPeer();
+    mode = 'online'; isHost = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', id => {
+      myId = id;
+      conn = peer.connect('ito-room-' + code, { reliable: true });
+      conn.on('open', () => conn.send({ type: 'hello', name }));
+      conn.on('data', onGuestData);
+      conn.on('close', onHostLost);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+    });
+    peer.on('error', () => { if (!V) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+  function onGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'lobby') {
+      showOverlay('参加しました', 'ホストの開始を待っています', [
+        { label: '退出する', primary: false, onClick: showModeSelect }
+      ], `<div class="member-list">${data.names.map(esc).join('<br>')}</div>`);
+    } else if (data.type === 'sync') {
+      players = data.players;
+      if (!V) hideOverlay();
+      V = data.view;
+      render();
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋は満員か、すでにゲームが始まっています。');
+      cleanupPeer();
+    }
+  }
+  function onHostLost() {
+    if (mode !== 'online' || isHost) return;
+    showOverlay('ホストとの接続が切れました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  function sendExpr() {
+    const text = exprInput.value.trim();
+    if (!text) return;
+    exprInput.value = '';
+    act({ type: 'expr', idx: +exprCard.value || 0, text });
+  }
+  $('expr-btn').addEventListener('click', sendExpr);
+  exprInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) sendExpr(); });
+  $('back-btn').addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+  showModeSelect();
+})();
+</script>
+</body>
+</html>

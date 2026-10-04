@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>全員一致ゲーム</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; width: 640px; max-width: 94vw; }
+  #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 { margin: 0; font-size: 20px; letter-spacing: 2px; font-weight: 600; color: #9fb4ff; text-shadow: 0 0 12px rgba(120,150,255,0.6); }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none; white-space: nowrap;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+  #status { font-size: 13px; color: #9aa3d6; display: flex; gap: 16px; }
+  #status b { color: #ffe066; }
+  #topic {
+    width: 100%; padding: 18px; border-radius: 16px; text-align: center;
+    background: linear-gradient(160deg, #2a2160, #141833); border: 1px solid #4a3f9a;
+    font-size: 26px; font-weight: 900; color: #fff; text-shadow: 0 0 14px rgba(160,140,255,0.5);
+  }
+  #topic:empty { display: none; }
+  #answers { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; }
+  .ans {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 110px; padding: 10px 12px; border-radius: 12px;
+    background: rgba(255,255,255,0.04); border: 2px solid #2a3160; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .ans .nm { font-size: 11px; color: #9aa3d6; }
+  .ans .tx { font-size: 18px; font-weight: 800; }
+  .ans .tx.wait { font-size: 13px; color: #6b74a8; font-weight: 400; }
+  .ans .tx.done { font-size: 13px; color: #8fe3b0; font-weight: 400; }
+  .ans.match { border-color: var(--gc); box-shadow: 0 0 12px var(--gc); }
+  .ans .pt { font-size: 11px; color: #ffe066; }
+  #banner { font-size: 30px; font-weight: 900; min-height: 38px; text-align: center; }
+  #banner.ok { color: #8fe3b0; text-shadow: 0 0 18px rgba(143,227,176,0.7); animation: pop 0.4s ease-out; }
+  #banner.ng { color: #ff9fae; animation: pop 0.4s ease-out; }
+  @keyframes pop { 0% { transform: scale(1.4); opacity: 0.3; } 100% { transform: scale(1); opacity: 1; } }
+  #msg { font-size: 14px; color: #b9c2f0; text-align: center; min-height: 20px; line-height: 1.6; }
+  #input-row { display: none; gap: 8px; width: 100%; max-width: 420px; }
+  #input-row input {
+    flex: 1; min-width: 0; font-size: 18px; padding: 10px 14px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center;
+  }
+  #input-row input:focus { outline: none; border-color: #6ea8ff; }
+  #actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #history { width: 100%; font-size: 12px; color: #9aa3d6; display: flex; flex-direction: column; gap: 3px; }
+  #history div b { color: #8fe3b0; }
+
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4); color: #fff; border: none; padding: 10px 22px; font-size: 14px;
+    border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5); transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  #overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 14px; background: rgba(5,7,15,0.95); text-align: center; padding: 64px 16px 20px; z-index: 50; overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; max-width: 520px; line-height: 1.7; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 480px; margin: 0; padding-left: 20px; }
+  .seg { display: flex; border: 1px solid #3a4278; border-radius: 999px; overflow: hidden; }
+  .seg button { background: transparent; border: none; color: #9aa3d6; font-size: 13px; padding: 6px 12px; cursor: pointer; }
+  .seg button.on { background: #4a5cf0; color: #fff; }
+  .names { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #overlay input {
+    font-size: 16px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center; width: 160px;
+  }
+  #overlay input:focus { outline: none; border-color: #6ea8ff; }
+  #overlay input.wide { width: 100%; max-width: 360px; font-size: 18px; }
+  #code-input { font-size: 22px !important; letter-spacing: 6px; text-transform: uppercase; }
+  #room-code {
+    font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4); padding: 4px 22px; border-radius: 12px;
+  }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .member-list { font-size: 14px; color: #dfe4ff; line-height: 1.8; }
+  .result-table { border-collapse: collapse; font-size: 14px; color: #dfe4ff; }
+  .result-table td { padding: 4px 12px; border-bottom: 1px solid #2a3160; text-align: left; }
+  .big { font-size: 44px; font-weight: 900; color: #8fe3b0; }
+  @media (max-width: 480px) { #topic { font-size: 21px; } .names { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>全員一致ゲーム</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+    <div id="status"></div>
+    <div id="topic"></div>
+    <div id="banner"></div>
+    <div id="answers"></div>
+    <div id="msg"></div>
+    <div id="input-row"><input id="answer-input" maxlength="20" autocomplete="off" placeholder="あなたの答え"><button id="submit-btn" class="choice">決定</button></div>
+    <div id="actions"></div>
+    <div id="history"></div>
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">全員一致ゲーム</h2>
+    <p id="overlay-text"></p>
+    <div id="overlay-extra"></div>
+    <div id="overlay-buttons"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  const TOPICS = [
+    '赤い果物といえば？', '黄色い食べ物といえば？', '朝ごはんといえば？', 'おにぎりの具といえば？', 'ラーメンの味といえば？', 'お寿司のネタといえば？',
+    'カレーの具といえば？', '鍋料理といえば？', 'お弁当のおかずといえば？', 'アイスの味といえば？', 'コンビニで買うものといえば？', '夏の食べ物といえば？',
+    '冬の食べ物といえば？', 'お祭りの屋台といえば？', '甘いものといえば？', '辛い食べ物といえば？', '飲み物といえば？', 'パンの種類といえば？',
+    '空を飛ぶ動物といえば？', '海の生き物といえば？', '大きい動物といえば？', '強い動物といえば？', 'ペットといえば？', '虫といえば？',
+    '春といえば？', '夏といえば？', '秋といえば？', '冬といえば？', '雨の日に使うものといえば？', '雪といえば？',
+    '日本の山といえば？', '日本の観光地といえば？', '外国の国といえば？', '世界の有名な建物といえば？', '温泉地といえば？', '行ってみたい場所といえば？',
+    'スポーツといえば？', '球技といえば？', 'オリンピックの競技といえば？', '楽器といえば？', '学校の行事といえば？', '学校の教科といえば？',
+    '文房具といえば？', '家電といえば？', 'キッチンにあるものといえば？', 'お風呂にあるものといえば？', 'カバンの中にあるものといえば？', '旅行に持っていくものといえば？',
+    '乗り物といえば？', '色といえば？', '形といえば？', '星座といえば？', '曜日といえば？', '数字といえば？',
+    'ヒーローといえば？', '昔話といえば？', 'おばけといえば？', 'クリスマスといえば？', 'お正月といえば？', '誕生日といえば？',
+    '遊園地のアトラクションといえば？', '公園の遊具といえば？', 'ボードゲームといえば？', '趣味といえば？', '職業といえば？', '朝にすることといえば？',
+    '丸いものといえば？', '白いものといえば？', '冷たいものといえば？', '柔らかいものといえば？', 'ふわふわしたものといえば？', '音が鳴るものといえば？'
+  ];
+  const GROUP_COLORS = ['#8fe3b0', '#6ee7ff', '#ffb86b', '#ff9fd6', '#c9a7ff', '#ffe066'];
+  const $ = id => document.getElementById(id);
+  const statusEl = $('status'), topicEl = $('topic'), bannerEl = $('banner'), answersEl = $('answers'), msgEl = $('msg');
+  const inputRow = $('input-row'), answerInput = $('answer-input'), actionsEl = $('actions'), historyEl = $('history');
+  const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
+  const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  // ひらがな・カタカナ、全角・半角、空白の違いは同じ答えとみなす
+  const norm = s => String(s || '').normalize('NFKC').trim().replace(/[\s・、。！!？?ー〜~]+/g, '').replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60)).toLowerCase();
+  function loadName() { try { return localStorage.getItem('cardgame-name') || ''; } catch (e) { return ''; } }
+  function saveName(n) { try { localStorage.setItem('cardgame-name', n); } catch (e) {} }
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  // ---------- state ----------
+  let mode = null;          // 'local' | 'online'
+  let isHost = false;
+  let myId = 'local';
+  let players = [];
+  let G = null, V = null;
+  let totalRounds = 5;
+  let localCount = 4;
+  let localNames = [];
+  let lastBannerKey = null;
+  let peer = null, conn = null, roomCode = null;
+  const guests = new Map();
+  const mySeat = () => players.findIndex(p => p.id === myId);
+  const isAuthority = () => mode === 'local' || isHost;
+
+  // ---------- engine (ローカル/ホスト) ----------
+  function newMatch() {
+    G = { round: 0, total: totalRounds, deck: shuffle(TOPICS.slice()), success: 0, points: players.map(() => 0), history: [] };
+    nextRound();
+  }
+  function nextRound(custom) {
+    G.round++;
+    if (!G.deck.length) G.deck = shuffle(TOPICS.slice());
+    G.topic = custom ? String(custom).slice(0, 40) : G.deck.pop();
+    G.answers = players.map(() => null);
+    G.phase = 'answer';     // answer → reveal → (次のお題) … → over
+    G.result = null;
+  }
+  function doAnswer(seat, text) {
+    if (G.phase !== 'answer' || !(seat >= 0) || G.answers[seat] !== null) return false;
+    const t = String(text || '').trim().slice(0, 20);
+    if (!t) return false;
+    G.answers[seat] = t;
+    if (G.answers.every((a, i) => a !== null || isGone(i))) reveal();
+    return true;
+  }
+  const isGone = i => String(players[i].id).startsWith('left-');
+  function reveal() {
+    // 同じ答えごとにグループ分け
+    const groups = {};
+    G.answers.forEach((a, i) => { if (a !== null) (groups[norm(a)] = groups[norm(a)] || []).push(i); });
+    const list = Object.values(groups).sort((x, y) => y.length - x.length);
+    const active = G.answers.filter(a => a !== null).length;
+    const all = list.length === 1 && active >= 2;
+    // 個人得点：自分と同じ答えの人数（自分以外）
+    const gained = players.map(() => 0);
+    list.forEach(g => { if (g.length > 1) g.forEach(i => { gained[i] = g.length - 1; }); });
+    gained.forEach((v, i) => { G.points[i] += v; });
+    if (all) G.success++;
+    G.result = { groups: list, all, gained };
+    G.phase = 'reveal';
+    G.history.push({ topic: G.topic, all, top: G.answers[list[0][0]], count: list[0].length });
+  }
+  function doForceMatch() {
+    // 表記ゆれなどを「同じ答え」とみなして全員一致にする
+    if (G.phase !== 'reveal' || G.result.all) return false;
+    G.result.all = true;
+    G.success++;
+    G.history[G.history.length - 1].all = true;
+    return true;
+  }
+  function doNext(custom) {
+    if (G.phase !== 'reveal') return false;
+    if (G.round >= G.total) { G.phase = 'over'; return true; }
+    nextRound(custom);
+    return true;
+  }
+
+  // ---------- views ----------
+  function viewFor(seat) {
+    if (!G) return null;
+    // 公開前は自分以外の答えを隠す
+    const answers = G.phase === 'answer' ? G.answers.map((a, i) => i === seat ? a : (a === null ? null : '✓')) : G.answers;
+    return { ...G, deck: null, answers, me: seat };
+  }
+  function afterChange() {
+    if (isHost) for (const [id, c] of guests) { try { c.send({ type: 'sync', players, view: viewFor(players.findIndex(p => p.id === id)) }); } catch (e) {} }
+    V = mode === 'online' ? viewFor(mySeat()) : viewFor(-1);
+    render();
+  }
+  function act(a) {
+    if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action: a }); return; }
+    if (applyAction(mode === 'online' ? mySeat() : -1, a)) afterChange();
+  }
+  function applyAction(seat, a) {
+    if (!G) return false;
+    const local = mode === 'local';
+    if (a.type === 'answer') return doAnswer(local ? a.seat : seat, a.text);
+    if (a.type === 'force' && (local || seat === 0)) return doForceMatch();
+    if (a.type === 'next' && (local || seat === 0)) return doNext(a.custom);
+    return false;
+  }
+
+  // ---------- render ----------
+  function render() {
+    const S = V;
+    if (!S) return;
+    const me = S.me;
+    statusEl.innerHTML = S.phase === 'over' ? '' : `<span>お題 <b>${S.round}</b> / ${S.total}</span><span>全員一致 <b>${S.success}</b> 回</span>`;
+    topicEl.textContent = S.phase === 'over' ? '' : S.topic;
+    const r = S.result;
+    const key = S.round + ':' + S.phase;
+    if (S.phase === 'reveal' && key !== lastBannerKey) { bannerEl.className = ''; void bannerEl.offsetWidth; }
+    lastBannerKey = key;
+    bannerEl.className = S.phase === 'reveal' ? (r.all ? 'ok' : 'ng') : '';
+    bannerEl.textContent = S.phase === 'reveal' ? (r.all ? '全員一致！🎉' : `一致は最大${r.groups[0].length}人…`) : '';
+
+    const groupOf = {};
+    if (r) r.groups.forEach((g, gi) => { if (g.length > 1) g.forEach(i => { groupOf[i] = gi; }); });
+    answersEl.innerHTML = players.map((p, i) => {
+      const a = S.answers[i];
+      let tx;
+      if (S.phase === 'answer') tx = a === null ? '<span class="tx wait">考え中…</span>' : (i === me ? `<span class="tx">${esc(a)}</span>` : '<span class="tx done">回答済み ✓</span>');
+      else tx = `<span class="tx">${a === null ? '-' : esc(a)}</span>`;
+      const gc = groupOf[i] !== undefined ? GROUP_COLORS[groupOf[i] % GROUP_COLORS.length] : null;
+      return `<div class="ans${gc ? ' match' : ''}" style="${gc ? `--gc:${gc}` : ''}"><span class="nm">${esc(p.name)}${i === me ? '（あなた）' : ''}</span>${tx}<span class="pt">${S.points[i]}pt${r && r.gained[i] ? ` (+${r.gained[i]})` : ''}</span></div>`;
+    }).join('');
+
+    historyEl.innerHTML = S.history.slice().reverse().slice(S.phase === 'reveal' ? 1 : 0).map(h => `<div>${esc(h.topic)} → ${h.all ? `<b>全員一致「${esc(h.top)}」</b>` : `${h.count}人一致「${esc(h.top)}」`}</div>`).join('');
+
+    actionsEl.innerHTML = '';
+    const button = (text, onClick, sec) => {
+      const b = document.createElement('button');
+      b.className = 'choice' + (sec ? ' secondary' : '');
+      b.textContent = text;
+      b.addEventListener('click', onClick);
+      actionsEl.appendChild(b);
+    };
+    let showInput = false;
+    if (S.phase === 'answer') {
+      if (mode === 'local') {
+        const waiting = players.map((p, i) => i).filter(i => S.answers[i] === null);
+        msgEl.textContent = 'みんなと同じになりそうな答えを、ひとりずつこっそり入力しましょう';
+        waiting.forEach(i => button(`${players[i].name}が入力`, () => localInput(i)));
+      } else if (S.answers[me] === null) {
+        msgEl.textContent = 'みんなと同じ答えになりそうなものを入力しよう（相談は禁止！）';
+        showInput = true;
+      } else {
+        msgEl.textContent = 'ほかの人の回答を待っています…';
+      }
+    } else if (S.phase === 'reveal') {
+      msgEl.textContent = r.all ? '' : '表記ゆれなどで同じ答えなのに分かれてしまったら「全員一致とみなす」を押してください';
+      if (isAuthority()) {
+        if (!r.all) button('全員一致とみなす', () => act({ type: 'force' }), true);
+        if (S.round >= S.total) button('結果を見る', () => act({ type: 'next' }));
+        else {
+          button('次のお題へ', () => act({ type: 'next' }));
+          button('お題を自分で決める', customTopic, true);
+        }
+      } else msgEl.textContent += (msgEl.textContent ? '　' : '') + 'ホストが次に進めるのを待っています';
+    } else if (S.phase === 'over') {
+      showFinal(S);
+    }
+    inputRow.style.display = showInput ? 'flex' : 'none';
+    if (S.phase !== 'over' && overlay.dataset.kind === 'final') { overlay.dataset.kind = ''; hideOverlay(); }
+  }
+  function customTopic() {
+    showOverlay('次のお題を決める', '「〇〇といえば？」の形がおすすめです', [
+      { label: '決定', primary: true, onClick: () => { const t = $('custom-topic').value.trim(); if (!t) return; hideOverlay(); act({ type: 'next', custom: t }); } },
+      { label: 'やめる', primary: false, onClick: hideOverlay }
+    ], '<input id="custom-topic" class="wide" maxlength="40" placeholder="例：遠足のおやつといえば？">');
+    $('custom-topic').focus();
+  }
+  function showFinal(S) {
+    const order = players.map((p, i) => i).sort((a, b) => S.points[b] - S.points[a]);
+    const rows = order.map(i => `<tr><td>${esc(players[i].name)}</td><td>${S.points[i]}pt</td></tr>`).join('');
+    overlay.dataset.kind = 'final';
+    const rate = S.success / S.total;
+    const comment = rate === 1 ? '完璧なチームワーク！' : rate >= 0.6 ? '息ぴったり！' : rate >= 0.3 ? 'なかなかの一致率' : 'みんな個性的…！';
+    showOverlay('結果発表', comment + (isAuthority() ? '' : '　ホストが次の試合を始めるのを待っています'), [
+      ...(isAuthority() ? [{ label: 'もう一度', primary: true, onClick: () => { overlay.dataset.kind = ''; hideOverlay(); newMatch(); afterChange(); } }] : []),
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ], `<div>全員一致 <span class="big">${S.success}</span> / ${S.total} 回</div><p style="font-size:12px">個人ポイント（同じ答えだった人数の合計）</p><table class="result-table">${rows}</table>`);
+  }
+
+  // ---------- local ----------
+  function localInput(i) {
+    showOverlay(`${players[i].name}さんの回答`, `お題：${G.topic}（ほかの人は見ないでください）`, [
+      { label: '決定', primary: true, onClick: () => { const t = $('local-ans').value.trim(); if (!t) return; hideOverlay(); act({ type: 'answer', seat: i, text: t }); } },
+      { label: 'やめる', primary: false, onClick: hideOverlay }
+    ], '<input id="local-ans" class="wide" maxlength="20" autocomplete="off" placeholder="答え">');
+    const inp = $('local-ans');
+    inp.focus();
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) overlayButtons.querySelector('button').click(); });
+  }
+
+  // ---------- menus ----------
+  function resetAll() {
+    cleanupPeer();
+    mode = null; isHost = false; myId = 'local'; players = []; G = null; V = null;
+    overlay.dataset.kind = '';
+    statusEl.innerHTML = ''; topicEl.textContent = ''; bannerEl.textContent = ''; answersEl.innerHTML = ''; msgEl.textContent = '';
+    inputRow.style.display = 'none'; actionsEl.innerHTML = ''; historyEl.innerHTML = '';
+  }
+  function showModeSelect() {
+    resetAll();
+    showOverlay('全員一致ゲーム', 'お題に対して全員の答えがそろうかな？ みんなの考えを読み合う協力ゲーム（2〜10人）', [
+      { label: '1台で遊ぶ（集まって）', primary: true, onClick: showLocalSetup },
+      { label: 'オンライン（各自の端末）', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>「赤い果物といえば？」のようなお題が出ます。</li>
+        <li>全員が<b>相談せずに</b>、みんなと同じになりそうな答えをこっそり入力します。</li>
+        <li>全員の答えがそろったら公開。全員の答えが同じなら「全員一致」で成功です！</li>
+        <li>ひらがな・カタカナ・空白の違いは同じ答えとみなします。表記ゆれで分かれたときは「全員一致とみなす」で直せます。</li>
+        <li>決めた数のお題で何回全員一致できるかに挑戦。自分と同じ答えだった人数が個人ポイントになります。</li>
+      </ul>`);
+  }
+  function roundsSeg() {
+    return `<div class="row" style="font-size:13px;color:#9aa3d6">お題の数 <div class="seg">${[5, 10, 15].map(n => `<button data-r="${n}" class="${n === totalRounds ? 'on' : ''}">${n}問</button>`).join('')}</div></div>`;
+  }
+  function bindRounds(rerender) { overlayExtra.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => { totalRounds = +b.dataset.r; rerender(); })); }
+  function showLocalSetup() {
+    while (localNames.length < 10) localNames.push('');
+    const inputs = Array.from({ length: localCount }, (_, i) => `<input data-i="${i}" maxlength="8" placeholder="プレイヤー${i + 1}" value="${esc(localNames[i])}">`).join('');
+    showOverlay('1台で遊ぶ', '人数と名前を決めてください', [
+      { label: 'ゲーム開始', primary: true, onClick: () => {
+        mode = 'local'; myId = 'local';
+        players = Array.from({ length: localCount }, (_, i) => ({ id: 'p' + i, name: (localNames[i] || '').trim() || `プレイヤー${i + 1}` }));
+        hideOverlay(); newMatch(); afterChange();
+      } },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<div class="seg">${[2, 3, 4, 5, 6, 7, 8].map(n => `<button data-n="${n}" class="${n === localCount ? 'on' : ''}">${n}人</button>`).join('')}</div>
+        <div class="names">${inputs}</div>${roundsSeg()}`);
+    overlayExtra.querySelectorAll('[data-n]').forEach(b => b.addEventListener('click', () => { localCount = +b.dataset.n; showLocalSetup(); }));
+    overlayExtra.querySelectorAll('[data-i]').forEach(inp => inp.addEventListener('input', () => { localNames[+inp.dataset.i] = inp.value; }));
+    bindRounds(showLocalSetup);
+  }
+
+  // ---------- online (PeerJS, ホストが進行) ----------
+  function cleanupPeer() {
+    for (const c of guests.values()) { try { c.close(); } catch (e) {} }
+    guests.clear();
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン', '各自の端末で参加します（2〜10人）。まず名前を入力してください', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" style="width:200px" />
+        <div class="row"><input id="code-input" maxlength="4" placeholder="コード" autocomplete="off" />
+        <button id="join-btn" class="choice">部屋に入る</button></div>`);
+    $('join-btn').addEventListener('click', () => withName(joinRoom));
+    $('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
+  }
+  function withName(fn) {
+    const name = ($('name-input').value || '').trim();
+    if (!name) { $('name-input').focus(); $('name-input').placeholder = '名前を入力してください'; return; }
+    saveName(name);
+    fn(name, ($('code-input').value || '').trim().toUpperCase());
+  }
+  function hostRoom(name) {
+    cleanupPeer();
+    mode = 'online'; isHost = true; myId = 'host';
+    players = [{ id: 'host', name }];
+    roomCode = randomCode();
+    showOverlay('オンライン', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('zeninicchi-room-' + roomCode);
+    peer.on('open', renderLobby);
+    peer.on('connection', c => {
+      c.on('data', d => onHostData(c, d));
+      c.on('close', () => onGuestLeft(c.peer));
+      c.on('error', () => onGuestLeft(c.peer));
+    });
+    peer.on('error', () => { if (!G) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+  function renderLobby() {
+    if (G) return;
+    for (const c of guests.values()) { try { c.send({ type: 'lobby', names: players.map(p => p.name) }); } catch (e) {} }
+    showOverlay('部屋を作りました', 'コードを伝えて参加してもらいましょう（2人以上で開始できます）', [
+      { label: 'ゲーム開始', primary: true, disabled: players.length < 2, onClick: () => { hideOverlay(); newMatch(); afterChange(); } },
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ], `<div id="room-code">${roomCode}</div><div class="member-list">${players.map(p => esc(p.name)).join('<br>')}</div>${roundsSeg()}`);
+    bindRounds(renderLobby);
+  }
+  function onHostData(c, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'hello') {
+      if (G || players.length >= 10) { c.send({ type: 'full' }); return; }
+      guests.set(c.peer, c);
+      players.push({ id: c.peer, name: String(data.name || '').trim().slice(0, 8) || 'ゲスト' });
+      renderLobby();
+    } else if (data.type === 'act' && G) {
+      const seat = players.findIndex(p => p.id === c.peer);
+      if (seat >= 0 && applyAction(seat, data.action || {})) afterChange();
+    }
+  }
+  function onGuestLeft(id) {
+    if (!guests.has(id)) return;
+    guests.delete(id);
+    const i = players.findIndex(p => p.id === id);
+    if (i < 0) return;
+    if (!G) { players.splice(i, 1); renderLobby(); return; }
+    players[i] = { id: 'left-' + id, name: players[i].name + '(退出)' };
+    if (G.phase === 'answer' && G.answers.every((a, k) => a !== null || isGone(k))) reveal();
+    afterChange();
+  }
+  function joinRoom(name, code) {
+    if (!code) { $('code-input').focus(); return; }
+    cleanupPeer();
+    mode = 'online'; isHost = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', id => {
+      myId = id;
+      conn = peer.connect('zeninicchi-room-' + code, { reliable: true });
+      conn.on('open', () => conn.send({ type: 'hello', name }));
+      conn.on('data', onGuestData);
+      conn.on('close', onHostLost);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+    });
+    peer.on('error', () => { if (!V) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+  function onGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'lobby') {
+      showOverlay('参加しました', 'ホストの開始を待っています', [
+        { label: '退出する', primary: false, onClick: showModeSelect }
+      ], `<div class="member-list">${data.names.map(esc).join('<br>')}</div>`);
+    } else if (data.type === 'sync') {
+      players = data.players;
+      if (!V || (V.phase === 'over' && data.view.phase !== 'over')) { overlay.dataset.kind = ''; hideOverlay(); }
+      V = data.view;
+      render();
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋は満員か、すでにゲームが始まっています。');
+      cleanupPeer();
+    }
+  }
+  function onHostLost() {
+    if (mode !== 'online' || isHost) return;
+    showOverlay('ホストとの接続が切れました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  function submit() {
+    const t = answerInput.value.trim();
+    if (!t) return;
+    answerInput.value = '';
+    act({ type: 'answer', text: t });
+  }
+  $('submit-btn').addEventListener('click', submit);
+  answerInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) submit(); });
+  $('back-btn').addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+  showModeSelect();
+})();
+</script>
+</body>
+</html>
