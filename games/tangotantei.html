@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>単語探偵</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 660px; max-width: 94vw; }
+  #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 { margin: 0; font-size: 22px; letter-spacing: 3px; font-weight: 600; color: #9fb4ff; text-shadow: 0 0 12px rgba(120,150,255,0.6); }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none; white-space: nowrap;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #hud { display: flex; gap: 10px; width: 100%; }
+  .team {
+    flex: 1; padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid #2a3160;
+    display: flex; align-items: center; gap: 10px; min-width: 0; transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  .team.active { border-color: var(--tc); box-shadow: 0 0 14px var(--tc); }
+  .team.blue { flex-direction: row-reverse; text-align: right; }
+  .team .pt { font-size: 30px; font-weight: 900; color: var(--tc); line-height: 1; }
+  .team .info { display: flex; flex-direction: column; line-height: 1.4; min-width: 0; }
+  .team .tn { font-size: 13px; font-weight: 800; }
+  .team .mem { font-size: 11px; color: #9aa3d6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #game-no { font-size: 12px; color: #9aa3d6; letter-spacing: 2px; }
+  #truth { padding: 8px 18px; border-radius: 12px; background: rgba(255,224,102,0.07); border: 1px solid rgba(255,224,102,0.35); font-size: 13px; color: #ffe9b0; text-align: center; }
+  #truth:empty { display: none; }
+  #truth b { font-size: 22px; color: #ffe066; margin-left: 6px; }
+  #board {
+    width: 100%; min-height: 160px; padding: 12px; border-radius: 14px; background: rgba(0,0,0,0.25); border: 1px solid #2a3160;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .turn-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+  .turn-row .tag { font-size: 11px; font-weight: 800; padding: 1px 8px; border-radius: 999px; color: #fff; }
+  .tag.red { background: #c22f35; } .tag.blue { background: #2c5fd6; }
+  .clue { font-size: 20px; font-weight: 900; color: #ffe066; padding: 2px 12px; border-radius: 8px; background: rgba(255,224,102,0.1); }
+  .ans { font-size: 13px; color: #c9d0f5; }
+  .ans.ng::after { content: ' ✕'; color: #ff6b81; font-weight: 800; }
+  .ans.ok::after { content: ' ◯ 正解！'; color: #8fe3b0; font-weight: 800; }
+  .empty-board { color: #6b74a8; font-size: 13px; text-align: center; margin: auto; }
+  #msg { font-size: 14px; color: #b9c2f0; text-align: center; min-height: 20px; line-height: 1.6; }
+  #msg b { color: #ffe066; }
+  #input-row { display: none; gap: 8px; width: 100%; max-width: 460px; }
+  #input-row input {
+    flex: 1; min-width: 0; font-size: 18px; padding: 10px 14px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center;
+  }
+  #input-row input:focus { outline: none; border-color: #6ea8ff; }
+  #actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #error { font-size: 12px; color: #ff9fae; min-height: 16px; }
+
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4); color: #fff; border: none; padding: 10px 22px; font-size: 14px;
+    border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5); transition: transform 0.1s ease; white-space: nowrap;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice.small { padding: 6px 14px; font-size: 12px; }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  #overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 14px; background: rgba(5,7,15,0.95); text-align: center; padding: 64px 16px 20px; z-index: 50; overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; max-width: 520px; line-height: 1.7; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 480px; margin: 0; padding-left: 20px; }
+  .seg { display: flex; border: 1px solid #3a4278; border-radius: 999px; overflow: hidden; }
+  .seg button { background: transparent; border: none; color: #9aa3d6; font-size: 13px; padding: 6px 12px; cursor: pointer; }
+  .seg button.on { background: #4a5cf0; color: #fff; }
+  .truth-card { padding: 18px 34px; border-radius: 16px; background: rgba(255,224,102,0.07); border: 1px solid rgba(255,224,102,0.4); }
+  .truth-card .w { font-size: 36px; font-weight: 900; color: #ffe066; }
+  .truth-card small { color: #9aa3d6; }
+  .teams-setup { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; max-width: 460px; }
+  .teams-setup .col { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 12px; border: 1px solid var(--tc); }
+  .teams-setup .col h3 { margin: 0; font-size: 14px; color: var(--tc); }
+  .teams-setup .col .names { display: flex; flex-direction: column; gap: 6px; min-height: 30px; font-size: 14px; }
+  #overlay input {
+    font-size: 15px; padding: 8px 10px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center; width: 100%;
+  }
+  #overlay input:focus { outline: none; border-color: #6ea8ff; }
+  #code-input { width: 150px !important; font-size: 22px !important; letter-spacing: 6px; text-transform: uppercase; }
+  #name-input { width: 200px !important; }
+  #room-code {
+    font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4); padding: 4px 22px; border-radius: 12px;
+  }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .me { color: #ffe066; font-weight: 700; }
+  .result-big { font-size: 40px; font-weight: 900; }
+  @media (max-width: 480px) { .teams-setup { grid-template-columns: 1fr; } .team .pt { font-size: 24px; } }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>単語探偵</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+    <div id="hud">
+      <div class="team red" id="team-red" style="--tc:#e5484d"><div class="pt" id="pt-red">0</div><div class="info"><span class="tn">赤チーム</span><span class="mem" id="mem-red"></span></div></div>
+      <div class="team blue" id="team-blue" style="--tc:#3e7bfa"><div class="pt" id="pt-blue">0</div><div class="info"><span class="tn">青チーム</span><span class="mem" id="mem-blue"></span></div></div>
+    </div>
+    <div id="game-no"></div>
+    <div id="truth"></div>
+    <div id="board"></div>
+    <div id="msg"></div>
+    <div id="input-row"><input id="word-input" maxlength="15" autocomplete="off"><button id="submit-btn" class="choice">送信</button></div>
+    <div id="error"></div>
+    <div id="actions"></div>
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">単語探偵</h2>
+    <p id="overlay-text"></p>
+    <div id="overlay-extra"></div>
+    <div id="overlay-buttons"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  // 真相のお題（「表記:よみ」。よみでも正解になる）
+  const TRUTHS = `
+    りんご バナナ みかん スイカ いちご ぶどう レモン トマト カレー ラーメン すし:すし 寿司:すし 天ぷら:てんぷら おにぎり ケーキ チョコレート アイス
+    コーヒー 牛乳:ぎゅうにゅう 納豆:なっとう 豆腐:とうふ たまご ハンバーガー ピザ うどん そば 焼肉:やきにく 餃子:ぎょうざ お茶:おちゃ
+    犬:いぬ 猫:ねこ パンダ ライオン キリン ゾウ ペンギン イルカ クジラ サメ タコ カメ ヘビ カエル ウサギ 金魚:きんぎょ カブトムシ ハチ 恐竜:きょうりゅう
+    太陽:たいよう 月:つき 星:ほし 虹:にじ 雪:ゆき 雨:あめ 雷:かみなり 台風:たいふう 富士山:ふじさん 海:うみ 川:かわ 砂漠:さばく 火山:かざん 森:もり 島:しま 宇宙:うちゅう
+    電車:でんしゃ 新幹線:しんかんせん 飛行機:ひこうき 自転車:じてんしゃ 救急車:きゅうきゅうしゃ 消防車:しょうぼうしゃ 船:ふね ロケット 気球:ききゅう 信号:しんごう エレベーター
+    学校:がっこう 病院:びょういん 図書館:としょかん 遊園地:ゆうえんち 動物園:どうぶつえん 水族館:すいぞくかん コンビニ 温泉:おんせん 空港:くうこう 駅:えき 神社:じんじゃ お城:おしろ 映画館:えいがかん 公園:こうえん 交番:こうばん
+    スマートフォン テレビ 冷蔵庫:れいぞうこ 掃除機:そうじき 電子レンジ:でんしれんじ 時計:とけい カメラ 傘:かさ 眼鏡:めがね 財布:さいふ 鍵:かぎ はさみ 鉛筆:えんぴつ 消しゴム:けしごむ 歯ブラシ:はぶらし 枕:まくら 鏡:かがみ リモコン
+    サッカー 野球:やきゅう テニス 水泳:すいえい スキー 相撲:すもう 柔道:じゅうどう マラソン 卓球:たっきゅう ボウリング
+    ピアノ ギター 太鼓:たいこ カラオケ 将棋:しょうぎ トランプ 風船:ふうせん 花火:はなび 雪だるま:ゆきだるま サンタクロース 鬼:おに 忍者:にんじゃ 侍:さむらい ロボット 宇宙人:うちゅうじん 幽霊:ゆうれい 魔法使い:まほうつかい
+    医者:いしゃ 先生:せんせい 警察官:けいさつかん 消防士:しょうぼうし パイロット 歌手:かしゅ 宇宙飛行士:うちゅうひこうし お正月:おしょうがつ 誕生日:たんじょうび クリスマス ハロウィン 夏休み:なつやすみ 運動会:うんどうかい 結婚式:けっこんしき
+    手紙:てがみ 地図:ちず 指輪:ゆびわ 王冠:おうかん ランドセル 浴衣:ゆかた ネクタイ サングラス 宝箱:たからばこ 桜:さくら ひまわり 紅葉:もみじ 七夕:たなばた お化け屋敷:おばけやしき 観覧車:かんらんしゃ
+  `.trim().split(/\s+/).map(s => { const [w, r] = s.split(':'); return { w, r: r || w }; });
+
+  const TEAM = { red: { name: '赤', hex: '#e5484d' }, blue: { name: '青', hex: '#3e7bfa' } };
+  const other = t => t === 'red' ? 'blue' : 'red';
+  const $ = id => document.getElementById(id);
+  const boardEl = $('board'), msgEl = $('msg'), inputRow = $('input-row'), wordInput = $('word-input'), errorEl = $('error'), actionsEl = $('actions');
+  const truthEl = $('truth'), gameNoEl = $('game-no');
+  const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
+  const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  // カタカナ→ひらがな・空白除去・小文字化して比べる
+  const norm = s => String(s || '').trim().replace(/[\s・･、。]+/g, '').replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60)).toLowerCase();
+  function loadName() { try { return localStorage.getItem('cardgame-name') || ''; } catch (e) { return ''; } }
+  function saveName(n) { try { localStorage.setItem('cardgame-name', n); } catch (e) {} }
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  // ---------- state ----------
+  let mode = null;            // 'local' | 'online'
+  let isHost = false;
+  let myId = 'local';
+  let players = [];           // { id, name, team }
+  let G = null, V = null;
+  let totalGames = 5;
+  let maxClues = 10;
+  let localNames = { red: ['', ''], blue: ['', ''] };
+  let peer = null, conn = null, roomCode = null;
+  const guests = new Map();
+  const mySeat = () => players.findIndex(p => p.id === myId);
+  const isAuthority = () => mode === 'local' || isHost;
+  // 退出した人はリーダーの順番から外す
+  const members = t => players.map((p, i) => p.team === t && !String(p.id).startsWith('left-') ? i : -1).filter(i => i >= 0);
+
+  // ---------- engine (ローカル/ホスト) ----------
+  function newMatch() {
+    G = {
+      game: 0, totalGames, maxClues,
+      scores: { red: 0, blue: 0 },
+      leaderPos: { red: -1, blue: -1 },
+      deck: shuffle(TRUTHS.slice()),
+      firstTeam: Math.random() < 0.5 ? 'red' : 'blue'
+    };
+    nextGame();
+  }
+  function nextGame() {
+    G.game++;
+    // リーダーはゲームごとにチーム内で交代
+    for (const t of ['red', 'blue']) G.leaderPos[t] = (G.leaderPos[t] + 1) % members(t).length;
+    G.leaders = { red: members('red')[G.leaderPos.red], blue: members('blue')[G.leaderPos.blue] };
+    if (!G.deck.length) G.deck = shuffle(TRUTHS.slice());
+    G.truth = G.deck.pop();
+    G.turn = G.game === 1 ? G.firstTeam : other(G.lastFirst);
+    G.lastFirst = G.turn;
+    G.phase = 'ready';      // ready（リーダーが真相を確認）→ clue → answer → … → gameEnd → (over)
+    G.ready = { red: false, blue: false };
+    G.history = [];         // { team, clue, answer, ok }
+    G.winner = null;
+  }
+  function clueError(word) {
+    const w = String(word || '').trim();
+    if (!w) return '手がかりを入力してください';
+    if (/\s/.test(w)) return '手がかりは1単語だけです（空白は使えません）';
+    if (w.length > 15) return '手がかりは15文字以内です';
+    const n = norm(w);
+    if (n.includes(norm(G.truth.w)) || n.includes(norm(G.truth.r))) return '真相そのものを含む言葉は使えません';
+    if (G.history.some(h => norm(h.clue) === n)) return 'すでに出た手がかりです';
+    return null;
+  }
+  function doReady(team) {
+    if (G.phase !== 'ready') return false;
+    G.ready[team] = true;
+    if (G.ready.red && G.ready.blue) G.phase = 'clue';
+    return true;
+  }
+  function doClue(word) {
+    if (G.phase !== 'clue' || clueError(word)) return false;
+    G.history.push({ team: G.turn, clue: String(word).trim(), answer: null, ok: null });
+    G.phase = 'answer';
+    return true;
+  }
+  function isCorrect(text) { const n = norm(text); return !!n && (n === norm(G.truth.w) || n === norm(G.truth.r)); }
+  function doAnswer(text) {
+    if (G.phase !== 'answer') return false;
+    const a = String(text || '').trim().slice(0, 20);
+    if (!a) return false;
+    const h = G.history[G.history.length - 1];
+    h.answer = a;
+    h.ok = isCorrect(a);
+    if (h.ok) { win(G.turn); return true; }
+    // 不正解なら相手チームに回答権が移る
+    if (G.history.length >= G.maxClues) { G.phase = 'gameEnd'; G.winner = null; return true; }
+    G.turn = other(G.turn);
+    G.phase = 'clue';
+    return true;
+  }
+  function win(team) {
+    G.winner = team;
+    G.scores[team]++;
+    G.phase = 'gameEnd';
+  }
+  // 表記ゆれなどで自動判定が不正解になったときの手動判定
+  function doOverride() {
+    const h = G.history[G.history.length - 1];
+    if (!h || h.ok !== false || !(G.phase === 'clue' || G.phase === 'gameEnd') || G.winner) return false;
+    h.ok = true;
+    win(h.team);
+    return true;
+  }
+  function doNext() {
+    if (G.phase !== 'gameEnd') return false;
+    if (G.game >= G.totalGames) { G.phase = 'over'; return true; }
+    nextGame();
+    return true;
+  }
+
+  // ---------- views ----------
+  function viewFor(seat) {
+    if (!G) return null;
+    const seeTruth = G.phase === 'gameEnd' || G.phase === 'over' || seat === G.leaders.red || seat === G.leaders.blue;
+    return { ...G, deck: null, truth: seeTruth ? G.truth : null, me: seat };
+  }
+  function afterChange() {
+    if (isHost) for (const [id, c] of guests) { try { c.send({ type: 'sync', players, view: viewFor(players.findIndex(p => p.id === id)) }); } catch (e) {} }
+    V = mode === 'online' ? viewFor(mySeat()) : null;
+    render();
+  }
+  function act(a) {
+    if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action: a }); return; }
+    if (applyAction(mode === 'online' ? mySeat() : -1, a)) afterChange();
+  }
+  function applyAction(seat, a) {
+    if (!G) return false;
+    const local = mode === 'local';
+    const p = players[seat];
+    if (a.type === 'ready') {
+      if (local) return doReady(a.team);
+      return (seat === G.leaders.red || seat === G.leaders.blue) && doReady(p.team);
+    }
+    if (a.type === 'clue') return (local || seat === G.leaders[G.turn]) && doClue(a.word);
+    if (a.type === 'answer') return (local || (p && p.team === G.turn && seat !== G.leaders[G.turn])) && doAnswer(a.text);
+    if (a.type === 'override') return (local || isHost && seat === 0) && doOverride();
+    if (a.type === 'next') return (local || isHost && seat === 0) && doNext();
+    return false;
+  }
+
+  // ---------- render ----------
+  function render() {
+    const S = mode === 'online' ? V : G;
+    if (!S) return;
+    const me = mode === 'online' ? S.me : -1;
+    const myTeam = me >= 0 ? players[me].team : null;
+    const leaderName = t => players[S.leaders[t]] ? players[S.leaders[t]].name : '';
+    for (const t of ['red', 'blue']) {
+      $('pt-' + t).textContent = S.scores[t];
+      $('team-' + t).classList.toggle('active', (S.phase === 'clue' || S.phase === 'answer') && S.turn === t);
+      $('mem-' + t).innerHTML = members(t).map(i => `<span class="${i === me ? 'me' : ''}">${S.leaders[t] === i ? '🕵' : ''}${esc(players[i].name)}</span>`).join('・');
+    }
+    gameNoEl.textContent = S.phase === 'over' ? '試合終了' : `第${S.game}ゲーム / 全${S.totalGames}ゲーム　（手がかりは合計${S.maxClues}個まで）`;
+    const amLeader = me >= 0 && (me === S.leaders.red || me === S.leaders.blue);
+    truthEl.innerHTML = S.truth && (amLeader || S.phase === 'gameEnd' || S.phase === 'over') && mode === 'online'
+      ? `${S.phase === 'gameEnd' ? '真相は' : 'あなたはリーダー。真相：'}<b>${esc(S.truth.w)}</b>`
+      : (mode === 'local' && S.phase === 'gameEnd' ? `真相は<b>${esc(S.truth.w)}</b>` : '');
+
+    boardEl.innerHTML = S.history.length ? S.history.map(h => `<div class="turn-row"><span class="tag ${h.team}">${TEAM[h.team].name}</span><span class="clue">${esc(h.clue)}</span>${h.answer ? `<span class="ans ${h.ok ? 'ok' : 'ng'}">回答「${esc(h.answer)}」</span>` : '<span class="ans">回答待ち…</span>'}</div>`).join('')
+      : '<div class="empty-board">手がかりはまだありません</div>';
+
+    actionsEl.innerHTML = '';
+    errorEl.textContent = '';
+    const button = (text, onClick, sec) => {
+      const b = document.createElement('button');
+      b.className = 'choice' + (sec ? ' secondary' : '');
+      b.textContent = text;
+      b.addEventListener('click', onClick);
+      actionsEl.appendChild(b);
+    };
+    let input = null; // 'clue' | 'answer'
+    const tn = TEAM[S.turn].name;
+    if (S.phase === 'ready') {
+      if (mode === 'local') { msgEl.textContent = ''; if (!overlay.classList.contains('show')) localReadyFlow(); }
+      else if (amLeader && !S.ready[myTeam]) { msgEl.innerHTML = 'あなたは今回のリーダーです。真相を確認したら準備OKを押してください'; button('準備OK', () => act({ type: 'ready' })); }
+      else msgEl.textContent = '両チームのリーダーが真相を確認しています…';
+    } else if (S.phase === 'clue') {
+      const canClue = mode === 'local' || me === S.leaders[S.turn];
+      msgEl.innerHTML = `<b>${tn}チーム</b>のリーダー（${esc(leaderName(S.turn))}）が手がかりを出す番です`;
+      if (canClue) { input = 'clue'; msgEl.innerHTML += mode === 'local' ? '<br>リーダーが手がかりを1単語入力してください' : '<br>真相につながる手がかりを<b>1単語</b>で入力'; }
+    } else if (S.phase === 'answer') {
+      const canAns = mode === 'local' || (myTeam === S.turn && me !== S.leaders[S.turn]);
+      msgEl.innerHTML = `<b>${tn}チーム</b>の回答者が回答する番です（不正解なら相手チームに回答権が移ります）`;
+      if (canAns) input = 'answer';
+    } else if (S.phase === 'gameEnd') {
+      msgEl.innerHTML = S.winner ? `<b>${TEAM[S.winner].name}チーム</b>が正解！ 1ポイント獲得` : '手がかりの上限に達しました。どちらのチームも得点なし';
+      const last = S.history[S.history.length - 1];
+      if (isAuthority()) {
+        button(S.game >= S.totalGames ? '結果を見る' : '次のゲームへ', () => act({ type: 'next' }));
+        if (!S.winner && last && last.ok === false) button('最後の回答を正解にする', () => act({ type: 'override' }), true);
+      } else msgEl.innerHTML += '<br>ホストが次のゲームに進めるのを待っています';
+    } else if (S.phase === 'over') {
+      showFinal(S);
+    }
+    // 直前の回答が表記ゆれで不正解になったときの救済
+    if (S.phase === 'clue' && isAuthority()) {
+      const last = S.history[S.history.length - 1];
+      if (last && last.ok === false) button(`「${last.answer}」を正解にする`, () => act({ type: 'override' }), true);
+    }
+    inputRow.style.display = input ? 'flex' : 'none';
+    if (input) {
+      wordInput.dataset.kind = input;
+      wordInput.placeholder = input === 'clue' ? '手がかり（1単語）' : '真相だと思う言葉';
+      if (document.activeElement !== wordInput) wordInput.value = '';
+    }
+    if (S.phase !== 'over' && overlay.dataset.kind === 'final') { overlay.dataset.kind = ''; hideOverlay(); }
+  }
+
+  function submit() {
+    const S = mode === 'online' ? V : G;
+    const text = wordInput.value.trim();
+    if (!text || !S) return;
+    if (wordInput.dataset.kind === 'clue') {
+      if (mode !== 'online' || isHost) { const err = clueError(text); if (err) { errorEl.textContent = err; return; } }
+      else if (/\s/.test(text)) { errorEl.textContent = '手がかりは1単語だけです（空白は使えません）'; return; }
+      wordInput.value = '';
+      act({ type: 'clue', word: text });
+    } else {
+      wordInput.value = '';
+      act({ type: 'answer', text });
+    }
+  }
+
+  function showFinal(S) {
+    const r = S.scores.red, b = S.scores.blue;
+    const title = r === b ? '引き分け！' : `${TEAM[r > b ? 'red' : 'blue'].name}チームの勝ち！`;
+    overlay.dataset.kind = 'final';
+    showOverlay(title, isAuthority() ? '' : 'ホストが次の試合を始めるのを待っています', [
+      ...(isAuthority() ? [{ label: 'もう一度', primary: true, onClick: () => { overlay.dataset.kind = ''; hideOverlay(); newMatch(); afterChange(); } }] : []),
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ], `<div class="result-big"><span style="color:#e5484d">${r}</span> - <span style="color:#3e7bfa">${b}</span></div>`);
+  }
+
+  // ---------- local ----------
+  function localReadyFlow() {
+    const t = !G.ready.red ? 'red' : 'blue';
+    const name = players[G.leaders[t]].name;
+    showOverlay(`第${G.game}ゲーム`, `端末を${TEAM[t].name}チームのリーダー「${name}」さんに渡してください（ほかの人は見ないで！）`, [
+      { label: '真相を見る', primary: true, onClick: () => {
+        showOverlay(`${name}さん（${TEAM[t].name}チームのリーダー）`, '覚えたら閉じて、次の人に渡してください', [
+          { label: '覚えた', primary: true, onClick: () => { hideOverlay(); act({ type: 'ready', team: t }); } }
+        ], `<div class="truth-card"><small>真相</small><div class="w">${esc(G.truth.w)}</div></div>`);
+      } }
+    ]);
+  }
+
+  // ---------- menus ----------
+  function resetAll() {
+    cleanupPeer();
+    mode = null; isHost = false; myId = 'local'; players = []; G = null; V = null;
+    overlay.dataset.kind = '';
+    boardEl.innerHTML = '<div class="empty-board">手がかりはまだありません</div>';
+    msgEl.textContent = ''; inputRow.style.display = 'none'; errorEl.textContent = ''; actionsEl.innerHTML = '';
+    truthEl.innerHTML = ''; gameNoEl.textContent = '';
+    for (const t of ['red', 'blue']) { $('pt-' + t).textContent = 0; $('mem-' + t).textContent = ''; $('team-' + t).classList.remove('active'); }
+  }
+  function showModeSelect() {
+    resetAll();
+    showOverlay('単語探偵', 'リーダーの「単語」だけの手がかりから真相を推理する、2チーム対抗の早当てゲーム（4人〜）', [
+      { label: '1台で遊ぶ（集まって）', primary: true, onClick: showLocalSetup },
+      { label: 'オンライン対戦（各自の端末）', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>赤と青の2チームに分かれます。各チームから毎ゲーム1人が<b>リーダー</b>、残りが<b>回答者</b>になります（リーダーはゲームごとに交代）。</li>
+        <li><b>真相</b>：両チームのリーダーだけに知らされる正解の言葉です。</li>
+        <li><b>手がかり</b>：手番のチームのリーダーが、真相につながるヒントを<b>1単語だけ</b>出します。真相そのものを含む言葉や、すでに出た言葉は使えません。</li>
+        <li><b>回答</b>：同じチームの回答者が、手がかりから真相を推理して答えます。</li>
+        <li>手がかりと回答は<b>相手チームにもすべて見えています</b>。不正解だと相手チームに回答権が移り、相手のリーダーが手がかりを追加します。</li>
+        <li>先に正解したチームが1ポイント。決めたゲーム数が終わったとき、ポイントが多いチームの勝ちです。</li>
+        <li>ひらがな・カタカナの違いは自動で正解扱い。表記ゆれで不正解になったときは「正解にする」ボタンで直せます。</li>
+      </ul>`);
+  }
+  function settingsHtml() {
+    return `<div class="row" style="font-size:13px;color:#9aa3d6">ゲーム数 <div class="seg">${[3, 5, 7].map(n => `<button data-g="${n}" class="${n === totalGames ? 'on' : ''}">${n}</button>`).join('')}</div></div>
+      <div class="row" style="font-size:13px;color:#9aa3d6">手がかりの上限 <div class="seg">${[6, 10, 16].map(n => `<button data-c="${n}" class="${n === maxClues ? 'on' : ''}">${n}個</button>`).join('')}</div></div>`;
+  }
+  function bindSettings(rerender) {
+    overlayExtra.querySelectorAll('[data-g]').forEach(b => b.addEventListener('click', () => { totalGames = +b.dataset.g; rerender(); }));
+    overlayExtra.querySelectorAll('[data-c]').forEach(b => b.addEventListener('click', () => { maxClues = +b.dataset.c; rerender(); }));
+  }
+  function showLocalSetup() {
+    const col = t => `<div class="col" style="--tc:${TEAM[t].hex}"><h3>${TEAM[t].name}チーム</h3><div class="names">${localNames[t].map((n, i) => `<input data-t="${t}" data-i="${i}" maxlength="8" placeholder="${TEAM[t].name}${i + 1}" value="${esc(n)}">`).join('')}</div>
+      <div class="row"><button class="choice secondary small" data-add="${t}" ${localNames[t].length >= 5 ? 'disabled' : ''}>＋</button><button class="choice secondary small" data-del="${t}" ${localNames[t].length <= 2 ? 'disabled' : ''}>−</button></div></div>`;
+    showOverlay('1台で遊ぶ', '各チームのメンバー（2人以上）を入力してください', [
+      { label: 'ゲーム開始', primary: true, onClick: () => {
+        mode = 'local'; myId = 'local';
+        players = [];
+        for (const t of ['red', 'blue']) localNames[t].forEach((n, i) => players.push({ id: t + i, name: n.trim() || `${TEAM[t].name}${i + 1}`, team: t }));
+        hideOverlay(); newMatch(); render();
+      } },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<div class="teams-setup">${col('red')}${col('blue')}</div>${settingsHtml()}`);
+    overlayExtra.querySelectorAll('[data-t]').forEach(inp => inp.addEventListener('input', () => { localNames[inp.dataset.t][+inp.dataset.i] = inp.value; }));
+    overlayExtra.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => { localNames[b.dataset.add].push(''); showLocalSetup(); }));
+    overlayExtra.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => { localNames[b.dataset.del].pop(); showLocalSetup(); }));
+    bindSettings(showLocalSetup);
+  }
+
+  // ---------- online (PeerJS, ホストが進行) ----------
+  function cleanupPeer() {
+    for (const c of guests.values()) { try { c.close(); } catch (e) {} }
+    guests.clear();
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン対戦', '各自の端末で参加します（各チーム2人以上・合計12人まで）。まず名前を入力してください', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" />
+        <div class="row"><input id="code-input" maxlength="4" placeholder="コード" autocomplete="off" />
+        <button id="join-btn" class="choice">部屋に入る</button></div>`);
+    $('join-btn').addEventListener('click', () => withName(joinRoom));
+    $('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
+  }
+  function withName(fn) {
+    const name = ($('name-input').value || '').trim();
+    if (!name) { $('name-input').focus(); $('name-input').placeholder = '名前を入力してください'; return; }
+    saveName(name);
+    fn(name, ($('code-input').value || '').trim().toUpperCase());
+  }
+  function hostRoom(name) {
+    cleanupPeer();
+    mode = 'online'; isHost = true; myId = 'host';
+    players = [{ id: 'host', name, team: 'red' }];
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('tangotantei-room-' + roomCode);
+    peer.on('open', renderLobby);
+    peer.on('connection', c => {
+      c.on('data', d => onHostData(c, d));
+      c.on('close', () => onGuestLeft(c.peer));
+      c.on('error', () => onGuestLeft(c.peer));
+    });
+    peer.on('error', () => { if (!G) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+  function lobbyHtml() {
+    const col = t => `<div class="col" style="--tc:${TEAM[t].hex}"><h3>${TEAM[t].name}チーム</h3><div class="names">${players.map((p, i) => p.team === t ? `<span class="${p.id === myId ? 'me' : ''}">${esc(p.name)}</span>` : '').join('')}</div>
+      ${players[mySeat()] && players[mySeat()].team !== t ? `<button class="choice secondary small" data-join="${t}">${TEAM[t].name}に入る</button>` : ''}</div>`;
+    return `<div class="teams-setup">${col('red')}${col('blue')}</div>`;
+  }
+  function bindLobby() {
+    overlayExtra.querySelectorAll('[data-join]').forEach(b => b.addEventListener('click', () => {
+      if (isHost) { players[0].team = b.dataset.join; renderLobby(); }
+      else if (conn) conn.send({ type: 'team', team: b.dataset.join });
+    }));
+  }
+  function renderLobby() {
+    if (G) return;
+    for (const c of guests.values()) { try { c.send({ type: 'lobby', players }); } catch (e) {} }
+    const ok = members('red').length >= 2 && members('blue').length >= 2;
+    showOverlay('部屋を作りました', 'コードを伝えて参加してもらい、チームを分けましょう（各チーム2人以上）', [
+      { label: 'ゲーム開始', primary: true, disabled: !ok, onClick: () => { hideOverlay(); newMatch(); afterChange(); } },
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ], `<div id="room-code">${roomCode}</div>${lobbyHtml()}${settingsHtml()}`);
+    bindLobby();
+    bindSettings(renderLobby);
+  }
+  function onHostData(c, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'hello') {
+      if (G || players.length >= 12) { c.send({ type: 'full' }); return; }
+      guests.set(c.peer, c);
+      const team = members('red').length <= members('blue').length ? 'red' : 'blue';
+      players.push({ id: c.peer, name: String(data.name || '').trim().slice(0, 8) || 'ゲスト', team });
+      renderLobby();
+    } else if (data.type === 'team' && !G && TEAM[data.team]) {
+      const p = players.find(x => x.id === c.peer);
+      if (p) { p.team = data.team; renderLobby(); }
+    } else if (data.type === 'act' && G) {
+      const seat = players.findIndex(p => p.id === c.peer);
+      const a = data.action || {};
+      if (seat >= 0 && applyAction(seat, a)) afterChange();
+      else if (a.type === 'clue' && seat === G.leaders[G.turn]) c.send({ type: 'error', text: clueError(a.word) || '送信できませんでした' });
+    }
+  }
+  function onGuestLeft(id) {
+    if (!guests.has(id)) return;
+    guests.delete(id);
+    const i = players.findIndex(p => p.id === id);
+    if (i < 0) return;
+    if (!G) { players.splice(i, 1); renderLobby(); return; }
+    players[i] = { ...players[i], id: 'left-' + id, name: players[i].name + '(退出)' };
+    // リーダーが抜けたら準備済み扱いにして進行が止まらないようにする（手がかりはホストが代わりに出せないため、そのゲームは流す）
+    if (G.leaders.red === i || G.leaders.blue === i) {
+      if (G.phase === 'ready') doReady(players[i].team);
+      if (G.phase === 'clue' || G.phase === 'answer') { G.phase = 'gameEnd'; G.winner = null; }
+    }
+    afterChange();
+  }
+  function joinRoom(name, code) {
+    if (!code) { $('code-input').focus(); return; }
+    cleanupPeer();
+    mode = 'online'; isHost = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', id => {
+      myId = id;
+      conn = peer.connect('tangotantei-room-' + code, { reliable: true });
+      conn.on('open', () => conn.send({ type: 'hello', name }));
+      conn.on('data', onGuestData);
+      conn.on('close', onHostLost);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+    });
+    peer.on('error', () => { if (!V) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+  function onGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'lobby') {
+      players = data.players;
+      showOverlay('参加しました', 'チームを選んで、ホストの開始を待ってください', [
+        { label: '退出する', primary: false, onClick: showModeSelect }
+      ], lobbyHtml());
+      bindLobby();
+    } else if (data.type === 'sync') {
+      players = data.players;
+      if (!V || (V.phase === 'over' && data.view.phase !== 'over')) { overlay.dataset.kind = ''; hideOverlay(); }
+      V = data.view;
+      render();
+    } else if (data.type === 'error') {
+      errorEl.textContent = data.text;
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋は満員か、すでにゲームが始まっています。');
+      cleanupPeer();
+    }
+  }
+  function onHostLost() {
+    if (mode !== 'online' || isHost) return;
+    showOverlay('ホストとの接続が切れました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  $('submit-btn').addEventListener('click', submit);
+  wordInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) submit(); });
+  $('back-btn').addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+  showModeSelect();
+})();
+</script>
+</body>
+</html>
