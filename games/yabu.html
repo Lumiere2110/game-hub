@@ -162,6 +162,12 @@
   .limit-seg button { background: transparent; border: none; color: #9aa3d6; font-size: 13px; padding: 6px 12px; cursor: pointer; }
   .limit-seg button.on { background: #4a5cf0; color: #fff; }
   .limit-row { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 13px; color: #9aa3d6; }
+  .witness-list { display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: 380px; }
+  .witness-row { display: flex; align-items: center; gap: 10px; font-size: 12px; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,0.03); text-align: left; }
+  .w-name { color: #9aa3d6; width: 44px; flex-shrink: 0; }
+  .w-val { font-weight: 800; color: #8fe3b0; width: 18px; text-align: center; flex-shrink: 0; }
+  .w-val.victim { color: #ff9fae; }
+  .w-who { color: #eef0ff; }
   .suspect-summary { font-size: 12px; color: #cdd3f5; text-align: center; line-height: 1.7; }
   .suspect-summary b { color: #ff9fae; }
   .pip {
@@ -337,7 +343,7 @@
     return a;
   }
 
-  // 人型タイルは 1〜(人数+4)：3人なら1〜7、4人なら1〜8、5人なら1〜9
+  // 人型タイルは 1〜(人数+4)：3人なら1〜7、4人なら1〜8、5人なら1〜9（1は「×」として表示）
   // 容疑者3枚・被害者1枚（全員に伏せる）・残りは証人（人数と同じ枚数）
   function dealRound(playerCount) {
     const tiles = shuffle(Array.from({ length: playerCount + 4 }, (_, i) => i + 1));
@@ -378,8 +384,11 @@
     };
   }
 
+  // 1のタイルは「×」として表示し、犯人にはならない
+  const tileLabel = v => v === 1 ? '×' : v;
+
   function determineCulprit(suspects) {
-    const numbered = suspects.map((s, i) => ({ i, v: s.value, type: s.type })).filter(o => o.type === 'num');
+    const numbered = suspects.map((s, i) => ({ i, v: s.value, type: s.type })).filter(o => o.type === 'num' && o.v !== 1);
     const hasFive = numbered.some(o => o.v === 5);
     let best = null;
     for (const o of numbered) {
@@ -456,7 +465,7 @@
     if (!G.seers || !n) { row.innerHTML = ''; return; }
     const reveal = G.phase === 'reveal-final' && G._witnesses;
     const priv = G.phase === 'private' && G.myPrivate ? G.myPrivate : null;
-    const tile = (cls, val, known) => `<div class="suspect-tile small ${cls} ${known ? 'known' : 'facedown'}"><div class="s-value">${known ? val : '?'}</div></div>`;
+    const tile = (cls, val, known) => `<div class="suspect-tile small ${cls} ${known ? 'known' : 'facedown'}"><div class="s-value">${known ? tileLabel(val) : '?'}</div></div>`;
     const victim = reveal ? tile('victim', G._victim, true) : tile('victim', '?', false);
     const ws = G.seers.witnesses.map((keys, i) => {
       const v = reveal ? G._witnesses[i] : (priv ? priv.witnesses[i] : null);
@@ -476,13 +485,13 @@
       tile.className = 'suspect-tile';
       if (G.phase === 'reveal-final' && G._suspects) {
         const s = G._suspects[i];
-        valEl.textContent = s.value;
+        valEl.textContent = tileLabel(s.value);
         tile.classList.add('known');
         if (i === G._culpritIndex) tile.classList.add('culprit');
         tile.onclick = null;
       } else if (G.phase === 'private' && G.myPrivate) {
         if (G.myPrivate.suspects[i] === null) { valEl.textContent = '?'; tile.classList.add('facedown'); }
-        else { valEl.textContent = G.myPrivate.suspects[i]; tile.classList.add('known'); }
+        else { valEl.textContent = tileLabel(G.myPrivate.suspects[i]); tile.classList.add('known'); }
         const canVote = G.currentTurnKey === G.myKey && G.votes[G.myKey] === undefined;
         if (canVote) { tile.classList.add('clickable'); tile.onclick = () => onSuspectClick(i); }
         else tile.onclick = null;
@@ -569,8 +578,13 @@
     const summary = settle.bySuspect.length
       ? settle.bySuspect.map(b => `容疑者${SUSPECT_LABELS[b.suspect]}のチップ${b.count}枚 → 最後に置いた <b>${(playerByKey(b.receiver) || {}).name}</b> が受け取り`).join('<br>')
       : '全員正解！しくじりチップはありません';
-    const extra = G._witnesses ? `<div class="suspect-summary">被害者 <b>${G._victim}</b>　／　証人 ${G._witnesses.map((v, i) => `${i + 1}:${v}`).join('　')}</div>` : '';
-    return `<div class="culprit-banner">犯人は <strong>容疑者${SUSPECT_LABELS[culpritIndex]}</strong>（数字 ${culpritValue}）でした</div>${extra}
+    // 証人タイルの数字と、それぞれを見ていた人
+    const who = keys => (keys || []).map(k => { const p = playerByKey(k); return p ? `<span style="color:${p.color}">●</span>${p.name}` : ''; }).join('・') || '誰も見ていない';
+    const extra = G._witnesses ? `<div class="witness-list">
+        <div class="witness-row"><span class="w-name">被害者</span><span class="w-val victim">${tileLabel(G._victim)}</span><span class="w-who">誰も見ていない</span></div>
+        ${G._witnesses.map((v, i) => `<div class="witness-row"><span class="w-name">証人${i + 1}</span><span class="w-val">${tileLabel(v)}</span><span class="w-who">${who(G.seers && G.seers.witnesses[i])}</span></div>`).join('')}
+      </div>` : '';
+    return `<div class="culprit-banner">犯人は <strong>容疑者${SUSPECT_LABELS[culpritIndex]}</strong>（数字 ${tileLabel(culpritValue)}）でした</div>${extra}
       <div class="suspect-summary">${summary}</div>
       <div class="result-list">${rows}</div>`;
   }
@@ -640,11 +654,11 @@
     showOverlay('遊び方', '', [
       { label: '閉じる', primary: true, onClick: showModeSelect }
     ], `<div class="rules-text">
-      <p>人型タイルは人数によって変わります（3人：1〜7、4人：1〜8、5人：1〜9）。毎ラウンドすべて伏せて配り、<strong>容疑者3枚</strong>・<strong>被害者1枚</strong>・残りを<strong>証人</strong>にします。</p>
+      <p>人型タイルは人数によって変わります（3人：×・2〜7、4人：×・2〜8、5人：×・2〜9）。<strong>×は犯人になりません</strong>。毎ラウンドすべて伏せて配り、<strong>容疑者3枚</strong>・<strong>被害者1枚</strong>・残りを<strong>証人</strong>にします。</p>
       <p>あなたは容疑者3人のうち<strong>2人の数字</strong>と、証人のうち<strong>2人の数字</strong>を見ることができます。被害者は誰にも見えず、答え合わせのときに公開されます。</p>
       <p>誰がどのタイルを見ているかは、タイルの上の色の点で全員にわかります。見えている数字と、他の人の置き方から推理しましょう。</p>
       <p>自分の番が来たら、犯人だと思う容疑者に自分のチップを置きます。他の人がどこに置いたかも参考にしつつ、時にはハッタリで揺さぶりましょう。</p>
-      <p>全員が置き終わったら数字を公開。<strong>最大の数字</strong>の人が犯人です。ただし<strong>5がいる場合は最小の数字</strong>が犯人になります。</p>
+      <p>全員が置き終わったら数字を公開。<strong>最大の数字</strong>の人が犯人です。ただし<strong>5がいる場合は最小の数字</strong>が犯人になります（×は数えません）。</p>
       <p>全員が置き終えたら犯人を公開します。推理を外した人のチップは<strong>「しくじりチップ」</strong>となり、その容疑者に<strong>最後にチップを置いた人</strong>がまとめて受け取ります。正解した人のチップは戻ります。</p>
       <p>誰かがしくじりチップを<strong>規定数（標準5枚、3〜7枚で設定可）</strong>受け取ったらゲーム終了。しくじりチップが最も少ない人の勝利です。</p>
       <p style="color:#7c86c2;font-size:12px;">※オインクゲームズ「藪の中」にインスパイアされた非公式のファンメイド実装です。</p>
