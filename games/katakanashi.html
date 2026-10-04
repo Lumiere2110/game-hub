@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>カタカナーシ</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 640px; max-width: 94vw; }
+  #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 { margin: 0; font-size: 22px; letter-spacing: 3px; font-weight: 600; color: #9fb4ff; text-shadow: 0 0 12px rgba(120,150,255,0.6); }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none; white-space: nowrap;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+  #phase { font-size: 13px; color: #9aa3d6; letter-spacing: 2px; text-align: center; }
+  #timer { font-size: 54px; font-weight: 800; color: #ffe066; text-shadow: 0 0 16px rgba(255,224,102,0.5); font-variant-numeric: tabular-nums; line-height: 1; }
+  #timer.low { color: #ff6b81; }
+  #timer:empty { display: none; }
+  #word-box { padding: 14px 30px; border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid #3a4278; text-align: center; }
+  #word-box:empty { display: none; }
+  #word-box .w { font-size: 38px; font-weight: 900; color: #ffe066; letter-spacing: 2px; }
+  #word-box small { display: block; font-size: 12px; color: #9aa3d6; }
+  #scores { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .pl { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid #2a3160; }
+  .pl.exp { border-color: #ffe066; color: #ffe066; }
+  .pl b { color: #8fe3b0; margin-left: 4px; }
+  #chat {
+    width: 100%; max-height: 300px; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+    padding: 10px; border-radius: 12px; background: rgba(0,0,0,0.25); border: 1px solid #2a3160;
+  }
+  #chat:empty { display: none; }
+  .line { font-size: 14px; line-height: 1.4; }
+  .line .who { font-size: 11px; color: #9aa3d6; margin-right: 6px; }
+  .line.hint .text { color: #ffe9b0; }
+  .line.sys { color: #8fe3b0; font-size: 12px; }
+  .line.foul { color: #ff7a8a; font-size: 12px; }
+  #input-row { display: none; gap: 8px; width: 100%; }
+  #input-row input {
+    flex: 1; min-width: 0; font-size: 15px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff;
+  }
+  #input-row input:focus { outline: none; border-color: #6ea8ff; }
+  #msg { font-size: 13px; color: #b9c2f0; text-align: center; min-height: 18px; line-height: 1.6; }
+  #actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4); color: #fff; border: none; padding: 10px 22px; font-size: 14px;
+    border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5); transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice.ok { background: linear-gradient(180deg, #3fd08a, #1f9a5e); box-shadow: 0 4px 14px rgba(60,200,120,0.4); }
+  button.choice.ng { background: linear-gradient(180deg, #ff6b6b, #c22f35); box-shadow: 0 4px 14px rgba(255,80,80,0.4); }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  #overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 14px; background: rgba(5,7,15,0.95); text-align: center; padding: 64px 16px 20px; z-index: 50; overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; max-width: 520px; line-height: 1.6; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 480px; margin: 0; padding-left: 20px; }
+  .seg { display: flex; border: 1px solid #3a4278; border-radius: 999px; overflow: hidden; }
+  .seg button { background: transparent; border: none; color: #9aa3d6; font-size: 13px; padding: 6px 12px; cursor: pointer; }
+  .seg button.on { background: #4a5cf0; color: #fff; }
+  .names { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #overlay input {
+    font-size: 16px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center; width: 150px;
+  }
+  #overlay input:focus { outline: none; border-color: #6ea8ff; }
+  #code-input { font-size: 22px !important; letter-spacing: 6px; text-transform: uppercase; }
+  #room-code {
+    font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4); padding: 4px 22px; border-radius: 12px;
+  }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .member-list { font-size: 14px; color: #dfe4ff; line-height: 1.8; }
+  .result-table { border-collapse: collapse; font-size: 14px; color: #dfe4ff; }
+  .result-table td { padding: 4px 12px; border-bottom: 1px solid #2a3160; text-align: left; }
+  @media (max-width: 480px) { #timer { font-size: 44px; } #word-box .w { font-size: 30px; } .names { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>カタカナーシ</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+    <div id="phase"></div>
+    <div id="timer"></div>
+    <div id="word-box"></div>
+    <div id="scores"></div>
+    <div id="chat"></div>
+    <div id="input-row"><input id="chat-input" maxlength="60" autocomplete="off"><button id="send-btn" class="choice">送信</button></div>
+    <div id="msg"></div>
+    <div id="actions"></div>
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">カタカナーシ</h2>
+    <p id="overlay-text"></p>
+    <div id="overlay-extra"></div>
+    <div id="overlay-buttons"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  const WORDS = [...new Set(`
+    ラーメン カレー ハンバーグ ハンバーガー ピザ パスタ サンドイッチ オムライス コロッケ グラタン ステーキ サラダ スープ ドーナツ
+    ケーキ クッキー チョコレート アイスクリーム プリン ゼリー キャンディ ポテトチップス ヨーグルト チーズ バター マヨネーズ ケチャップ
+    コーヒー ジュース コーラ ミルク トマト キャベツ ピーマン レモン バナナ メロン イチゴ パイナップル キウイ
+    テレビ ラジオ カメラ パソコン スマートフォン エアコン ストーブ ドライヤー アイロン リモコン マイク イヤホン ゲーム プリンター
+    ベッド ソファ テーブル カーテン カーペット クッション タオル シャンプー スリッパ ハンガー ポスト エレベーター エスカレーター
+    ペン ノート ハサミ ホッチキス カレンダー ポスター ランドセル リュック バッグ ネクタイ スカート ジーンズ セーター マフラー
+    コート ブーツ スニーカー サンダル メガネ サングラス ネックレス ピアス マスク ハンカチ
+    バス タクシー トラック パトカー ヘリコプター ロケット ボート ヨット バイク ガソリン ブレーキ ハンドル タイヤ シートベルト
+    サッカー テニス ゴルフ スキー スケート マラソン ボクシング プロレス バレーボール バスケットボール ラグビー ボウリング ダンス ヨガ
+    ピアノ ギター ドラム バイオリン トランペット カラオケ コンサート アイドル ドラマ アニメ マンガ ニュース クイズ
+    ライオン キリン ゴリラ パンダ コアラ ペンギン カンガルー チーター イルカ クジラ ラクダ シマウマ カバ カラス
+    ホテル レストラン カフェ コンビニ スーパー デパート プール ホテル キャンプ ハイキング ドライブ ピクニック
+    クリスマス ハロウィン バレンタイン プレゼント サンタクロース ケーキ キャンドル パーティー
+    ドクター ナース パイロット コック サラリーマン アルバイト ボランティア チーム リーダー キャプテン ヒーロー モンスター ロボット
+    インターネット メール パスワード アプリ ゲームセンター コンセント バッテリー ボタン スイッチ ライト ロウソク
+    ハート スター ダイヤモンド ゴールド シルバー ピンク オレンジ グリーン ブルー トランプ パズル サイコロ ボール
+    ニンジャ サムライ ピラミッド ジャングル アマゾン ハワイ アメリカ フランス イタリア エジプト ブラジル オーストラリア
+  `.trim().split(/\s+/))];
+
+  const $ = id => document.getElementById(id);
+  const phaseEl = $('phase'), timerEl = $('timer'), wordBox = $('word-box'), scoresEl = $('scores'), chatEl = $('chat');
+  const inputRow = $('input-row'), chatInput = $('chat-input'), msgEl = $('msg'), actionsEl = $('actions');
+  const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
+  const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const fmt = sec => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  // ひらがな→カタカナにそろえ、空白や「・」を除いて比較
+  const norm = s => String(s || '').trim().replace(/[\s・･]+/g, '').replace(/[ぁ-ゖ]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60)).toLowerCase();
+  // 説明でカタカナ（長音「ー」は除く）や英字を使ったら反則
+  const FOUL_RE = /[ァ-ヺヽ-ヿｦ-ﾟ]|[A-Za-zＡ-Ｚａ-ｚ]/;
+  function loadName() { try { return localStorage.getItem('cardgame-name') || ''; } catch (e) { return ''; } }
+  function saveName(n) { try { localStorage.setItem('cardgame-name', n); } catch (e) {} }
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary') + (b.cls ? ' ' + b.cls : '');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  // ---------- state ----------
+  let mode = null;            // 'local' | 'online'
+  let isHost = false;
+  let myId = 'local';
+  let players = [];
+  let G = null, V = null;
+  let turnSec = 90;
+  let roundsPer = 1;
+  let localCount = 4;
+  let localNames = [];
+  let clockOffset = 0;
+  let tickTimer = null;
+  let peer = null, conn = null, roomCode = null;
+  const guests = new Map();
+  const mySeat = () => players.findIndex(p => p.id === myId);
+  const now = () => Date.now() + clockOffset;
+  const isAuthority = () => mode === 'local' || isHost;
+
+  // ---------- engine (ローカル/ホスト) ----------
+  function newGame() {
+    const n = players.length;
+    G = {
+      n,
+      order: Array.from({ length: n * roundsPer }, (_, i) => i % n),
+      turnIdx: 0,
+      explainer: 0,
+      phase: 'ready',       // ready → turn → (次の説明役) … → over
+      deadline: null,
+      word: null,
+      deck: shuffle(WORDS.slice()),
+      scores: Array(n).fill(0),
+      turnCorrect: 0,
+      log: [],
+      seq: 0,
+      lastTurn: null
+    };
+    G.explainer = G.order[0];
+  }
+  function sys(text, kind = 'sys') { G.log.push({ id: ++G.seq, kind, text }); if (G.log.length > 80) G.log.shift(); }
+  function nextWord() {
+    if (!G.deck.length) G.deck = shuffle(WORDS.slice());
+    G.word = G.deck.pop();
+  }
+  function startTurn() {
+    if (G.phase !== 'ready') return false;
+    G.phase = 'turn';
+    G.turnCorrect = 0;
+    G.log = [];
+    G.deadline = Date.now() + turnSec * 1000;
+    nextWord();
+    sys(`${players[G.explainer].name}さんの説明スタート！`);
+    return true;
+  }
+  function endTurn() {
+    G.lastTurn = { explainer: G.explainer, correct: G.turnCorrect, word: G.word };
+    G.word = null;
+    G.deadline = null;
+    G.turnIdx++;
+    if (G.turnIdx >= G.order.length) { G.phase = 'over'; return; }
+    G.explainer = G.order[G.turnIdx];
+    G.phase = 'ready';
+  }
+  function correct(guesser) {
+    if (G.phase !== 'turn' || guesser === G.explainer || !(guesser >= 0 && guesser < G.n)) return false;
+    G.scores[guesser]++;
+    G.scores[G.explainer]++;
+    G.turnCorrect++;
+    sys(`${players[guesser].name}さんが正解！「${G.word}」（2人に+1点）`);
+    nextWord();
+    return true;
+  }
+  function pass() {
+    if (G.phase !== 'turn') return false;
+    sys(`パス：「${G.word}」`);
+    nextWord();
+    return true;
+  }
+  function foul(text) {
+    if (G.phase !== 'turn') return false;
+    sys(`カタカナ使用！お題「${G.word}」は没収${text ? `（説明：${text}）` : ''}`, 'foul');
+    nextWord();
+    return true;
+  }
+
+  // ---------- views ----------
+  function viewFor(seat) {
+    if (!G) return null;
+    return { ...G, deck: null, word: seat === G.explainer ? G.word : null, me: seat, hostNow: Date.now() };
+  }
+  function afterChange() {
+    if (isHost) for (const [id, c] of guests) { try { c.send({ type: 'sync', players, view: viewFor(players.findIndex(p => p.id === id)) }); } catch (e) {} }
+    V = mode === 'online' ? viewFor(mySeat()) : null;
+    render();
+  }
+  function startTicker() {
+    clearInterval(tickTimer);
+    tickTimer = setInterval(() => {
+      if (isAuthority() && G && G.phase === 'turn' && Date.now() >= G.deadline) { sys(`時間切れ！最後のお題は「${G.word}」でした`); endTurn(); afterChange(); }
+      renderTimer();
+    }, 250);
+  }
+  function act(a) {
+    if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action: a }); return; }
+    if (applyAction(mode === 'online' ? mySeat() : -1, a)) afterChange();
+  }
+  function applyAction(seat, a) {
+    if (!G) return false;
+    const local = mode === 'local';
+    const isExp = local || seat === G.explainer;
+    if (a.type === 'start') return isExp && startTurn();
+    if (a.type === 'pass') return isExp && pass();
+    if (a.type === 'correct' && local) return correct(a.guesser);
+    if (a.type === 'foul' && local) return foul('');
+    if (a.type === 'post' && !local && seat >= 0 && G.phase === 'turn') {
+      const text = String(a.text || '').trim().slice(0, 60);
+      if (!text) return false;
+      if (seat === G.explainer) {
+        if (FOUL_RE.test(text)) return foul('');
+        if (norm(text).includes(norm(G.word))) return foul('');
+        G.log.push({ id: ++G.seq, kind: 'hint', by: seat, text });
+        return true;
+      }
+      if (norm(text) === norm(G.word)) return correct(seat);
+      G.log.push({ id: ++G.seq, kind: 'guess', by: seat, text });
+      return true;
+    }
+    return false;
+  }
+
+  // ---------- render ----------
+  function renderTimer() {
+    const S = mode === 'online' ? V : G;
+    if (!S || S.phase !== 'turn' || !S.deadline) { timerEl.textContent = ''; return; }
+    const left = Math.max(0, Math.ceil((S.deadline - now()) / 1000));
+    timerEl.textContent = fmt(left);
+    timerEl.classList.toggle('low', left <= 10);
+  }
+  function render() {
+    const S = mode === 'online' ? V : G;
+    if (!S) return;
+    const me = mode === 'online' ? S.me : -1;
+    const expName = players[S.explainer] ? players[S.explainer].name : '';
+    const amExp = mode === 'local' || me === S.explainer;
+    phaseEl.textContent = S.phase === 'over' ? '結果' : `${S.turnIdx + 1} / ${S.order.length} ターン　説明役：${expName}`;
+    renderTimer();
+    wordBox.innerHTML = S.phase === 'turn' && amExp && S.word ? `<small>お題（カタカナを使わずに説明！）</small><div class="w">${esc(S.word)}</div>` : '';
+    scoresEl.innerHTML = players.map((p, i) => `<span class="pl${i === S.explainer && S.phase !== 'over' ? ' exp' : ''}">${i === S.explainer && S.phase !== 'over' ? '🎤' : ''}${esc(p.name)}${i === me ? '（あなた）' : ''}<b>${S.scores[i]}</b></span>`).join('');
+    chatEl.innerHTML = S.log.map(l => l.kind === 'sys' || l.kind === 'foul'
+      ? `<div class="line ${l.kind}">${esc(l.text)}</div>`
+      : `<div class="line ${l.kind}"><span class="who">${esc(players[l.by].name)}${l.kind === 'hint' ? '（説明）' : ''}</span><span class="text">${esc(l.text)}</span></div>`).join('');
+    chatEl.scrollTop = chatEl.scrollHeight;
+    inputRow.style.display = mode === 'online' && S.phase === 'turn' ? 'flex' : 'none';
+    chatInput.placeholder = amExp ? 'カタカナ・英字を使わずに説明' : '答えを入力（ひらがなでもOK）';
+
+    actionsEl.innerHTML = '';
+    const button = (text, onClick, cls) => {
+      const b = document.createElement('button');
+      b.className = 'choice ' + (cls || '');
+      b.textContent = text;
+      b.addEventListener('click', onClick);
+      actionsEl.appendChild(b);
+    };
+    msgEl.textContent = '';
+    if (S.phase === 'ready') {
+      const lt = S.lastTurn ? `${players[S.lastTurn.explainer].name}さんのターンは ${S.lastTurn.correct}問 正解！　` : '';
+      if (mode === 'local') {
+        msgEl.textContent = lt;
+        if (!overlay.classList.contains('show')) localGate();
+      } else if (amExp) {
+        msgEl.textContent = lt + 'あなたが説明役です。準備ができたらスタート！';
+        button('スタート', () => act({ type: 'start' }));
+      } else {
+        msgEl.textContent = lt + `${expName}さんが説明を始めるのを待っています`;
+      }
+    } else if (S.phase === 'turn') {
+      if (mode === 'local') {
+        msgEl.textContent = 'カタカナを使わずに説明！ほかの人は口頭で答えてください';
+        button('正解！', chooseGuesser, 'ok');
+        button('パス', () => act({ type: 'pass' }), 'secondary');
+        button('カタカナ言っちゃった', () => act({ type: 'foul' }), 'ng');
+      } else if (amExp) {
+        msgEl.textContent = 'チャットで説明してください（カタカナ・英字・お題そのものを書くと没収）';
+        button('パス', () => act({ type: 'pass' }), 'secondary');
+      } else {
+        msgEl.textContent = `${expName}さんの説明からお題を当てよう（ひらがなで答えてもOK）`;
+      }
+    } else if (S.phase === 'over') {
+      showResult(S);
+    }
+    if (S.phase !== 'over' && overlay.dataset.kind === 'result') { overlay.dataset.kind = ''; hideOverlay(); }
+  }
+  function showResult(S) {
+    const order = players.map((p, i) => i).sort((a, b) => S.scores[b] - S.scores[a]);
+    const top = S.scores[order[0]];
+    const rows = order.map(i => `<tr><td>${S.scores[i] === top ? '👑' : ''}</td><td>${esc(players[i].name)}</td><td>${S.scores[i]}点</td></tr>`).join('');
+    const canAgain = isAuthority();
+    overlay.dataset.kind = 'result';
+    showOverlay('ゲーム終了！', canAgain ? '' : 'ホストが次のゲームを始めるのを待っています', [
+      ...(canAgain ? [{ label: 'もう一度', primary: true, onClick: () => { overlay.dataset.kind = ''; hideOverlay(); newGame(); afterChange(); } }] : []),
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ], `<table class="result-table">${rows}</table>`);
+  }
+
+  // ---------- local ----------
+  function localGate() {
+    const name = players[G.explainer].name;
+    showOverlay('つぎの説明役', `端末を「${name}」さんに渡してください。お題は説明役だけが見ます`, [
+      { label: 'スタート', primary: true, onClick: () => { hideOverlay(); act({ type: 'start' }); } }
+    ], G.lastTurn ? `<p>${esc(players[G.lastTurn.explainer].name)}さんのターン：${G.lastTurn.correct}問正解</p>` : '');
+  }
+  function chooseGuesser() {
+    showOverlay('誰が当てましたか？', `お題：「${G.word}」`, [
+      ...players.map((p, i) => ({ label: p.name, primary: true, onClick: () => { hideOverlay(); act({ type: 'correct', guesser: i }); } })).filter((b, i) => i !== G.explainer),
+      { label: 'キャンセル', primary: false, onClick: hideOverlay }
+    ]);
+  }
+
+  // ---------- menus ----------
+  function resetAll() {
+    cleanupPeer();
+    clearInterval(tickTimer); tickTimer = null;
+    mode = null; isHost = false; myId = 'local'; players = []; G = null; V = null; clockOffset = 0;
+    overlay.dataset.kind = '';
+    phaseEl.textContent = ''; timerEl.textContent = ''; wordBox.innerHTML = ''; scoresEl.innerHTML = ''; chatEl.innerHTML = '';
+    inputRow.style.display = 'none'; msgEl.textContent = ''; actionsEl.innerHTML = '';
+  }
+  function showModeSelect() {
+    resetAll();
+    showOverlay('カタカナーシ', 'カタカナの言葉を、カタカナを使わずに説明して当ててもらおう！（2〜8人）', [
+      { label: '1台で遊ぶ（集まって）', primary: true, onClick: showLocalSetup },
+      { label: 'オンライン対戦（各自の端末）', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>順番に「説明役」になり、制限時間内にカタカナのお題をできるだけたくさん当ててもらいます。</li>
+        <li>説明では<b>カタカナ語を使ってはいけません</b>（「テレビ」→「家で番組を見る四角い箱」など）。言ってしまったらそのお題は没収です。</li>
+        <li>正解したら、当てた人と説明役の両方に1点。難しいお題はパスできます。</li>
+        <li>全員が説明役を終えたら、合計点が一番多い人の勝ち！</li>
+        <li>オンラインでは説明も答えもチャットで行います。説明にカタカナや英字が入ると自動で没収になります。答えはひらがなでもOKです。</li>
+      </ul>`);
+  }
+  function settingsHtml() {
+    return `<div class="row" style="font-size:13px;color:#9aa3d6">1ターン <div class="seg">${[60, 90, 120].map(s => `<button data-s="${s}" class="${s === turnSec ? 'on' : ''}">${s}秒</button>`).join('')}</div></div>
+      <div class="row" style="font-size:13px;color:#9aa3d6">説明する回数 <div class="seg">${[1, 2, 3].map(r => `<button data-r="${r}" class="${r === roundsPer ? 'on' : ''}">1人${r}回</button>`).join('')}</div></div>`;
+  }
+  function bindSettings(rerender) {
+    overlayExtra.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => { turnSec = +b.dataset.s; rerender(); }));
+    overlayExtra.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => { roundsPer = +b.dataset.r; rerender(); }));
+  }
+  function showLocalSetup() {
+    while (localNames.length < 8) localNames.push('');
+    const inputs = Array.from({ length: localCount }, (_, i) => `<input data-i="${i}" maxlength="8" placeholder="プレイヤー${i + 1}" value="${esc(localNames[i])}">`).join('');
+    showOverlay('1台で遊ぶ', '人数と名前を決めてください', [
+      { label: 'ゲーム開始', primary: true, onClick: () => {
+        mode = 'local'; myId = 'local';
+        players = Array.from({ length: localCount }, (_, i) => ({ id: 'p' + i, name: (localNames[i] || '').trim() || `プレイヤー${i + 1}` }));
+        hideOverlay();
+        startTicker();
+        newGame();
+        render();
+      } },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<div class="seg">${[2, 3, 4, 5, 6, 7, 8].map(n => `<button data-n="${n}" class="${n === localCount ? 'on' : ''}">${n}人</button>`).join('')}</div>
+        <div class="names">${inputs}</div>${settingsHtml()}`);
+    overlayExtra.querySelectorAll('[data-n]').forEach(b => b.addEventListener('click', () => { localCount = +b.dataset.n; showLocalSetup(); }));
+    overlayExtra.querySelectorAll('[data-i]').forEach(inp => inp.addEventListener('input', () => { localNames[+inp.dataset.i] = inp.value; }));
+    bindSettings(showLocalSetup);
+  }
+
+  // ---------- online (PeerJS, ホストが進行) ----------
+  function cleanupPeer() {
+    for (const c of guests.values()) { try { c.close(); } catch (e) {} }
+    guests.clear();
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン対戦', '各自の端末で参加し、チャットで説明・回答します（2〜8人）。まず名前を入力してください', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" style="width:200px" />
+        <div class="row"><input id="code-input" maxlength="4" placeholder="コード" autocomplete="off" />
+        <button id="join-btn" class="choice">部屋に入る</button></div>`);
+    $('join-btn').addEventListener('click', () => withName(joinRoom));
+    $('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
+  }
+  function withName(fn) {
+    const name = ($('name-input').value || '').trim();
+    if (!name) { $('name-input').focus(); $('name-input').placeholder = '名前を入力してください'; return; }
+    saveName(name);
+    fn(name, ($('code-input').value || '').trim().toUpperCase());
+  }
+  function hostRoom(name) {
+    cleanupPeer();
+    mode = 'online'; isHost = true; myId = 'host';
+    players = [{ id: 'host', name }];
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('katakanashi-room-' + roomCode);
+    peer.on('open', renderLobby);
+    peer.on('connection', c => {
+      c.on('data', d => onHostData(c, d));
+      c.on('close', () => onGuestLeft(c.peer));
+      c.on('error', () => onGuestLeft(c.peer));
+    });
+    peer.on('error', () => { if (!G) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+  function renderLobby() {
+    if (G) return;
+    for (const c of guests.values()) { try { c.send({ type: 'lobby', names: players.map(p => p.name) }); } catch (e) {} }
+    showOverlay('部屋を作りました', 'コードを伝えて参加してもらいましょう（2人以上で開始できます）', [
+      { label: 'ゲーム開始', primary: true, disabled: players.length < 2, onClick: () => { hideOverlay(); startTicker(); newGame(); afterChange(); } },
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ], `<div id="room-code">${roomCode}</div><div class="member-list">${players.map(p => esc(p.name)).join('<br>')}</div>${settingsHtml()}`);
+    bindSettings(renderLobby);
+  }
+  function onHostData(c, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'hello') {
+      if (G || players.length >= 8) { c.send({ type: 'full' }); return; }
+      guests.set(c.peer, c);
+      players.push({ id: c.peer, name: String(data.name || '').trim().slice(0, 8) || 'ゲスト' });
+      renderLobby();
+    } else if (data.type === 'act' && G) {
+      const seat = players.findIndex(p => p.id === c.peer);
+      if (seat >= 0 && applyAction(seat, data.action || {})) afterChange();
+    }
+  }
+  function onGuestLeft(id) {
+    if (!guests.has(id)) return;
+    guests.delete(id);
+    const i = players.findIndex(p => p.id === id);
+    if (i < 0) return;
+    if (!G) { players.splice(i, 1); renderLobby(); return; }
+    players[i] = { id: 'left-' + id, name: players[i].name + '(退出)' };
+    // 退出した人の説明ターンは飛ばす
+    G.order = G.order.filter((x, k) => k <= G.turnIdx || x !== i);
+    if (G.explainer === i) { if (G.phase === 'turn') sys('説明役が退出したのでターン終了'); endTurn(); }
+    afterChange();
+  }
+  function joinRoom(name, code) {
+    if (!code) { $('code-input').focus(); return; }
+    cleanupPeer();
+    mode = 'online'; isHost = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', id => {
+      myId = id;
+      conn = peer.connect('katakanashi-room-' + code, { reliable: true });
+      conn.on('open', () => conn.send({ type: 'hello', name }));
+      conn.on('data', onGuestData);
+      conn.on('close', onHostLost);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+    });
+    peer.on('error', () => { if (!V) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+  function onGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'lobby') {
+      showOverlay('参加しました', 'ホストの開始を待っています', [
+        { label: '退出する', primary: false, onClick: showModeSelect }
+      ], `<div class="member-list">${data.names.map(esc).join('<br>')}</div>`);
+    } else if (data.type === 'sync') {
+      players = data.players;
+      clockOffset = data.view.hostNow - Date.now();
+      if (!V || (V.phase === 'over' && data.view.phase !== 'over')) { overlay.dataset.kind = ''; hideOverlay(); }
+      V = data.view;
+      if (!tickTimer) startTicker();
+      render();
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋は満員か、すでにゲームが始まっています。');
+      cleanupPeer();
+    }
+  }
+  function onHostLost() {
+    if (mode !== 'online' || isHost) return;
+    clearInterval(tickTimer); tickTimer = null;
+    showOverlay('ホストとの接続が切れました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  function sendChat() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    chatInput.value = '';
+    act({ type: 'post', text });
+  }
+  $('send-btn').addEventListener('click', sendChat);
+  chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) sendChat(); });
+  $('back-btn').addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+  showModeSelect();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>じゃんけん</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; width: 600px; max-width: 94vw; }
+  #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 { margin: 0; font-size: 22px; letter-spacing: 4px; font-weight: 600; color: #9fb4ff; text-shadow: 0 0 12px rgba(120,150,255,0.6); }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #call { font-size: 34px; font-weight: 900; color: #ffe066; text-shadow: 0 0 16px rgba(255,224,102,0.6); min-height: 44px; text-align: center; }
+  #call.pop { animation: pop 0.35s ease-out; }
+  @keyframes pop { 0% { transform: scale(1.4); opacity: 0.4; } 100% { transform: scale(1); opacity: 1; } }
+  #players { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; }
+  .pl {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    width: 104px; padding: 10px 6px; border-radius: 14px;
+    background: rgba(255,255,255,0.03); border: 1px solid #2a3160;
+    transition: opacity 0.2s, border-color 0.2s, box-shadow 0.2s;
+  }
+  .pl.me { background: rgba(110,168,255,0.08); }
+  .pl.out { opacity: 0.35; }
+  .pl.win { border-color: #ffe066; box-shadow: 0 0 16px rgba(255,224,102,0.5); }
+  .pl .nm { font-size: 12px; font-weight: 700; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl .hand { font-size: 46px; line-height: 1.1; min-height: 52px; }
+  .pl .hand.wait { font-size: 14px; color: #6b74a8; display: flex; align-items: center; }
+  .pl .hand.ready { font-size: 14px; color: #8fe3b0; display: flex; align-items: center; }
+  .pl .hand.show { animation: pop 0.35s ease-out; }
+  .pl .score { font-size: 11px; color: #9aa3d6; }
+  .pl .score b { color: #ffe066; }
+  #msg { font-size: 14px; color: #b9c2f0; text-align: center; min-height: 20px; }
+  #hands { display: flex; gap: 14px; justify-content: center; }
+  .hbtn {
+    width: 96px; height: 96px; border-radius: 50%;
+    border: 2px solid #3a4278; background: rgba(255,255,255,0.05);
+    font-size: 50px; cursor: pointer; transition: transform 0.1s, border-color 0.15s, box-shadow 0.15s;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; color: #eef0ff;
+  }
+  .hbtn span { font-size: 11px; color: #9aa3d6; }
+  .hbtn:hover:not(:disabled) { transform: translateY(-4px); border-color: #6ea8ff; }
+  .hbtn.sel { border-color: #ffe066; box-shadow: 0 0 18px rgba(255,224,102,0.6); }
+  .hbtn:disabled { opacity: 0.35; cursor: default; }
+  #actions { display: flex; gap: 10px; justify-content: center; min-height: 44px; }
+  #log { font-size: 12px; color: #7c86c2; text-align: center; line-height: 1.6; }
+
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4); color: #fff; border: none; padding: 10px 24px; font-size: 14px;
+    border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5); transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  #overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 14px; background: rgba(5,7,15,0.93); text-align: center; padding: 64px 16px 20px; z-index: 50; overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; max-width: 520px; line-height: 1.6; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 480px; margin: 0; padding-left: 20px; }
+  .seg { display: flex; border: 1px solid #3a4278; border-radius: 999px; overflow: hidden; }
+  .seg button { background: transparent; border: none; color: #9aa3d6; font-size: 13px; padding: 6px 14px; cursor: pointer; }
+  .seg button.on { background: #4a5cf0; color: #fff; }
+  .seg button:disabled { opacity: 0.35; cursor: default; }
+  #room-code {
+    font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4); padding: 4px 22px; border-radius: 12px;
+  }
+  #overlay input {
+    font-size: 16px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center;
+  }
+  #overlay input:focus { outline: none; border-color: #6ea8ff; }
+  #code-input { width: 150px; font-size: 22px !important; letter-spacing: 6px; text-transform: uppercase; }
+  #name-input { width: 200px; }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .member-list { font-size: 14px; color: #dfe4ff; line-height: 1.8; }
+  @media (max-width: 480px) {
+    .hbtn { width: 84px; height: 84px; font-size: 42px; }
+    .pl { width: 92px; }
+  }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>じゃんけん</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+    <div id="call"></div>
+    <div id="players"></div>
+    <div id="msg"></div>
+    <div id="hands"></div>
+    <div id="actions"></div>
+    <div id="log"></div>
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">じゃんけん</h2>
+    <p id="overlay-text"></p>
+    <div id="overlay-extra"></div>
+    <div id="overlay-buttons"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  const HANDS = ['rock', 'scissors', 'paper'];
+  const EMOJI = { rock: '✊', scissors: '✌️', paper: '✋' };
+  const NAME = { rock: 'グー', scissors: 'チョキ', paper: 'パー' };
+  const BEATS = { rock: 'scissors', scissors: 'paper', paper: 'rock' };
+
+  const $ = id => document.getElementById(id);
+  const callEl = $('call'), playersEl = $('players'), msgEl = $('msg'), handsEl = $('hands'), actionsEl = $('actions'), logEl = $('log');
+  const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
+  const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  function loadName() { try { return localStorage.getItem('cardgame-name') || ''; } catch (e) { return ''; } }
+  function saveName(n) { try { localStorage.setItem('cardgame-name', n); } catch (e) {} }
+
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  // ---------- state ----------
+  let mode = null;          // 'cpu' | 'online'
+  let isHost = false;
+  let myId = 'me';
+  let seats = [];           // { id, name, cpu }
+  let G = null, V = null;
+  let cpuCount = 1;
+  let onlineTotal = 2;
+  let version = 0;
+  let lastCallKey = null;
+  let peer = null, conn = null, roomCode = null;
+  const guests = new Map();
+  const isAuthority = () => mode === 'cpu' || isHost;
+  const mySeat = () => seats.findIndex(s => s.id === myId);
+
+  // ---------- engine (CPU戦/ホスト) ----------
+  // 最後の1人になるまで勝ち抜き。全員同じ手か3種類そろったら「あいこ」
+  function newGame() {
+    const n = seats.length;
+    G = {
+      n,
+      wins: G && G.n === n ? G.wins : Array(n).fill(0),
+      alive: Array(n).fill(true),
+      picks: Array(n).fill(null),
+      shown: null,        // 公開された手
+      phase: 'pick',      // 'pick' | 'show' | 'over'
+      aiko: 0,
+      round: 1,
+      champion: null,
+      log: []
+    };
+    afterChange();
+  }
+
+  function doPick(p, hand) {
+    if (!G || G.phase !== 'pick' || !G.alive[p] || G.picks[p] || !HANDS.includes(hand)) return false;
+    G.picks[p] = hand;
+    if (G.picks.every((h, i) => !G.alive[i] || h)) resolve();
+    return true;
+  }
+
+  function resolve() {
+    const alive = G.picks.map((h, i) => G.alive[i] ? i : -1).filter(i => i >= 0);
+    const kinds = new Set(alive.map(i => G.picks[i]));
+    G.shown = G.picks.slice();
+    G.phase = 'show';
+    if (kinds.size !== 2) {
+      G.aiko++;
+      G.result = { aiko: true };
+      G.log.unshift('あいこ');
+    } else {
+      const [a, b] = [...kinds];
+      const winHand = BEATS[a] === b ? a : b;
+      const losers = alive.filter(i => G.picks[i] !== winHand);
+      losers.forEach(i => { G.alive[i] = false; });
+      G.result = { aiko: false, winHand, losers };
+      G.log.unshift(`${NAME[winHand]}の勝ち（${losers.map(i => seats[i].name).join('・')}が負け）`);
+      const left = G.alive.map((a, i) => a ? i : -1).filter(i => i >= 0);
+      if (left.length === 1) {
+        G.champion = left[0];
+        G.wins[left[0]]++;
+        G.phase = 'over';
+      }
+    }
+    G.log = G.log.slice(0, 5);
+  }
+
+  function nextThrow() {
+    if (!G || G.phase !== 'show') return;
+    G.picks = Array(G.n).fill(null);
+    G.phase = 'pick';
+    G.round++;
+    afterChange();
+  }
+
+  function cpuPicks(v) {
+    if (v !== version || !G || G.phase !== 'pick') return;
+    let changed = false;
+    seats.forEach((s, i) => {
+      if (s.cpu && G.alive[i] && !G.picks[i]) { doPick(i, HANDS[Math.floor(Math.random() * 3)]); changed = true; }
+    });
+    if (changed) afterChange();
+  }
+
+  // ---------- sync ----------
+  function viewFor(seat) {
+    if (!G) return null;
+    // 全員が出すまでは他人の手は「出した」かどうかだけ伝える
+    const picks = G.phase === 'pick' ? G.picks.map((h, i) => i === seat ? h : (h ? 'hidden' : null)) : G.picks;
+    return { ...G, picks, me: seat };
+  }
+  function afterChange() {
+    version++;
+    if (isHost) for (const [id, c] of guests) { try { c.send({ type: 'sync', seats, view: viewFor(seats.findIndex(s => s.id === id)) }); } catch (e) {} }
+    V = viewFor(mySeat());
+    render();
+    if (!isAuthority() || !G) return;
+    const v = version;
+    if (G.phase === 'pick') setTimeout(() => cpuPicks(v), 500 + Math.random() * 700);
+    else if (G.phase === 'show') setTimeout(() => { if (v === version) nextThrow(); }, G.result.aiko ? 1500 : 2200);
+  }
+  function act(a) {
+    if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action: a }); return; }
+    if (applyAction(mySeat(), a)) afterChange();
+  }
+  function applyAction(seat, a) {
+    if (!G || seat < 0) return false;
+    if (a.type === 'pick') return doPick(seat, a.hand);
+    return false;
+  }
+
+  // ---------- render ----------
+  function render() {
+    if (!V) return;
+    const me = V.me;
+    const callKey = V.phase + ':' + V.round;
+    const call = V.phase === 'pick' ? (V.aiko ? 'あいこで…' : 'じゃんけん…') : (V.aiko && V.result && V.result.aiko ? 'しょ！' : 'ぽん！');
+    if (callKey !== lastCallKey) { callEl.classList.remove('pop'); void callEl.offsetWidth; callEl.classList.add('pop'); }
+    lastCallKey = callKey;
+    callEl.textContent = V.phase === 'pick' ? call : (V.result.aiko ? 'あいこ！' : (V.phase === 'over' ? `${seats[V.champion].name}の勝ち！` : 'ぽん！'));
+
+    playersEl.innerHTML = '';
+    V.alive.forEach((alive, i) => {
+      const d = document.createElement('div');
+      const h = V.picks[i];
+      d.className = 'pl' + (i === me ? ' me' : '') + (!alive ? ' out' : '') + (V.phase === 'over' && V.champion === i ? ' win' : '');
+      let handHtml;
+      if (V.phase === 'pick') {
+        if (!alive) handHtml = '<div class="hand wait">負け</div>';
+        else if (h && h !== 'hidden') handHtml = `<div class="hand">${EMOJI[h]}</div>`;
+        else if (h === 'hidden') handHtml = '<div class="hand ready">出した！</div>';
+        else handHtml = '<div class="hand wait">考え中…</div>';
+      } else {
+        handHtml = h ? `<div class="hand show">${EMOJI[h]}</div>` : '<div class="hand wait">負け</div>';
+      }
+      d.innerHTML = `<span class="nm">${esc(seats[i].name)}${i === me && mode === 'online' ? '（あなた）' : ''}</span>${handHtml}<span class="score">勝ち <b>${V.wins[i]}</b></span>`;
+      playersEl.appendChild(d);
+    });
+
+    handsEl.innerHTML = '';
+    const canPick = V.phase === 'pick' && V.alive[me] && !V.picks[me];
+    for (const h of HANDS) {
+      const b = document.createElement('button');
+      b.className = 'hbtn' + (V.picks[me] === h ? ' sel' : '');
+      b.innerHTML = `${EMOJI[h]}<span>${NAME[h]}</span>`;
+      b.disabled = !canPick;
+      b.addEventListener('click', () => act({ type: 'pick', hand: h }));
+      handsEl.appendChild(b);
+    }
+
+    if (V.phase === 'pick') {
+      msgEl.textContent = !V.alive[me] ? '負けてしまいました。残りの勝負を見守りましょう' : (canPick ? '手を選んでください（キーボード：1 2 3）' : 'みんなが出すのを待っています…');
+    } else if (V.phase === 'show') {
+      msgEl.textContent = V.result.aiko ? 'もう一度！' : (V.alive[me] ? '勝ち残り！次の勝負へ' : '');
+    } else {
+      msgEl.textContent = V.champion === me ? 'あなたの優勝！🎉' : '';
+    }
+    actionsEl.innerHTML = '';
+    if (V.phase === 'over' && (mode === 'cpu' || isHost)) {
+      const b = document.createElement('button');
+      b.className = 'choice';
+      b.textContent = 'もう一度';
+      b.addEventListener('click', newGame);
+      actionsEl.appendChild(b);
+    } else if (V.phase === 'over') {
+      msgEl.textContent += (msgEl.textContent ? '　' : '') + 'ホストが次の勝負を始めるのを待っています';
+    }
+    logEl.innerHTML = V.log.map(esc).join('<br>');
+  }
+
+  window.addEventListener('keydown', e => {
+    if (overlay.classList.contains('show') || !V) return;
+    const h = { '1': 'rock', '2': 'scissors', '3': 'paper' }[e.key];
+    if (h && V.phase === 'pick' && V.alive[V.me] && !V.picks[V.me]) act({ type: 'pick', hand: h });
+  });
+
+  // ---------- menus ----------
+  function resetAll() {
+    cleanupPeer();
+    mode = null; isHost = false; myId = 'me'; seats = []; G = null; V = null; version++;
+    callEl.textContent = ''; playersEl.innerHTML = ''; msgEl.textContent = ''; handsEl.innerHTML = ''; actionsEl.innerHTML = ''; logEl.innerHTML = '';
+  }
+  function showModeSelect() {
+    resetAll();
+    showOverlay('じゃんけん', 'グー・チョキ・パーで最後の1人になるまで勝ち抜こう', [
+      { label: 'CPU戦', primary: true, onClick: showCpuSetup },
+      { label: 'オンライン対戦', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>全員が同時に手を出します。グーはチョキに、チョキはパーに、パーはグーに勝ちます。</li>
+        <li>全員同じ手、または3種類すべてが出たら「あいこ」でやり直し。</li>
+        <li>負けた手を出した人は脱落。最後の1人になるまで続け、勝ち残った人に1勝が入ります。</li>
+        <li>キーボードの 1（グー）・2（チョキ）・3（パー）でも出せます。</li>
+      </ul>`);
+  }
+  function showCpuSetup() {
+    const seg = [1, 2, 3, 4, 5].map(n => `<button data-n="${n}" class="${n === cpuCount ? 'on' : ''}">${n}人</button>`).join('');
+    showOverlay('CPU戦', 'CPUの人数を選んでください', [
+      { label: 'スタート', primary: true, onClick: () => {
+        mode = 'cpu'; myId = 'me';
+        seats = [{ id: 'me', name: 'あなた', cpu: false }];
+        for (let i = 1; i <= cpuCount; i++) seats.push({ id: 'cpu' + i, name: 'CPU' + i, cpu: true });
+        hideOverlay(); G = null; newGame();
+      } },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<div class="seg">${seg}</div>`);
+    overlayExtra.querySelectorAll('[data-n]').forEach(b => b.addEventListener('click', () => { cpuCount = +b.dataset.n; showCpuSetup(); }));
+  }
+
+  // ---------- online (PeerJS, ホストが進行) ----------
+  function cleanupPeer() {
+    for (const c of guests.values()) { try { c.close(); } catch (e) {} }
+    guests.clear();
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン対戦', '各自の端末で参加します（2〜6人、足りない分はCPU）。まず名前を入力してください', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" />
+        <div class="row"><input id="code-input" maxlength="4" placeholder="コード" autocomplete="off" />
+        <button id="join-btn" class="choice">部屋に入る</button></div>`);
+    $('join-btn').addEventListener('click', () => withName(joinRoom));
+    $('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
+  }
+  function withName(fn) {
+    const name = ($('name-input').value || '').trim();
+    if (!name) { $('name-input').focus(); $('name-input').placeholder = '名前を入力してください'; return; }
+    saveName(name);
+    fn(name, ($('code-input').value || '').trim().toUpperCase());
+  }
+  function hostRoom(name) {
+    cleanupPeer();
+    mode = 'online'; isHost = true; myId = 'host';
+    seats = [{ id: 'host', name, cpu: false }];
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('janken-room-' + roomCode);
+    peer.on('open', renderLobby);
+    peer.on('connection', c => {
+      c.on('data', d => onHostData(c, d));
+      c.on('close', () => onGuestLeft(c.peer));
+      c.on('error', () => onGuestLeft(c.peer));
+    });
+    peer.on('error', () => { if (!G) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+  const lobbyPlayers = () => seats.filter(s => !s.cpu);
+  function renderLobby() {
+    if (G) return;
+    const humans = lobbyPlayers();
+    if (onlineTotal < humans.length) onlineTotal = humans.length;
+    for (const c of guests.values()) { try { c.send({ type: 'lobby', names: humans.map(s => s.name), total: onlineTotal }); } catch (e) {} }
+    const seg = [2, 3, 4, 5, 6].map(n => `<button data-n="${n}" class="${n === onlineTotal ? 'on' : ''}" ${n < Math.max(2, humans.length) ? 'disabled' : ''}>${n}人</button>`).join('');
+    showOverlay('部屋を作りました', 'コードを伝えて参加してもらいましょう。人数が足りない分はCPUが入ります', [
+      { label: 'スタート', primary: true, onClick: () => {
+        let k = 1;
+        seats = lobbyPlayers();
+        while (seats.length < onlineTotal) seats.push({ id: 'cpu' + k, name: 'CPU' + k++, cpu: true });
+        hideOverlay(); newGame();
+      } },
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ], `<div id="room-code">${roomCode}</div>
+        <div class="member-list">${humans.map(s => esc(s.name)).join('<br>')}</div>
+        <div class="row" style="font-size:13px;color:#9aa3d6">合計人数 <div class="seg">${seg}</div></div>`);
+    overlayExtra.querySelectorAll('[data-n]').forEach(b => b.addEventListener('click', () => { onlineTotal = +b.dataset.n; renderLobby(); }));
+  }
+  function onHostData(c, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'hello') {
+      if (G || lobbyPlayers().length >= 6) { c.send({ type: 'full' }); return; }
+      guests.set(c.peer, c);
+      seats.push({ id: c.peer, name: String(data.name || '').trim().slice(0, 8) || 'ゲスト', cpu: false });
+      renderLobby();
+    } else if (data.type === 'act' && G) {
+      const seat = seats.findIndex(s => s.id === c.peer);
+      if (seat >= 0 && !seats[seat].cpu && applyAction(seat, data.action || {})) afterChange();
+    }
+  }
+  function onGuestLeft(id) {
+    if (!guests.has(id)) return;
+    guests.delete(id);
+    const i = seats.findIndex(s => s.id === id);
+    if (i < 0) return;
+    if (!G) { seats.splice(i, 1); renderLobby(); return; }
+    seats[i] = { id: 'cpu-' + id, name: seats[i].name + '(CPU)', cpu: true };
+    afterChange();
+  }
+  function joinRoom(name, code) {
+    if (!code) { $('code-input').focus(); return; }
+    cleanupPeer();
+    mode = 'online'; isHost = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', id => {
+      myId = id;
+      conn = peer.connect('janken-room-' + code, { reliable: true });
+      conn.on('open', () => conn.send({ type: 'hello', name }));
+      conn.on('data', onGuestData);
+      conn.on('close', onHostLost);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+    });
+    peer.on('error', () => { if (!V) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+  function onGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'lobby') {
+      showOverlay('参加しました', `ホストの開始を待っています（合計${data.total}人で遊びます）`, [
+        { label: '退出する', primary: false, onClick: showModeSelect }
+      ], `<div class="member-list">${data.names.map(esc).join('<br>')}</div>`);
+    } else if (data.type === 'sync') {
+      seats = data.seats;
+      if (!V) hideOverlay();
+      V = data.view;
+      render();
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋は満員か、すでにゲームが始まっています。');
+      cleanupPeer();
+    }
+  }
+  function onHostLost() {
+    if (mode !== 'online' || isHost) return;
+    showOverlay('ホストとの接続が切れました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  $('back-btn').addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+  showModeSelect();
+})();
+</script>
+</body>
+</html>

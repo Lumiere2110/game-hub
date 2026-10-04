@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>ウミガメのスープ</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 660px; max-width: 94vw; }
+  #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 { margin: 0; font-size: 20px; letter-spacing: 2px; font-weight: 600; color: #9fb4ff; text-shadow: 0 0 12px rgba(120,150,255,0.6); }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none; white-space: nowrap;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+  #problem {
+    width: 100%; padding: 16px 18px; border-radius: 14px; background: linear-gradient(160deg, #13324a, #0d1c33);
+    border: 1px solid #2a5070; line-height: 1.8; font-size: 15px;
+  }
+  #problem:empty { display: none; }
+  #problem .ttl { font-size: 12px; color: #8fd3ff; letter-spacing: 2px; margin-bottom: 4px; }
+  #answer-box { width: 100%; padding: 14px 18px; border-radius: 14px; background: rgba(255,224,102,0.06); border: 1px solid rgba(255,224,102,0.35); line-height: 1.8; font-size: 14px; }
+  #answer-box:empty { display: none; }
+  #answer-box .ttl { font-size: 12px; color: #ffe066; letter-spacing: 2px; }
+  #stats { font-size: 12px; color: #9aa3d6; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  #stats b { color: #ffe066; }
+  #chat {
+    width: 100%; max-height: 320px; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+    padding: 10px; border-radius: 12px; background: rgba(0,0,0,0.25); border: 1px solid #2a3160;
+  }
+  #chat:empty { display: none; }
+  .q { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 14px; line-height: 1.4; }
+  .q .who { font-size: 11px; color: #9aa3d6; }
+  .q .ans { font-size: 12px; font-weight: 800; padding: 1px 9px; border-radius: 999px; color: #10142a; }
+  .ans.yes { background: #8fe3b0; } .ans.no { background: #ff9f9f; } .ans.na { background: #c9d0f5; } .ans.hit { background: #ffe066; } .ans.close { background: #ffc58a; }
+  .q.hint .text { color: #8fd3ff; }
+  .q .abtn { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid #3a4278; background: rgba(255,255,255,0.06); color: #eef0ff; cursor: pointer; }
+  .q .abtn.hit { border-color: #ffe066; color: #ffe066; }
+  #input-row { display: none; gap: 8px; width: 100%; }
+  #input-row input {
+    flex: 1; min-width: 0; font-size: 15px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff;
+  }
+  #input-row input:focus { outline: none; border-color: #6ea8ff; }
+  #msg { font-size: 13px; color: #b9c2f0; text-align: center; min-height: 18px; line-height: 1.6; }
+  #actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .tally { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4); color: #fff; border: none; padding: 10px 22px; font-size: 14px;
+    border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5); transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice.hit { background: linear-gradient(180deg, #ffd34d, #e0a400); color: #2a1d00; font-weight: 800; }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  #overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 14px; background: rgba(5,7,15,0.95); text-align: center; padding: 64px 16px 20px; z-index: 50; overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; max-width: 520px; line-height: 1.7; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 480px; margin: 0; padding-left: 20px; }
+  .plist { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 460px; }
+  .pitem { text-align: left; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid #2a3160; cursor: pointer; font-size: 13px; color: #dfe4ff; }
+  .pitem:hover { border-color: #6ea8ff; }
+  .pitem b { color: #8fd3ff; }
+  .secret { text-align: left; padding: 14px 16px; border-radius: 12px; background: rgba(255,224,102,0.06); border: 1px solid rgba(255,224,102,0.35); max-width: 480px; font-size: 14px; line-height: 1.8; }
+  #overlay input, #overlay textarea {
+    font-size: 15px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; font-family: inherit;
+  }
+  #overlay textarea { width: 100%; max-width: 460px; min-height: 80px; resize: vertical; }
+  #overlay input:focus, #overlay textarea:focus { outline: none; border-color: #6ea8ff; }
+  #code-input { width: 150px; font-size: 22px !important; letter-spacing: 6px; text-transform: uppercase; text-align: center; }
+  #name-input { width: 200px; text-align: center; }
+  #room-code {
+    font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4); padding: 4px 22px; border-radius: 12px;
+  }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .member-list { font-size: 14px; color: #dfe4ff; line-height: 1.8; }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>ウミガメのスープ</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+    <div id="problem"></div>
+    <div id="stats"></div>
+    <div id="answer-box"></div>
+    <div id="chat"></div>
+    <div id="input-row"><input id="chat-input" maxlength="80" autocomplete="off"><button id="send-btn" class="choice">送信</button></div>
+    <div id="msg"></div>
+    <div id="actions"></div>
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">ウミガメのスープ</h2>
+    <p id="overlay-text"></p>
+    <div id="overlay-extra"></div>
+    <div id="overlay-buttons"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  // 昔から知られる水平思考パズルを中心にした問題集（文章はこのゲーム用に書いたもの）
+  const PUZZLES = [
+    { t: 'エレベーターの男', q: 'マンションの10階に住む男は、毎朝エレベーターで1階まで降りて出かける。ところが帰りはいつも7階でエレベーターを降り、残りは階段で上がる。雨の日だけは10階まで乗っていく。なぜ？',
+      a: '男は背がとても低く、エレベーターのボタンが7階までしか届かない。雨の日は傘を持っているので、傘の先で10階のボタンを押せる。' },
+    { t: 'お礼を言った客', q: 'ある男がバーに入り、店員に「水を一杯ください」と頼んだ。すると店員はいきなり男に大声を出して驚かせた。男は「ありがとう」と言って、水を飲まずに帰っていった。なぜ？',
+      a: '男はしゃっくりが止まらずに困っていた。水を飲んで止めようとしたが、店員がそれに気づいて大声で驚かせたため、しゃっくりが止まった。' },
+    { t: '見えた歩行者', q: '全身黒い服の男が、街灯もない道の真ん中を歩いていた。そこへライトをつけていない黒い車が走ってきたが、運転手はちゃんと男に気づいてよけた。なぜ？', a: '昼間だったから。' },
+    { t: '割られた窓', q: '少年が石で車の窓ガラスを割った。ところが車の持ち主は怒るどころか、少年に何度もお礼を言った。なぜ？',
+      a: '真夏の駐車場で、車の中に子犬が閉じ込められてぐったりしていた。少年が窓を割って助け出したので、持ち主は感謝した。' },
+    { t: '双子じゃない', q: '同じ日、同じ時間に、同じ母親から生まれた2人の兄弟がいる。でも2人は双子ではない。なぜ？', a: '三つ子（以上）のうちの2人だから。' },
+    { t: '真夜中の侵入者', q: 'ある男が真夜中にこっそり家に入り込み、何も盗らずに出ていった。翌朝、その家の子どもは大喜びした。何があった？',
+      a: 'クリスマスの夜で、男はサンタクロース役のお父さん。子どもの枕元にプレゼントを置いていった。' },
+    { t: '落ちても無傷', q: '高層ビルで窓ふきをしていた男が、窓から落ちてしまった。命綱もつけていなかったのに、かすり傷ひとつ負わなかった。なぜ？', a: '1階の窓をふいていた（または、部屋の内側に落ちた）から。' },
+    { t: '濡れない髪', q: '雨の中、傘も帽子も持たずに外を歩き回った男がいる。服はびしょ濡れになったが、髪の毛は1本も濡れなかった。なぜ？', a: '男の頭には髪の毛が1本もなかったから。' },
+    { t: '見逃された逆走', q: 'トラックの運転手が一方通行の道を逆向きに進んでいた。すぐそばにいた警察官はそれを見ていたのに、注意もしなかった。なぜ？', a: '運転手はトラックに乗っておらず、歩道を歩いていただけだから。' },
+    { t: '外科医の言葉', q: '父親と息子が事故にあい、息子が病院に運ばれた。手術室に入った外科医は息子を見て「この子は私の息子だ。私には手術できない」と言った。外科医は誰？', a: '息子の母親。' },
+    { t: '投げ捨てた靴', q: '走り出した電車の窓から、男が自分の靴を片方だけ外に投げ捨てた。男は困るどころか、少しほっとした顔をしていた。なぜ？',
+      a: '乗るときに靴を片方ホームに落としてしまい、取りに戻れなかった。片方だけ持っていても役に立たないので、もう片方も投げて、拾った人が両方そろえて使えるようにした。' },
+    { t: '負けて喜ぶ', q: '決勝戦で負けた選手が、試合が終わった瞬間に大喜びした。なぜ？', a: '相手は自分の子ども（または弟子）で、初めて自分に勝ったから。' },
+    { t: '喜んだ遭難者', q: '雪山で遭難した男が、自分の足跡を見つけて大喜びした。同じ場所をぐるぐる回っていたはずなのに、なぜ喜んだ？',
+      a: '足跡が自分のものではなく、小屋へ向かう別の人の足跡だと気づいたから。それをたどって山小屋にたどり着けた。' },
+    { t: 'いつもの席', q: '映画館で、女性は毎回わざわざ一番前の端の席を選ぶ。見えにくい席なのに、なぜ？', a: '女性はその映画館の手話通訳者で、スクリーンの横に立って通訳するため、いつでも動ける席に座っている。' }
+  ];
+  const ANS = { yes: 'はい', no: 'いいえ', na: '関係ありません', close: '惜しい！', hit: '正解！' };
+
+  const $ = id => document.getElementById(id);
+  const problemEl = $('problem'), statsEl = $('stats'), answerBox = $('answer-box'), chatEl = $('chat');
+  const inputRow = $('input-row'), chatInput = $('chat-input'), msgEl = $('msg'), actionsEl = $('actions');
+  const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
+  const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const fmt = sec => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  function loadName() { try { return localStorage.getItem('cardgame-name') || ''; } catch (e) { return ''; } }
+  function saveName(n) { try { localStorage.setItem('cardgame-name', n); } catch (e) {} }
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary') + (b.cls ? ' ' + b.cls : '');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  // ---------- state ----------
+  let mode = null;            // 'local' | 'online'
+  let isHost = false;
+  let myId = 'local';
+  let players = [];
+  let G = null, V = null;
+  let clockOffset = 0;
+  let tickTimer = null;
+  let usedPuzzles = new Set();
+  let peer = null, conn = null, roomCode = null;
+  const guests = new Map();
+  const mySeat = () => players.findIndex(p => p.id === myId);
+  const now = () => Date.now() + clockOffset;
+  const isAuthority = () => mode === 'local' || isHost;
+
+  // ---------- engine ----------
+  // phase: pick（出題者が問題を選ぶ）→ play（質問タイム）→ solved / giveup（解説公開）
+  function newGame(master) {
+    G = { master, phase: 'pick', puzzle: null, start: null, end: null, log: [], seq: 0, solver: null, tally: { yes: 0, no: 0, na: 0, close: 0 } };
+  }
+  function setPuzzle(p) {
+    if (G.phase !== 'pick' || !p || !p.q || !p.a) return false;
+    G.puzzle = { t: String(p.t || '自作問題').slice(0, 30), q: String(p.q).slice(0, 400), a: String(p.a).slice(0, 600) };
+    G.phase = 'play';
+    G.start = Date.now();
+    return true;
+  }
+  function finish(solver) {
+    if (G.phase !== 'play') return false;
+    G.solver = solver;
+    G.phase = solver === null ? 'giveup' : 'solved';
+    G.end = Date.now();
+    return true;
+  }
+
+  function viewFor(seat) {
+    if (!G) return null;
+    const open = G.phase === 'solved' || G.phase === 'giveup';
+    const puzzle = G.puzzle ? { t: G.puzzle.t, q: G.puzzle.q, a: open || seat === G.master ? G.puzzle.a : null } : null;
+    return { ...G, puzzle, me: seat, hostNow: Date.now() };
+  }
+  function afterChange() {
+    if (isHost) for (const [id, c] of guests) { try { c.send({ type: 'sync', players, view: viewFor(players.findIndex(p => p.id === id)) }); } catch (e) {} }
+    V = mode === 'online' ? viewFor(mySeat()) : null;
+    render();
+  }
+  function act(a) {
+    if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action: a }); return; }
+    if (applyAction(mode === 'online' ? mySeat() : -1, a)) afterChange();
+  }
+  function applyAction(seat, a) {
+    if (!G) return false;
+    const local = mode === 'local';
+    const isMaster = local || seat === G.master;
+    if (a.type === 'puzzle' && isMaster) return setPuzzle(a.puzzle);
+    if (a.type === 'tally' && local && G.phase === 'play' && G.tally[a.kind] !== undefined) { G.tally[a.kind]++; return true; }
+    if (a.type === 'solved' && local) return finish(-1);
+    if (a.type === 'giveup' && isMaster) return finish(null);
+    if (a.type === 'post' && !local && seat >= 0 && G.phase === 'play') {
+      const text = String(a.text || '').trim().slice(0, 80);
+      if (!text) return false;
+      G.log.push({ id: ++G.seq, by: seat, text, kind: seat === G.master ? 'hint' : 'q', answer: null });
+      return true;
+    }
+    if (a.type === 'answer' && !local && seat === G.master && G.phase === 'play') {
+      const q = G.log.find(x => x.id === a.id && x.kind === 'q');
+      if (!q || !ANS[a.answer]) return false;
+      q.answer = a.answer;
+      if (a.answer !== 'hit') G.tally[a.answer]++;
+      else finish(q.by);
+      return true;
+    }
+    return false;
+  }
+
+  // ---------- render ----------
+  function renderStats() {
+    const S = mode === 'online' ? V : G;
+    if (!S || !S.start) { statsEl.innerHTML = ''; return; }
+    // オンラインでは start/end はホストの時計なので、now() もホストの時計にそろえてある
+    const sec = Math.max(0, Math.floor(((S.end || now()) - S.start) / 1000));
+    const t = S.tally;
+    statsEl.innerHTML = `<span>経過 <b>${fmt(sec)}</b></span><span>はい <b>${t.yes}</b></span><span>いいえ <b>${t.no}</b></span><span>関係ない <b>${t.na}</b></span><span>惜しい <b>${t.close}</b></span>`;
+  }
+  function render() {
+    const S = mode === 'online' ? V : G;
+    if (!S) return;
+    const me = mode === 'online' ? S.me : -1;
+    const amMaster = mode === 'local' || me === S.master;
+    const master = players[S.master];
+    problemEl.innerHTML = S.puzzle ? `<div class="ttl">問題「${esc(S.puzzle.t)}」　出題者：${esc(master ? master.name : '')}</div>${esc(S.puzzle.q)}` : '';
+    const open = S.phase === 'solved' || S.phase === 'giveup';
+    answerBox.innerHTML = S.puzzle && open ? `<div class="ttl">解説</div>${esc(S.puzzle.a)}` : (S.puzzle && amMaster && mode === 'online' && S.puzzle.a ? `<div class="ttl">解説（出題者だけに見えています）</div>${esc(S.puzzle.a)}` : '');
+    renderStats();
+
+    chatEl.innerHTML = '';
+    for (const q of S.log) {
+      const d = document.createElement('div');
+      d.className = 'q' + (q.kind === 'hint' ? ' hint' : '');
+      d.innerHTML = `<span class="who">${esc(players[q.by] ? players[q.by].name : '')}${q.kind === 'hint' ? '（出題者）' : ''}</span><span class="text">${esc(q.text)}</span>`;
+      if (q.kind === 'q') {
+        if (q.answer) d.insertAdjacentHTML('beforeend', `<span class="ans ${q.answer}">${ANS[q.answer]}</span>`);
+        else if (S.phase === 'play' && amMaster) {
+          for (const k of ['yes', 'no', 'na', 'close', 'hit']) {
+            const b = document.createElement('button');
+            b.className = 'abtn' + (k === 'hit' ? ' hit' : '');
+            b.textContent = ANS[k];
+            b.addEventListener('click', () => act({ type: 'answer', id: q.id, answer: k }));
+            d.appendChild(b);
+          }
+        }
+      }
+      chatEl.appendChild(d);
+    }
+    chatEl.scrollTop = chatEl.scrollHeight;
+    inputRow.style.display = mode === 'online' && S.phase === 'play' ? 'flex' : 'none';
+    chatInput.placeholder = amMaster ? 'ヒントを出す（全員に表示）' : '「はい・いいえ」で答えられる質問、または答えの推理';
+
+    actionsEl.innerHTML = '';
+    const button = (text, onClick, cls) => {
+      const b = document.createElement('button');
+      b.className = 'choice ' + (cls || '');
+      b.textContent = text;
+      b.addEventListener('click', onClick);
+      actionsEl.appendChild(b);
+    };
+    msgEl.textContent = '';
+    if (S.phase === 'pick') {
+      if (amMaster) { if (!overlay.classList.contains('show')) showPicker(); }
+      else msgEl.textContent = `出題者（${master ? master.name : ''}）が問題を選んでいます…`;
+    } else if (S.phase === 'play') {
+      if (mode === 'local') {
+        msgEl.textContent = '出題者が問題を読み上げ、みんなの質問に「はい・いいえ・関係ありません」で答えます。答えた数をタップで記録できます';
+        const t = document.createElement('div');
+        t.className = 'tally';
+        for (const k of ['yes', 'no', 'na', 'close']) {
+          const b = document.createElement('button');
+          b.className = 'choice secondary';
+          b.textContent = ANS[k];
+          b.addEventListener('click', () => act({ type: 'tally', kind: k }));
+          t.appendChild(b);
+        }
+        actionsEl.appendChild(t);
+        button('解説を確認（出題者のみ）', () => showOverlay('解説（出題者だけ見てください）', '', [{ label: '閉じる', primary: true, onClick: hideOverlay }], `<div class="secret">${esc(G.puzzle.a)}</div>`), 'secondary');
+        button('正解が出た！', () => act({ type: 'solved' }), 'hit');
+        button('ギブアップ', () => act({ type: 'giveup' }), 'secondary');
+      } else if (amMaster) {
+        msgEl.textContent = '質問に答えてください。真相にたどり着いたら「正解！」';
+        button('ギブアップ（解説を公開）', () => act({ type: 'giveup' }), 'secondary');
+      } else {
+        msgEl.textContent = '出題者に質問して、真相を推理しよう';
+      }
+    } else if (open) {
+      msgEl.textContent = S.phase === 'solved' ? (S.solver >= 0 ? `${players[S.solver].name}さんが真相にたどり着きました！🎉` : '正解！🎉') : 'ギブアップ。解説を公開しました';
+      if (isAuthority()) {
+        if (mode === 'online') {
+          const pick = document.createElement('div');
+          pick.className = 'row';
+          pick.innerHTML = '<span style="font-size:13px;color:#9aa3d6">次の出題者：</span>';
+          players.forEach((p, i) => {
+            const b = document.createElement('button');
+            b.className = 'choice' + (i === (S.master + 1) % players.length ? '' : ' secondary');
+            b.textContent = p.name;
+            b.addEventListener('click', () => { newGame(i); afterChange(); });
+            pick.appendChild(b);
+          });
+          actionsEl.appendChild(pick);
+        } else {
+          button('次の問題へ', () => { newGame(0); render(); });
+        }
+      } else msgEl.textContent += '　ホストが次の問題を始めるのを待っています';
+    }
+  }
+
+  // 出題者が問題を選ぶ（収録問題 or 自作）
+  function showPicker() {
+    const list = PUZZLES.map((p, i) => ({ p, i })).filter(x => !usedPuzzles.has(x.i));
+    const items = (list.length ? list : PUZZLES.map((p, i) => ({ p, i }))).map(({ p, i }) =>
+      `<div class="pitem" data-i="${i}"><b>${esc(p.t)}</b>　${esc(p.q.slice(0, 38))}…</div>`).join('');
+    showOverlay('問題を選ぶ', mode === 'online' ? 'あなたが出題者です。ほかの人には問題文だけが表示され、解説はあなたにだけ見えます' : '出題者が問題を選びます（ほかの人は画面を見ないでください）', [
+      { label: 'ランダムに選ぶ', primary: true, onClick: () => choose(list.length ? list[Math.floor(Math.random() * list.length)].i : Math.floor(Math.random() * PUZZLES.length)) },
+      { label: '自分で問題を作る', primary: false, onClick: showCustom }
+    ], `<div class="plist">${items}</div>`);
+    overlayExtra.querySelectorAll('[data-i]').forEach(el => el.addEventListener('click', () => choose(+el.dataset.i)));
+  }
+  function choose(i) {
+    usedPuzzles.add(i);
+    const p = PUZZLES[i];
+    if (mode === 'local') {
+      showOverlay(`「${p.t}」の解説`, '出題者だけが読んでください。読んだら問題を出しましょう', [
+        { label: '問題を出す', primary: true, onClick: () => { hideOverlay(); act({ type: 'puzzle', puzzle: p }); } }
+      ], `<div class="secret">${esc(p.a)}</div>`);
+    } else {
+      hideOverlay();
+      act({ type: 'puzzle', puzzle: p });
+    }
+  }
+  function showCustom() {
+    showOverlay('自分で問題を作る', '問題文（みんなに見せる）と解説（真相）を入力してください', [
+      { label: '出題する', primary: true, onClick: () => {
+        const q = $('cq').value.trim(), a = $('ca').value.trim();
+        if (!q || !a) return;
+        hideOverlay();
+        act({ type: 'puzzle', puzzle: { t: $('ct').value.trim() || '自作問題', q, a } });
+      } },
+      { label: '戻る', primary: false, onClick: showPicker }
+    ], `<input id="ct" maxlength="30" placeholder="タイトル（省略可）" style="width:100%;max-width:460px">
+        <textarea id="cq" maxlength="400" placeholder="問題文"></textarea>
+        <textarea id="ca" maxlength="600" placeholder="解説（真相）"></textarea>`);
+  }
+
+  // ---------- menus ----------
+  function resetAll() {
+    cleanupPeer();
+    clearInterval(tickTimer); tickTimer = null;
+    mode = null; isHost = false; myId = 'local'; players = []; G = null; V = null; clockOffset = 0;
+    problemEl.innerHTML = ''; statsEl.innerHTML = ''; answerBox.innerHTML = ''; chatEl.innerHTML = '';
+    inputRow.style.display = 'none'; msgEl.textContent = ''; actionsEl.innerHTML = '';
+  }
+  function startTicker() {
+    clearInterval(tickTimer);
+    tickTimer = setInterval(renderStats, 1000);
+  }
+  function showModeSelect() {
+    resetAll();
+    showOverlay('ウミガメのスープ', '不思議な状況の「真相」を、出題者への「はい・いいえ」で答えられる質問だけで推理する水平思考ゲーム', [
+      { label: '1台で遊ぶ（集まって）', primary: true, onClick: () => { mode = 'local'; players = [{ id: 'local', name: '出題者' }]; hideOverlay(); newGame(0); startTicker(); render(); } },
+      { label: 'オンライン（チャットで質問）', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>出題者が、一見わけのわからない状況（問題）を出します。出題者だけが真相（解説）を知っています。</li>
+        <li>ほかの人は「はい」「いいえ」で答えられる質問をして、真相を推理します。出題者は「はい・いいえ・関係ありません」で答えます（近いときは「惜しい！」）。</li>
+        <li>真相を言い当てたら正解！どうしてもわからないときはギブアップで解説を公開します。</li>
+        <li>収録問題のほかに、出題者が自分で問題を作って出すこともできます。</li>
+        <li>1台で遊ぶときは、出題者が画面を持って質問に口頭で答えます。オンラインでは質問をチャットで送り、出題者がボタンで答えます。</li>
+      </ul>`);
+  }
+
+  // ---------- online (PeerJS, ホストが進行) ----------
+  function cleanupPeer() {
+    for (const c of guests.values()) { try { c.close(); } catch (e) {} }
+    guests.clear();
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン', '各自の端末で参加し、チャットで質問します（2〜10人）。まず名前を入力してください', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" />
+        <div class="row"><input id="code-input" maxlength="4" placeholder="コード" autocomplete="off" />
+        <button id="join-btn" class="choice">部屋に入る</button></div>`);
+    $('join-btn').addEventListener('click', () => withName(joinRoom));
+    $('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
+  }
+  function withName(fn) {
+    const name = ($('name-input').value || '').trim();
+    if (!name) { $('name-input').focus(); $('name-input').placeholder = '名前を入力してください'; return; }
+    saveName(name);
+    fn(name, ($('code-input').value || '').trim().toUpperCase());
+  }
+  function hostRoom(name) {
+    cleanupPeer();
+    mode = 'online'; isHost = true; myId = 'host';
+    players = [{ id: 'host', name }];
+    roomCode = randomCode();
+    showOverlay('オンライン', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('umigame-room-' + roomCode);
+    peer.on('open', renderLobby);
+    peer.on('connection', c => {
+      c.on('data', d => onHostData(c, d));
+      c.on('close', () => onGuestLeft(c.peer));
+      c.on('error', () => onGuestLeft(c.peer));
+    });
+    peer.on('error', () => { if (!G) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+  function renderLobby() {
+    if (G) return;
+    for (const c of guests.values()) { try { c.send({ type: 'lobby', names: players.map(p => p.name) }); } catch (e) {} }
+    const pick = players.map((p, i) => `<button class="choice${i === 0 ? '' : ' secondary'}" data-m="${i}">${esc(p.name)}が出題</button>`).join('');
+    showOverlay('部屋を作りました', 'コードを伝えて参加してもらい、最初の出題者を選んで始めましょう', [
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ], `<div id="room-code">${roomCode}</div><div class="member-list">${players.map(p => esc(p.name)).join('<br>')}</div>
+        <div class="row">${players.length >= 2 ? pick : '<span style="font-size:13px;color:#9aa3d6">2人以上で開始できます</span>'}</div>`);
+    overlayExtra.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => { hideOverlay(); startTicker(); newGame(+b.dataset.m); afterChange(); }));
+  }
+  function onHostData(c, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'hello') {
+      if (players.length >= 10) { c.send({ type: 'full' }); return; }
+      guests.set(c.peer, c);
+      players.push({ id: c.peer, name: String(data.name || '').trim().slice(0, 8) || 'ゲスト' });
+      if (G) afterChange(); else renderLobby();
+    } else if (data.type === 'act' && G) {
+      const seat = players.findIndex(p => p.id === c.peer);
+      if (seat >= 0 && applyAction(seat, data.action || {})) afterChange();
+    }
+  }
+  function onGuestLeft(id) {
+    if (!guests.has(id)) return;
+    guests.delete(id);
+    const i = players.findIndex(p => p.id === id);
+    if (i < 0) return;
+    if (!G) { players.splice(i, 1); renderLobby(); return; }
+    players[i] = { id: 'left-' + id, name: players[i].name + '(退出)' };
+    // 出題者が抜けたら解説を公開して終了
+    if (i === G.master) { if (G.phase === 'play') finish(null); else if (G.phase === 'pick') { newGame(0); } }
+    afterChange();
+  }
+  function joinRoom(name, code) {
+    if (!code) { $('code-input').focus(); return; }
+    cleanupPeer();
+    mode = 'online'; isHost = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', id => {
+      myId = id;
+      conn = peer.connect('umigame-room-' + code, { reliable: true });
+      conn.on('open', () => conn.send({ type: 'hello', name }));
+      conn.on('data', onGuestData);
+      conn.on('close', onHostLost);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+    });
+    peer.on('error', () => { if (!V) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+  function onGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'lobby') {
+      showOverlay('参加しました', 'ホストが出題者を決めて始めるのを待っています', [
+        { label: '退出する', primary: false, onClick: showModeSelect }
+      ], `<div class="member-list">${data.names.map(esc).join('<br>')}</div>`);
+    } else if (data.type === 'sync') {
+      players = data.players;
+      clockOffset = data.view.hostNow - Date.now();
+      const wasPickingMe = V && V.phase === 'pick' && V.master === V.me;
+      if (!V || (wasPickingMe && data.view.phase !== 'pick')) hideOverlay();
+      if (V && V.phase !== 'pick' && data.view.phase === 'pick') hideOverlay();
+      V = data.view;
+      if (!tickTimer) startTicker();
+      render();
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋は満員です。');
+      cleanupPeer();
+    }
+  }
+  function onHostLost() {
+    if (mode !== 'online' || isHost) return;
+    clearInterval(tickTimer); tickTimer = null;
+    showOverlay('ホストとの接続が切れました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  function sendChat() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    chatInput.value = '';
+    act({ type: 'post', text });
+  }
+  $('send-btn').addEventListener('click', sendChat);
+  chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) sendChat(); });
+  $('back-btn').addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+  showModeSelect();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>ブラックジャック</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 720px; max-width: 94vw; }
+  #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 { margin: 0; font-size: 20px; letter-spacing: 3px; font-weight: 600; color: #9fb4ff; text-shadow: 0 0 12px rgba(120,150,255,0.6); }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none; white-space: nowrap;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+
+  #table {
+    width: 100%;
+    border-radius: 120px 120px 18px 18px / 60px 60px 18px 18px;
+    background: radial-gradient(ellipse at 50% 20%, #17603f 0%, #0b3a27 80%);
+    border: 4px solid #4a2a12;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 0 24px rgba(80,100,220,0.2);
+    padding: 18px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .area-label { font-size: 12px; color: #d7f5e4; display: flex; gap: 8px; align-items: center; }
+  .total { font-size: 13px; font-weight: 800; padding: 1px 9px; border-radius: 999px; background: rgba(0,0,0,0.35); color: #ffe066; }
+  .total.bust { color: #ff6b81; }
+  .total.bj { color: #8fe3b0; }
+  .cards { display: flex; justify-content: center; min-height: 80px; }
+  .cards .pc + .pc { margin-left: -22px; }
+  .pc {
+    position: relative; width: 56px; height: 80px; border-radius: 7px; background: #fdfcf8; color: #1d1d28;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5); font-weight: 700; flex-shrink: 0; animation: deal 0.25s ease-out;
+  }
+  @keyframes deal { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .pc.red { color: #d0283a; }
+  .pc .rk { position: absolute; top: 3px; left: 5px; font-size: 16px; line-height: 1; }
+  .pc .st1 { position: absolute; top: 20px; left: 5px; font-size: 12px; line-height: 1; }
+  .pc .big { position: absolute; bottom: 5px; right: 6px; font-size: 26px; line-height: 1; }
+  .pc.back { background: repeating-linear-gradient(45deg, #b4283a 0 6px, #8c1d2c 6px 12px); border: 3px solid #fdfcf8; }
+  #dealer-msg { font-size: 12px; color: #ffe9b0; min-height: 16px; }
+
+  #seats { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; }
+  .seat {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 8px 8px 6px; border-radius: 12px; background: rgba(0,0,0,0.18); border: 2px solid transparent; min-width: 140px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .seat.active { border-color: #ffe066; box-shadow: 0 0 14px rgba(255,224,102,0.55); }
+  .seat.me { background: rgba(110,168,255,0.12); }
+  .seat .nm { font-size: 12px; font-weight: 700; }
+  .seat .chips { font-size: 11px; color: #ffe066; }
+  .hand { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 6px; border-radius: 10px; }
+  .hand.cur { background: rgba(255,224,102,0.12); }
+  .hand .bet { font-size: 11px; color: #f4dfc4; }
+  .outcome { font-size: 12px; font-weight: 800; padding: 1px 9px; border-radius: 999px; }
+  .outcome.win { background: #2fb36d; color: #fff; }
+  .outcome.lose { background: #c22f35; color: #fff; }
+  .outcome.push { background: #6b74a8; color: #fff; }
+
+  #msg { font-size: 14px; color: #b9c2f0; text-align: center; min-height: 20px; }
+  #controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; min-height: 48px; }
+  .chip-btn {
+    width: 54px; height: 54px; border-radius: 50%; border: 4px dashed rgba(255,255,255,0.75); color: #fff; font-weight: 800;
+    font-size: 13px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.5); transition: transform 0.1s;
+  }
+  .chip-btn:hover:not(:disabled) { transform: translateY(-3px); }
+  .chip-btn:disabled { opacity: 0.35; cursor: default; }
+  .chip-btn.c10 { background: #3e7bfa; }
+  .chip-btn.c50 { background: #e5484d; }
+  .chip-btn.c100 { background: #1c1f2e; }
+  .chip-btn.c500 { background: #8b5cf6; }
+  #bet-display { font-size: 15px; font-weight: 800; color: #ffe066; min-width: 110px; text-align: center; }
+
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4); color: #fff; border: none; padding: 10px 22px; font-size: 14px;
+    border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5); transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  #overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 14px; background: rgba(5,7,15,0.93); text-align: center; padding: 64px 16px 20px; z-index: 50; overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; max-width: 520px; line-height: 1.6; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 480px; margin: 0; padding-left: 20px; }
+  #room-code {
+    font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4); padding: 4px 22px; border-radius: 12px;
+  }
+  #overlay input {
+    font-size: 16px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center;
+  }
+  #overlay input:focus { outline: none; border-color: #6ea8ff; }
+  #code-input { width: 150px; font-size: 22px !important; letter-spacing: 6px; text-transform: uppercase; }
+  #name-input { width: 200px; }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .member-list { font-size: 14px; color: #dfe4ff; line-height: 1.8; }
+  @media (max-width: 480px) {
+    .pc { width: 46px; height: 66px; }
+    .pc .rk { font-size: 13px; }
+    .pc .st1 { top: 16px; font-size: 10px; }
+    .pc .big { font-size: 20px; }
+    .cards .pc + .pc { margin-left: -20px; }
+    .seat { min-width: 120px; }
+    .chip-btn { width: 48px; height: 48px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>ブラックジャック</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+    <div id="table">
+      <div class="area-label">ディーラー <span class="total" id="dealer-total" style="display:none"></span></div>
+      <div class="cards" id="dealer-cards"></div>
+      <div id="dealer-msg">ディーラーは17以上になるまでカードを引きます</div>
+      <div id="seats"></div>
+    </div>
+    <div id="msg"></div>
+    <div id="controls"></div>
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">ブラックジャック</h2>
+    <p id="overlay-text"></p>
+    <div id="overlay-extra"></div>
+    <div id="overlay-buttons"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  const SUITS = ['S', 'H', 'D', 'C'];
+  const SUIT_MARK = { S: '♠', H: '♥', D: '♦', C: '♣' };
+  const RANK_LABEL = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' };
+  const START_CHIPS = 1000, MIN_BET = 10, DECKS = 6;
+  const rankOf = id => +id.slice(1);
+  const suitOf = id => id[0];
+
+  // A は 1 か 11、絵札は 10
+  function handValue(cards) {
+    let total = 0, aces = 0;
+    for (const c of cards) {
+      const r = rankOf(c);
+      if (r === 1) { aces++; total += 11; }
+      else total += Math.min(10, r);
+    }
+    while (total > 21 && aces) { total -= 10; aces--; }
+    return { total, soft: aces > 0 };
+  }
+  const isBlackjack = cards => cards.length === 2 && handValue(cards).total === 21;
+
+  const $ = id => document.getElementById(id);
+  const dealerCardsEl = $('dealer-cards'), dealerTotalEl = $('dealer-total'), dealerMsgEl = $('dealer-msg');
+  const seatsEl = $('seats'), msgEl = $('msg'), controlsEl = $('controls');
+  const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
+  const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  function loadName() { try { return localStorage.getItem('cardgame-name') || ''; } catch (e) { return ''; } }
+  function saveName(n) { try { localStorage.setItem('cardgame-name', n); } catch (e) {} }
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function cardEl(id) {
+    const el = document.createElement('div');
+    if (!id) { el.className = 'pc back'; return el; }
+    const s = suitOf(id), r = rankOf(id);
+    el.className = 'pc' + (s === 'H' || s === 'D' ? ' red' : '');
+    el.innerHTML = `<span class="rk">${RANK_LABEL[r] || r}</span><span class="st1">${SUIT_MARK[s]}</span><span class="big">${SUIT_MARK[s]}</span>`;
+    return el;
+  }
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  // ---------- state ----------
+  let mode = null;            // 'solo' | 'online'
+  let isHost = false;
+  let myId = 'me';
+  let seats = [];             // { id, name }
+  let G = null, V = null;
+  let pendingBet = 0;
+  let lastBet = 50;
+  let version = 0;
+  let peer = null, conn = null, roomCode = null;
+  const guests = new Map();
+  const isAuthority = () => mode === 'solo' || isHost;
+  const mySeat = () => seats.findIndex(s => s.id === myId);
+
+  // ---------- engine (ひとり/ホスト) ----------
+  function newShoe() {
+    const shoe = [];
+    for (let d = 0; d < DECKS; d++) for (const s of SUITS) for (let r = 1; r <= 13; r++) shoe.push(s + r);
+    return shuffle(shoe);
+  }
+  function draw() {
+    if (G.shoe.length < 20) { G.shoe = newShoe(); G.reshuffled = true; }
+    return G.shoe.pop();
+  }
+
+  function newTable() {
+    G = {
+      shoe: newShoe(),
+      players: seats.map(() => ({ chips: START_CHIPS, bet: 0, ready: false, hands: [], active: 0, joined: true })),
+      dealer: [],
+      phase: 'bet',      // bet → play → dealer → settle
+      turn: -1,
+      round: 0,
+      reshuffled: false
+    };
+    afterChange();
+  }
+
+  function doBet(p, amount) {
+    const pl = G.players[p];
+    amount = Math.floor(Number(amount));
+    if (G.phase !== 'bet' || !pl || pl.ready || !(amount >= MIN_BET) || amount > pl.chips) return false;
+    pl.bet = amount;
+    pl.ready = true;
+    if (G.players.every(x => x.ready || x.chips < MIN_BET || !x.joined)) dealRound();
+    return true;
+  }
+
+  function dealRound() {
+    G.round++;
+    G.reshuffled = false;
+    G.dealer = [];
+    G.players.forEach(pl => {
+      pl.hands = pl.ready ? [{ cards: [], bet: pl.bet, done: false, doubled: false, result: null, payout: 0 }] : [];
+      if (pl.ready) pl.chips -= pl.bet;
+      pl.active = 0;
+    });
+    for (let k = 0; k < 2; k++) {
+      G.players.forEach(pl => { if (pl.hands.length) pl.hands[0].cards.push(draw()); });
+      G.dealer.push(draw());
+    }
+    G.players.forEach(pl => { if (pl.hands.length && isBlackjack(pl.hands[0].cards)) pl.hands[0].done = true; });
+    // ディーラーがブラックジャックならその場で精算
+    if (isBlackjack(G.dealer)) { settle(); return; }
+    G.phase = 'play';
+    G.turn = -1;
+    advanceTurn();
+  }
+
+  function advanceTurn() {
+    for (let i = G.turn < 0 ? 0 : G.turn; i < G.players.length; i++) {
+      const pl = G.players[i];
+      const idx = pl.hands.findIndex(h => !h.done);
+      if (idx >= 0) { G.turn = i; pl.active = idx; return; }
+    }
+    G.turn = -1;
+    G.phase = 'dealer';
+  }
+
+  function curHand(p) { const pl = G.players[p]; return pl.hands[pl.active]; }
+
+  function finishHand(p) {
+    curHand(p).done = true;
+    advanceTurn();
+  }
+
+  function doHit(p) {
+    if (G.phase !== 'play' || G.turn !== p) return false;
+    const h = curHand(p);
+    h.cards.push(draw());
+    const v = handValue(h.cards).total;
+    if (v >= 21) finishHand(p);
+    return true;
+  }
+  function doStand(p) {
+    if (G.phase !== 'play' || G.turn !== p) return false;
+    finishHand(p);
+    return true;
+  }
+  function canDouble(p) {
+    const pl = G.players[p], h = curHand(p);
+    return h && h.cards.length === 2 && pl.chips >= h.bet;
+  }
+  function doDouble(p) {
+    if (G.phase !== 'play' || G.turn !== p || !canDouble(p)) return false;
+    const pl = G.players[p], h = curHand(p);
+    pl.chips -= h.bet;
+    h.bet *= 2;
+    h.doubled = true;
+    h.cards.push(draw());
+    finishHand(p);
+    return true;
+  }
+  function canSplit(p) {
+    const pl = G.players[p], h = curHand(p);
+    return h && pl.hands.length === 1 && h.cards.length === 2 &&
+      Math.min(10, rankOf(h.cards[0])) === Math.min(10, rankOf(h.cards[1])) && pl.chips >= h.bet;
+  }
+  function doSplit(p) {
+    if (G.phase !== 'play' || G.turn !== p || !canSplit(p)) return false;
+    const pl = G.players[p], h = curHand(p);
+    pl.chips -= h.bet;
+    const second = { cards: [h.cards.pop()], bet: h.bet, done: false, doubled: false, result: null, payout: 0, split: true };
+    h.split = true;
+    h.cards.push(draw());
+    second.cards.push(draw());
+    pl.hands.push(second);
+    // Aのスプリットは1枚ずつで終了
+    if (rankOf(h.cards[0]) === 1) { h.done = true; second.done = true; advanceTurn(); return true; }
+    if (handValue(h.cards).total === 21) finishHand(p);
+    return true;
+  }
+
+  function dealerPlay(v) {
+    if (v !== version || !G || G.phase !== 'dealer') return;
+    const anyLive = G.players.some(pl => pl.hands.some(h => handValue(h.cards).total <= 21 && !(isBlackjack(h.cards) && !h.split)));
+    const dv = handValue(G.dealer);
+    // ソフト17を含め、17以上でスタンド
+    if (anyLive && dv.total < 17) { G.dealer.push(draw()); afterChange(); return; }
+    settle();
+    afterChange();
+  }
+
+  function settle() {
+    const d = handValue(G.dealer).total;
+    const dealerBJ = isBlackjack(G.dealer);
+    G.players.forEach(pl => {
+      pl.hands.forEach(h => {
+        const v = handValue(h.cards).total;
+        const bj = isBlackjack(h.cards) && !h.split;
+        let pay = 0, result;
+        if (v > 21) result = 'bust';
+        else if (bj && !dealerBJ) { result = 'bj'; pay = h.bet + Math.floor(h.bet * 1.5); }
+        else if (dealerBJ) { result = bj ? 'push' : 'lose'; pay = bj ? h.bet : 0; }
+        else if (d > 21 || v > d) { result = 'win'; pay = h.bet * 2; }
+        else if (v === d) { result = 'push'; pay = h.bet; }
+        else result = 'lose';
+        h.result = result;
+        h.payout = pay;
+        pl.chips += pay;
+      });
+      pl.ready = false;
+    });
+    G.phase = 'settle';
+    G.turn = -1;
+  }
+
+  function nextRound() {
+    if (!G || G.phase !== 'settle') return;
+    G.phase = 'bet';
+    G.dealer = [];
+    G.players.forEach(pl => { pl.hands = []; pl.ready = false; });
+    afterChange();
+  }
+  function doRebuy(p) {
+    const pl = G.players[p];
+    if (G.phase !== 'bet' || pl.chips >= MIN_BET) return false;
+    pl.chips = START_CHIPS;
+    pl.rebuys = (pl.rebuys || 0) + 1;
+    return true;
+  }
+
+  // ---------- sync ----------
+  function viewFor(seat) {
+    if (!G) return null;
+    const hideHole = G.phase === 'play' || G.phase === 'bet';
+    return { ...G, shoe: G.shoe.length, dealer: G.dealer.map((c, i) => hideHole && i === 1 ? null : c), me: seat };
+  }
+  function afterChange() {
+    version++;
+    if (isHost) for (const [id, c] of guests) { try { c.send({ type: 'sync', seats, view: viewFor(seats.findIndex(s => s.id === id)) }); } catch (e) {} }
+    V = viewFor(mySeat());
+    render();
+    if (isAuthority() && G && G.phase === 'dealer') { const v = version; setTimeout(() => dealerPlay(v), 700); }
+  }
+  function act(a) {
+    if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action: a }); return; }
+    if (applyAction(mySeat(), a)) afterChange();
+  }
+  function applyAction(p, a) {
+    if (!G || p < 0) return false;
+    switch (a.type) {
+      case 'bet': return doBet(p, a.amount);
+      case 'hit': return doHit(p);
+      case 'stand': return doStand(p);
+      case 'double': return doDouble(p);
+      case 'split': return doSplit(p);
+      case 'rebuy': return doRebuy(p);
+    }
+    return false;
+  }
+
+  // ---------- render ----------
+  const RESULT = { win: ['勝ち', 'win'], bj: ['ブラックジャック！', 'win'], lose: ['負け', 'lose'], bust: ['バースト', 'lose'], push: ['引き分け', 'push'] };
+
+  function totalBadge(cards, el) {
+    const known = cards.filter(Boolean);
+    if (!known.length) { el.style.display = 'none'; return; }
+    const v = handValue(known);
+    el.style.display = '';
+    el.className = 'total' + (v.total > 21 ? ' bust' : (known.length === 2 && v.total === 21 && cards.every(Boolean) ? ' bj' : ''));
+    el.textContent = (v.total > 21 ? `${v.total} バースト` : (v.soft && v.total < 21 ? `${v.total - 10} / ${v.total}` : v.total));
+  }
+
+  function render() {
+    if (!V) return;
+    const me = V.me;
+    dealerCardsEl.innerHTML = '';
+    V.dealer.forEach(c => dealerCardsEl.appendChild(cardEl(c)));
+    totalBadge(V.dealer, dealerTotalEl);
+    dealerMsgEl.textContent = V.reshuffled ? 'カードを混ぜ直しました' : (V.phase === 'settle' && isBlackjack(V.dealer) ? 'ディーラーのブラックジャック！' : 'ディーラーは17以上になるまでカードを引きます');
+
+    seatsEl.innerHTML = '';
+    V.players.forEach((pl, i) => {
+      if (!seats[i]) return;
+      const d = document.createElement('div');
+      d.className = 'seat' + (i === me ? ' me' : '') + (V.phase === 'play' && V.turn === i ? ' active' : '');
+      let hands = '';
+      if (V.phase === 'bet') {
+        hands = `<div class="hand"><span class="bet">${pl.ready ? `ベット ${pl.bet} ✓` : (pl.chips < MIN_BET ? 'チップがありません' : 'ベット中…')}</span></div>`;
+      }
+      d.innerHTML = `<span class="nm">${esc(seats[i].name)}${i === me && mode === 'online' ? '（あなた）' : ''}</span><span class="chips">チップ ${pl.chips}</span>${hands}`;
+      pl.hands.forEach((h, hi) => {
+        const hd = document.createElement('div');
+        hd.className = 'hand' + (V.phase === 'play' && V.turn === i && pl.active === hi && pl.hands.length > 1 ? ' cur' : '');
+        const cards = document.createElement('div');
+        cards.className = 'cards';
+        h.cards.forEach(c => cards.appendChild(cardEl(c)));
+        const info = document.createElement('div');
+        info.className = 'area-label';
+        const tot = document.createElement('span');
+        totalBadge(h.cards, tot);
+        if (isBlackjack(h.cards) && !h.split) { tot.className = 'total bj'; tot.textContent = 'BJ'; }
+        info.appendChild(tot);
+        info.insertAdjacentHTML('beforeend', `<span class="bet">ベット ${h.bet}${h.doubled ? '（ダブル）' : ''}</span>`);
+        if (h.result) info.insertAdjacentHTML('beforeend', `<span class="outcome ${RESULT[h.result][1]}">${RESULT[h.result][0]}</span>`);
+        hd.appendChild(cards);
+        hd.appendChild(info);
+        d.appendChild(hd);
+      });
+      seatsEl.appendChild(d);
+    });
+
+    renderControls();
+  }
+
+  function renderControls() {
+    const me = V.me;
+    const pl = V.players[me];
+    controlsEl.innerHTML = '';
+    const button = (label, onClick, opts = {}) => {
+      const b = document.createElement('button');
+      b.className = opts.cls || ('choice' + (opts.secondary ? ' secondary' : ''));
+      b.innerHTML = label;
+      b.disabled = !!opts.disabled;
+      b.addEventListener('click', onClick);
+      controlsEl.appendChild(b);
+      return b;
+    };
+    if (V.phase === 'bet') {
+      if (pl.chips < MIN_BET) {
+        msgEl.textContent = 'チップがなくなりました…';
+        button('チップを補充する（1000）', () => act({ type: 'rebuy' }));
+        return;
+      }
+      if (pl.ready) { msgEl.textContent = 'ほかの人のベットを待っています…'; return; }
+      if (pendingBet === 0) pendingBet = Math.min(lastBet, pl.chips);
+      pendingBet = Math.min(pendingBet, pl.chips);
+      msgEl.textContent = 'チップを置いてベット額を決めてください';
+      for (const v of [10, 50, 100, 500]) {
+        button(String(v), () => { pendingBet = Math.min(pl.chips, pendingBet + v); render(); }, { cls: `chip-btn c${v}`, disabled: pendingBet + v > pl.chips });
+      }
+      const disp = document.createElement('div');
+      disp.id = 'bet-display';
+      disp.textContent = `ベット ${pendingBet}`;
+      controlsEl.appendChild(disp);
+      button('クリア', () => { pendingBet = MIN_BET; render(); }, { secondary: true });
+      button('配る', () => { lastBet = pendingBet; act({ type: 'bet', amount: pendingBet }); pendingBet = 0; }, { disabled: pendingBet < MIN_BET });
+    } else if (V.phase === 'play') {
+      if (V.turn === me) {
+        const h = pl.hands[pl.active];
+        const two = h.cards.length === 2;
+        const canSplitNow = pl.hands.length === 1 && two && Math.min(10, rankOf(h.cards[0])) === Math.min(10, rankOf(h.cards[1])) && pl.chips >= h.bet;
+        msgEl.textContent = pl.hands.length > 1 ? `${pl.active + 1}つ目の手札をプレイ中` : 'ヒット（もう1枚）かスタンド（勝負）を選んでください';
+        button('ヒット', () => act({ type: 'hit' }));
+        button('スタンド', () => act({ type: 'stand' }), { secondary: true });
+        button('ダブル', () => act({ type: 'double' }), { secondary: true, disabled: !(two && pl.chips >= h.bet) });
+        button('スプリット', () => act({ type: 'split' }), { secondary: true, disabled: !canSplitNow });
+      } else {
+        msgEl.textContent = pl.hands.length ? `${seats[V.turn] ? seats[V.turn].name : ''}の番です` : 'このラウンドは見学中です';
+      }
+    } else if (V.phase === 'dealer') {
+      msgEl.textContent = 'ディーラーの番です…';
+    } else if (V.phase === 'settle') {
+      const net = pl.hands.reduce((s, h) => s + h.payout - h.bet, 0);
+      msgEl.textContent = pl.hands.length ? (net > 0 ? `+${net} チップ！` : net < 0 ? `${net} チップ` : '±0') : '';
+      if (isAuthority()) button('次のゲーム', nextRound);
+      else msgEl.textContent += '　ホストが次のゲームを始めるのを待っています';
+    }
+  }
+
+  // ---------- menus ----------
+  function resetAll() {
+    cleanupPeer();
+    mode = null; isHost = false; myId = 'me'; seats = []; G = null; V = null; version++; pendingBet = 0;
+    dealerCardsEl.innerHTML = ''; dealerTotalEl.style.display = 'none'; seatsEl.innerHTML = ''; msgEl.textContent = ''; controlsEl.innerHTML = '';
+  }
+  function showModeSelect() {
+    resetAll();
+    showOverlay('ブラックジャック', 'ディーラーより21に近づけよう。21を超えたら負け！', [
+      { label: 'ひとりで遊ぶ', primary: true, onClick: () => { mode = 'solo'; myId = 'me'; seats = [{ id: 'me', name: 'あなた' }]; hideOverlay(); newTable(); } },
+      { label: 'オンラインで同じテーブル', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>カードの合計を21に近づけ、ディーラーより大きければ勝ち。21を超えると「バースト」で負けです。</li>
+        <li>2〜10はそのまま、J・Q・Kは10、Aは1か11の都合のよい方で数えます。</li>
+        <li><b>ヒット</b>：もう1枚引く／<b>スタンド</b>：そこで勝負／<b>ダブル</b>：賭け金を2倍にして1枚だけ引く／<b>スプリット</b>：同じ数字の2枚を2つの手に分ける（賭け金も同額追加、Aのスプリットは1枚ずつ）。</li>
+        <li>ディーラーは合計が17以上になるまで必ず引きます。</li>
+        <li>勝てば賭け金と同額、最初の2枚で21（ブラックジャック）なら1.5倍がもらえます。引き分けは賭け金が戻ります。</li>
+        <li>チップは1000から。なくなったら補充できます。オンラインでは全員が同じディーラーと勝負します。</li>
+      </ul>`);
+  }
+
+  // ---------- online (PeerJS, ホストがディーラー役) ----------
+  function cleanupPeer() {
+    for (const c of guests.values()) { try { c.close(); } catch (e) {} }
+    guests.clear();
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン', '同じテーブルに最大5人まで座れます。まず名前を入力してください', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" />
+        <div class="row"><input id="code-input" maxlength="4" placeholder="コード" autocomplete="off" />
+        <button id="join-btn" class="choice">部屋に入る</button></div>`);
+    $('join-btn').addEventListener('click', () => withName(joinRoom));
+    $('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
+  }
+  function withName(fn) {
+    const name = ($('name-input').value || '').trim();
+    if (!name) { $('name-input').focus(); $('name-input').placeholder = '名前を入力してください'; return; }
+    saveName(name);
+    fn(name, ($('code-input').value || '').trim().toUpperCase());
+  }
+  function hostRoom(name) {
+    cleanupPeer();
+    mode = 'online'; isHost = true; myId = 'host';
+    seats = [{ id: 'host', name }];
+    roomCode = randomCode();
+    showOverlay('オンライン', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('blackjack-room-' + roomCode);
+    peer.on('open', renderLobby);
+    peer.on('connection', c => {
+      c.on('data', d => onHostData(c, d));
+      c.on('close', () => onGuestLeft(c.peer));
+      c.on('error', () => onGuestLeft(c.peer));
+    });
+    peer.on('error', () => { if (!G) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+  function renderLobby() {
+    if (G) return;
+    for (const c of guests.values()) { try { c.send({ type: 'lobby', names: seats.map(s => s.name) }); } catch (e) {} }
+    showOverlay('部屋を作りました', 'コードを伝えて参加してもらいましょう', [
+      { label: 'テーブルを開く', primary: true, onClick: () => { hideOverlay(); newTable(); } },
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ], `<div id="room-code">${roomCode}</div><div class="member-list">${seats.map(s => esc(s.name)).join('<br>')}</div>`);
+  }
+  function onHostData(c, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'hello') {
+      if (G || seats.length >= 5) { c.send({ type: 'full' }); return; }
+      guests.set(c.peer, c);
+      seats.push({ id: c.peer, name: String(data.name || '').trim().slice(0, 8) || 'ゲスト' });
+      renderLobby();
+    } else if (data.type === 'act' && G) {
+      const seat = seats.findIndex(s => s.id === c.peer);
+      if (seat >= 0 && applyAction(seat, data.action || {})) afterChange();
+    }
+  }
+  function onGuestLeft(id) {
+    if (!guests.has(id)) return;
+    guests.delete(id);
+    const i = seats.findIndex(s => s.id === id);
+    if (i < 0) return;
+    if (!G) { seats.splice(i, 1); renderLobby(); return; }
+    // 抜けた人の席は空席扱い（手番中ならスタンド）
+    seats[i] = { id: 'left-' + id, name: seats[i].name + '(退出)' };
+    const pl = G.players[i];
+    pl.joined = false;
+    if (G.phase === 'bet' && G.players.every(x => x.ready || x.chips < MIN_BET || !x.joined) && G.players.some(x => x.ready)) dealRound();
+    if (G.phase === 'play') {
+      pl.hands.forEach(h => { h.done = true; });
+      if (G.turn === i) advanceTurn();
+    }
+    afterChange();
+  }
+  function joinRoom(name, code) {
+    if (!code) { $('code-input').focus(); return; }
+    cleanupPeer();
+    mode = 'online'; isHost = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', id => {
+      myId = id;
+      conn = peer.connect('blackjack-room-' + code, { reliable: true });
+      conn.on('open', () => conn.send({ type: 'hello', name }));
+      conn.on('data', onGuestData);
+      conn.on('close', onHostLost);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+    });
+    peer.on('error', () => { if (!V) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+  function onGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'lobby') {
+      showOverlay('参加しました', 'ホストがテーブルを開くのを待っています', [
+        { label: '退出する', primary: false, onClick: showModeSelect }
+      ], `<div class="member-list">${data.names.map(esc).join('<br>')}</div>`);
+    } else if (data.type === 'sync') {
+      seats = data.seats;
+      if (!V) hideOverlay();
+      V = data.view;
+      render();
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋は満員か、すでに始まっています。');
+      cleanupPeer();
+    }
+  }
+  function onHostLost() {
+    if (mode !== 'online' || isHost) return;
+    showOverlay('ホストとの接続が切れました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  $('back-btn').addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+  showModeSelect();
+})();
+</script>
+</body>
+</html>
