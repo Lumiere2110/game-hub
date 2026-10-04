@@ -142,7 +142,15 @@
   .ply-info { display: flex; flex-direction: column; gap: 4px; line-height: 1.25; }
   .ply-name { font-size: 11px; color: #c7cdf5; }
 
-  .pip-row { display: flex; gap: 3px; }
+  .pip-row { display: flex; gap: 3px; align-items: center; }
+  .chip-count { font-size: 11px; color: #ff9fae; margin-left: 4px; white-space: nowrap; }
+  .chip-count b { color: #ff5d73; font-size: 13px; }
+  .limit-seg { display: flex; border: 1px solid #3a4278; border-radius: 999px; overflow: hidden; }
+  .limit-seg button { background: transparent; border: none; color: #9aa3d6; font-size: 13px; padding: 6px 12px; cursor: pointer; }
+  .limit-seg button.on { background: #4a5cf0; color: #fff; }
+  .limit-row { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 13px; color: #9aa3d6; }
+  .suspect-summary { font-size: 12px; color: #cdd3f5; text-align: center; line-height: 1.7; }
+  .suspect-summary b { color: #ff9fae; }
   .pip {
     width: 14px; height: 14px;
     border-radius: 4px;
@@ -267,7 +275,7 @@
     </div>
 
     <div id="board-area">
-      <div id="round-banner">ラウンド <span id="round-num">-</span> / 7</div>
+      <div id="round-banner">ラウンド <span id="round-num">-</span>　／　しくじりチップ<span id="limit-num">5</span>枚で終了</div>
       <div id="turn-indicator"></div>
       <div id="suspects-row">
         <div class="suspect-wrap"><div class="suspect-label">A</div><div class="suspect-tile facedown" id="suspect-0"><div class="s-value">?</div></div></div>
@@ -288,8 +296,8 @@
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 (() => {
-  const ROUNDS = 7;
-  const CHIPS_START = 7;
+  const LIMIT_CHOICES = [3, 4, 5, 6, 7];
+  let blunderLimit = 5; // 誰かがこの枚数のしくじりチップを受け取ったらゲーム終了
   const PLAYER_COLORS = ['#ff5d73', '#6ea8ff', '#ffe066', '#7ee787', '#c98bff'];
 
   const boardEl = document.getElementById('board-area');
@@ -300,6 +308,7 @@
   const overlayButtons = document.getElementById('overlay-buttons');
   const backBtn = document.getElementById('back-btn');
   const roundNumEl = document.getElementById('round-num');
+  const limitNumEl = document.getElementById('limit-num');
   const turnIndicatorEl = document.getElementById('turn-indicator');
   const playersRowEl = document.getElementById('players-row');
 
@@ -342,6 +351,27 @@
     return best.i;
   }
 
+  // 外れた容疑者に置かれたチップは「しくじりチップ」になり、その容疑者に最後にチップを置いた人がまとめて受け取る
+  function settleRound(players, votes, turnOrder, culprit) {
+    const received = {};
+    const bySuspect = [];
+    for (let s = 0; s < 3; s++) {
+      if (s === culprit) continue;
+      const onS = turnOrder.filter(k => votes[k] === s);
+      if (!onS.length) continue;
+      const last = onS[onS.length - 1];
+      received[last] = (received[last] || 0) + onS.length;
+      bySuspect.push({ suspect: s, count: onS.length, receiver: last });
+    }
+    players.forEach(p => {
+      const r = received[p.key] || 0;
+      p.blunders += r;
+      p.history.push(r);
+    });
+    const over = players.some(p => p.blunders >= blunderLimit);
+    return { received, bySuspect, over };
+  }
+
   function randomCode(len = 4) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let s = '';
@@ -371,6 +401,7 @@
 
   function render() {
     roundNumEl.textContent = G.round || '-';
+    limitNumEl.textContent = blunderLimit;
     for (let i = 0; i < 3; i++) {
       const tile = document.getElementById('suspect-' + i);
       const valEl = tile.querySelector('.s-value');
@@ -441,31 +472,35 @@
 
   const SUSPECT_LABELS = ['A', 'B', 'C'];
 
+  // しくじりチップの枚数を上限までのマスで表示
   function buildPipTrack(p) {
+    const n = p.blunders || 0;
     let html = '<div class="pip-row">';
-    for (let i = 0; i < ROUNDS; i++) {
-      const h = p.history && p.history[i];
-      if (h === 'o') html += '<div class="pip pip-ok" title="正解">✓</div>';
-      else if (h === 'x') html += '<div class="pip pip-bad" title="ハズレ">✕</div>';
-      else html += '<div class="pip pip-empty"></div>';
+    for (let i = 0; i < blunderLimit; i++) {
+      html += i < n ? '<div class="pip pip-bad" title="しくじりチップ">✕</div>' : '<div class="pip pip-empty"></div>';
     }
-    html += '</div>';
+    html += `<span class="chip-count"><b>${n}</b>枚</span></div>`;
     return html;
   }
 
-  function buildRevealHtml(votes, culpritIndex, culpritValue) {
+  function buildRevealHtml(votes, culpritIndex, culpritValue, settle) {
     const rows = G.players.map(p => {
       const chosen = votes[p.key];
       const correct = chosen === culpritIndex;
       const chosenLabel = chosen !== undefined ? SUSPECT_LABELS[chosen] : '?';
+      const got = settle.received[p.key] || 0;
       return `<div class="result-row ${correct ? 'correct' : 'wrong'}">
         <div class="r-swatch" style="background:${p.color}"></div>
         <div class="r-name">${p.name}</div>
-        <div class="r-pick">${chosenLabel}に投票</div>
-        <div class="r-mark">${correct ? '⭕ 正解' : '❌ ハズレ'}</div>
+        <div class="r-pick">${chosenLabel}に置いた</div>
+        <div class="r-mark">${correct ? '⭕ 正解' : '❌ ハズレ'}${got ? `　しくじり+${got}` : ''}</div>
       </div>`;
     }).join('');
+    const summary = settle.bySuspect.length
+      ? settle.bySuspect.map(b => `容疑者${SUSPECT_LABELS[b.suspect]}のチップ${b.count}枚 → 最後に置いた <b>${(playerByKey(b.receiver) || {}).name}</b> が受け取り`).join('<br>')
+      : '全員正解！しくじりチップはありません';
     return `<div class="culprit-banner">犯人は <strong>容疑者${SUSPECT_LABELS[culpritIndex]}</strong>（数字 ${culpritValue}）でした</div>
+      <div class="suspect-summary">${summary}</div>
       <div class="result-list">${rows}</div>`;
   }
 
@@ -538,7 +573,8 @@
       <p>あなたは3人のうち<strong>2人の数字だけ</strong>を見ることができます。誰が見えないかは人によって違うため、みんなの証言が食い違います。</p>
       <p>自分の番が来たら、犯人だと思う容疑者に自分のチップを置きます。他の人がどこに置いたかも参考にしつつ、時にはハッタリで揺さぶりましょう。</p>
       <p>全員が置き終わったら数字を公開。<strong>最大の数字</strong>の人が犯人です。ただし<strong>5がいる場合は最小の数字</strong>が犯人になります(Xは犯人になりません)。</p>
-      <p>正解するとチップはゲームから取り除かれ、外れると「しくじり」として記録されます。7ラウンド終了時、しくじりが一番少ない人の勝ちです。</p>
+      <p>全員が置き終えたら犯人を公開します。推理を外した人のチップは<strong>「しくじりチップ」</strong>となり、その容疑者に<strong>最後にチップを置いた人</strong>がまとめて受け取ります。正解した人のチップは戻ります。</p>
+      <p>誰かがしくじりチップを<strong>規定数（標準5枚、3〜7枚で設定可）</strong>受け取ったらゲーム終了。しくじりチップが最も少ない人の勝利です。</p>
       <p style="color:#7c86c2;font-size:12px;">※オインクゲームズ「藪の中」にインスパイアされた非公式のファンメイド実装です。</p>
     </div>`);
   }
@@ -569,13 +605,27 @@
           startLocal(names);
         } },
       { label: '戻る', primary: false, onClick: showLocalSetup }
-    ], `<div class="name-inputs">${inputsHtml}</div>`);
+    ], `<div class="name-inputs">${inputsHtml}</div>${limitSegHtml()}`);
+    bindLimitSeg(() => {
+      const names = [];
+      for (let i = 0; i < count; i++) names.push(document.getElementById('name-' + i).value);
+      showLocalNames(count);
+      names.forEach((n, i) => { document.getElementById('name-' + i).value = n; });
+    });
+  }
+
+  function limitSegHtml() {
+    return `<div class="limit-row">終了するしくじりチップ数 <div class="limit-seg">${LIMIT_CHOICES.map(n =>
+      `<button data-limit="${n}" class="${n === blunderLimit ? 'on' : ''}">${n}枚</button>`).join('')}</div></div>`;
+  }
+  function bindLimitSeg(rerender) {
+    overlayExtra.querySelectorAll('[data-limit]').forEach(b => b.addEventListener('click', () => { blunderLimit = +b.dataset.limit; rerender(); }));
   }
 
   function startLocal(names) {
     mode = 'local';
     G = {
-      players: names.map((nm, i) => ({ key: String(i), name: nm || ('プレイヤー' + (i + 1)), color: PLAYER_COLORS[i], chips: CHIPS_START, blunders: 0, history: [] })),
+      players: names.map((nm, i) => ({ key: String(i), name: (nm || '').trim() || ('プレイヤー' + (i + 1)), color: PLAYER_COLORS[i], blunders: 0, history: [] })),
       round: 0, phase: 'facedown', votes: {}, myKey: null, currentTurnKey: null, myPrivate: null, _suspects: null, _culpritIndex: null
     };
     nextLocalRound();
@@ -620,20 +670,14 @@
 
   function resolveLocalRound() {
     const culprit = determineCulprit(G._suspects);
-    G.players.forEach(p => {
-      const v = G.votes[p.key];
-      const correct = v === culprit;
-      p.chips--;
-      if (!correct) p.blunders++;
-      p.history.push(correct ? 'o' : 'x');
-    });
+    const settle = settleRound(G.players, G.votes, L.turnOrder, culprit);
     G._culpritIndex = culprit;
     G.phase = 'reveal-final';
     G.myKey = null;
     G.currentTurnKey = null;
     render();
-    const revealHtml = buildRevealHtml(G.votes, culprit, G._suspects[culprit].value);
-    if (G.round >= ROUNDS) {
+    const revealHtml = buildRevealHtml(G.votes, culprit, G._suspects[culprit].value, settle);
+    if (settle.over) {
       showOverlay('最終結果', '', [
         { label: 'もう一度', primary: true, onClick: () => startLocal(G.players.map(p => p.name)) },
         { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
@@ -722,7 +766,8 @@
     showOverlay('オンライン対戦(ホスト)', `コード「${roomCode}」を仲間に伝えてください`, [
       { label: 'ゲーム開始', primary: true, disabled: !canStart, onClick: canStart ? hostStartGame : () => {} },
       { label: 'キャンセル', primary: false, onClick: () => { cleanupOnline(); showModeSelect(); } }
-    ], hostLobbyHtml(players, canStart));
+    ], hostLobbyHtml(players, canStart) + limitSegHtml());
+    bindLimitSeg(updateHostLobbyUI);
     sendToAllGuests({ type: 'lobby', players: players.map(p => ({ key: p.key, name: p.name })) });
   }
 
@@ -790,7 +835,7 @@
 
   function hostStartGame() {
     onlineGameStarted = true;
-    onlinePlayers = hostBuildPlayersMeta().map(p => ({ ...p, chips: CHIPS_START, blunders: 0, history: [] }));
+    onlinePlayers = hostBuildPlayersMeta().map(p => ({ ...p, blunders: 0, history: [] }));
     mode = 'online';
     G.myKey = 'host';
     hideOverlay();
@@ -807,11 +852,11 @@
     H.turnOrder = [];
     for (let k = 0; k < onlinePlayers.length; k++) H.turnOrder.push(onlinePlayers[(startIdx + k) % onlinePlayers.length].key);
     H.turnPos = 0;
-    const publicPlayers = onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, chips: p.chips, blunders: p.blunders, history: p.history }));
+    const publicPlayers = onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, blunders: p.blunders, history: p.history }));
     onlinePlayers.forEach((p, idx) => {
       const hiddenIdx = hiddenIndexFor(hiddenOffset, idx);
       const priv = suspects.map((s, i) => i === hiddenIdx ? null : (s.type === 'x' ? 'X' : s.value));
-      const msg = { type: 'roundStart', round: H.round, myPrivate: priv, players: publicPlayers, currentTurnKey: H.turnOrder[0], votes: {} };
+      const msg = { type: 'roundStart', round: H.round, limit: blunderLimit, myPrivate: priv, players: publicPlayers, currentTurnKey: H.turnOrder[0], votes: {} };
       if (p.key === 'host') applyRoundStart(msg);
       else if (hostConns[p.key]) hostConns[p.key].send(msg);
     });
@@ -819,6 +864,7 @@
 
   function applyRoundStart(msg) {
     G.round = msg.round;
+    if (msg.limit) blunderLimit = msg.limit;
     G.players = msg.players;
     G.myPrivate = msg.myPrivate;
     G.phase = 'private';
@@ -848,7 +894,7 @@
       type: 'publicState',
       currentTurnKey: H.turnOrder[H.turnPos],
       votes: H.votes,
-      players: onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, chips: p.chips, blunders: p.blunders, history: p.history }))
+      players: onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, blunders: p.blunders, history: p.history }))
     };
     applyPublicState(msg);
     sendToAllGuests(msg);
@@ -856,27 +902,25 @@
 
   function applyPublicState(msg) {
     G.currentTurnKey = msg.currentTurnKey;
-    G.votes = msg.votes;
+    // ホスト自身はホストの投票記録と同じオブジェクトを受け取るので、コピーして持つ
+    // （同じものを持つと、自分の投票を画面に反映した時点で「投票済み」と判定され無視されてしまう）
+    G.votes = { ...msg.votes };
     G.players = msg.players;
     render();
   }
 
   function hostResolveRound() {
     const culprit = determineCulprit(H.suspects);
-    onlinePlayers.forEach(p => {
-      const v = H.votes[p.key];
-      const correct = v === culprit;
-      p.chips--;
-      if (!correct) p.blunders++;
-      p.history.push(correct ? 'o' : 'x');
-    });
+    const settle = settleRound(onlinePlayers, H.votes, H.turnOrder, culprit);
     const msg = {
       type: 'reveal',
       suspects: H.suspects.map(s => s.type === 'x' ? 'X' : s.value),
       culpritIndex: culprit,
       votes: H.votes,
-      players: onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, chips: p.chips, blunders: p.blunders, history: p.history })),
-      isLast: H.round >= ROUNDS
+      players: onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, blunders: p.blunders, history: p.history })),
+      settle: { received: settle.received, bySuspect: settle.bySuspect },
+      limit: blunderLimit,
+      isLast: settle.over
     };
     applyReveal(msg);
     sendToAllGuests(msg);
@@ -889,8 +933,9 @@
     G.votes = msg.votes;
     G.phase = 'reveal-final';
     G.currentTurnKey = null;
+    if (msg.limit) blunderLimit = msg.limit;
     render();
-    const revealHtml = buildRevealHtml(msg.votes, msg.culpritIndex, G._suspects[msg.culpritIndex].value);
+    const revealHtml = buildRevealHtml(msg.votes, msg.culpritIndex, G._suspects[msg.culpritIndex].value, msg.settle);
     if (isHost) {
       if (msg.isLast) {
         showOverlay('最終結果', '', [
@@ -915,7 +960,7 @@
   }
 
   function hostRestartSamePlayers() {
-    onlinePlayers.forEach(p => { p.chips = CHIPS_START; p.blunders = 0; p.history = []; });
+    onlinePlayers.forEach(p => { p.blunders = 0; p.history = []; });
     H.round = 0;
     hostNextRound();
   }
