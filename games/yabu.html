@@ -419,7 +419,7 @@
     return { received, bySuspect, over };
   }
 
-  function randomCode(len = 4) {
+  function randomCode(len = 1) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let s = '';
     for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
@@ -829,7 +829,7 @@
           joinOnlineRoom(name, code);
         } },
       { label: '戻る', primary: false, onClick: () => showOnlineHostOrJoin(name) }
-    ], `<input id="code-input" maxlength="4" placeholder="例: A1B2" />`);
+    ], `<input id="code-input" maxlength="1" placeholder="例: A" />`);
   }
 
   function hostBuildPlayersMeta() {
@@ -871,6 +871,9 @@
       { label: 'キャンセル', primary: false, onClick: () => { cleanupOnline(); showModeSelect(); } }
     ]);
     peer = new Peer('yabu-room-' + roomCode);
+    // 1文字コードは他の部屋と重なることがあるので、使用中なら別の文字で作り直す
+    peer.on('error', err => { if (err && err.type === 'unavailable-id' && (window.__roomRetry = (window.__roomRetry || 0) + 1) <= 20) setTimeout(() => hostCreateRoom(name), 0); });
+    peer.on('open', () => { window.__roomRetry = 0; });
     peer.on('open', updateHostLobbyUI);
     peer.on('connection', handleIncoming);
     peer.on('error', () => {

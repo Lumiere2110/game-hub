@@ -519,7 +519,7 @@
     if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
   }
 
-  function randomCode(len = 4) {
+  function randomCode(len = 1) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let s = '';
     for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
@@ -566,6 +566,9 @@
       { label: 'キャンセル', primary: false, onClick: showModeSelect }
     ]);
     peer = new Peer('gomoku-room-' + roomCode);
+    // 1文字コードは他の部屋と重なることがあるので、使用中なら別の文字で作り直す
+    peer.on('error', err => { if (err && err.type === 'unavailable-id' && (window.__roomRetry = (window.__roomRetry || 0) + 1) <= 20) setTimeout(() => hostRoom(), 0); });
+    peer.on('open', () => { window.__roomRetry = 0; });
     peer.on('open', () => {
       showOverlay(
         'このコードを相手に伝えてください',
@@ -601,12 +604,12 @@
     cleanupPeer();
     showOverlay(
       '部屋に入る',
-      'ホストから伝えられた4桁のコードを入力してください',
+      'ホストから伝えられた1文字のコードを入力してください',
       [
         { label: '接続する', primary: true, onClick: joinRoom },
         { label: '戻る', primary: false, onClick: showModeSelect }
       ],
-      `<input id="code-input" maxlength="4" placeholder="例: A1B2" autocomplete="off" />`
+      `<input id="code-input" maxlength="1" placeholder="例: A" autocomplete="off" />`
     );
     const input = document.getElementById('code-input');
     if (input) {

@@ -83,7 +83,21 @@
   #hand .uc.playable:hover { transform: translateY(-10px); }
   #hand.mine-turn .uc:not(.playable) { opacity: 0.55; }
   #actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; min-height: 44px; }
-  #msg { font-size: 13px; color: #b9c2f0; text-align: center; min-height: 18px; }
+  #msg { font-size: 14px; color: #b9c2f0; text-align: center; min-height: 20px; line-height: 1.5; }
+  #order { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; font-size: 13px; color: #9aa3d6; }
+  #order .o { padding: 2px 10px; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid #2a3160; }
+  #order .o.cur { background: #ffe066; color: #2a1d00; font-weight: 800; border-color: #ffe066; }
+  #order .o.me { border-color: #6ea8ff; }
+  #order .arrow { color: #6b74a8; }
+  #turn-banner { width: 100%; text-align: center; font-size: 18px; font-weight: 800; padding: 8px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid #2a3160; }
+  #turn-banner.mine { background: linear-gradient(90deg, rgba(255,224,102,0.18), rgba(255,160,60,0.18)); border-color: #ffe066; color: #ffe066; animation: pulse 1.2s ease-in-out infinite; }
+  #turn-banner.danger { background: rgba(255,80,80,0.15); border-color: #ff6b6b; color: #ffb0b0; }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 rgba(255,224,102,0); } 50% { box-shadow: 0 0 18px rgba(255,224,102,0.5); } }
+  #log { width: 100%; font-size: 12px; color: #9aa3d6; line-height: 1.6; display: flex; flex-direction: column-reverse; padding: 6px 12px; border-radius: 10px; background: rgba(0,0,0,0.2); }
+  #log:empty { display: none; }
+  #log div:last-child { color: #ffe9b0; font-size: 13px; }
+  .pchip .next-badge { font-size: 10px; color: #2a1d00; background: #8fe3b0; border-radius: 999px; padding: 0 6px; margin-left: 4px; }
+  #pending { position: absolute; top: 36px; left: 0; right: 0; text-align: center; font-size: 20px; font-weight: 900; color: #fff; text-shadow: 0 0 10px #ff4d4d; }
   .color-btn { width: 54px; height: 54px; border-radius: 50%; border: 3px solid #fff; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.5); }
   .color-btn.R { background: #e5484d; } .color-btn.Y { background: #f2c200; } .color-btn.G { background: #2fb36d; } .color-btn.B { background: #3e7bfa; }
 
@@ -147,6 +161,7 @@
         <a id="hub-link" href="../index.html">← ハブへ</a>
       </div>
     </div>
+    <div id="order"></div>
     <div id="players"></div>
     <div id="table">
       <div id="dir"></div>
@@ -154,10 +169,13 @@
       <div class="pile-wrap"><div id="draw-pile"></div><span id="draw-count"></span></div>
       <div class="pile-wrap"><div id="discard"></div><span>場</span></div>
       <div id="table-msg"></div>
+      <div id="pending"></div>
     </div>
+    <div id="turn-banner"></div>
     <div id="msg"></div>
     <div id="actions"></div>
     <div id="hand"></div>
+    <div id="log"></div>
   </div>
   <div id="overlay">
     <h2 id="overlay-title">UNO</h2>
@@ -193,10 +211,11 @@
     return a;
   }
   const label = card => SYMBOL[card.v] || card.v;
-  const cardName = card => card.c === 'W' ? (card.v === 'W4' ? 'ワイルドドロー4' : 'ワイルド') : `${COLOR_NAME[card.c]}の${{ S: 'スキップ', R: 'リバース', D2: 'ドロー2' }[card.v] || card.v}`;
+  const cardName = card => card.c === 'W' ? (card.v === 'W4' ? 'ワイルドドロー4' : 'ワイルド') : `${COLOR_NAME[card.c]}の${{ S: 'スキップ', R: 'リバース', D2: 'ドロー2（+2）' }[card.v] || card.v}`;
 
   const $ = id => document.getElementById(id);
   const playersEl = $('players'), handEl = $('hand'), actionsEl = $('actions'), msgEl = $('msg');
+  const orderEl = $('order'), turnBannerEl = $('turn-banner'), logEl = $('log'), pendingEl = $('pending');
   const drawPileEl = $('draw-pile'), drawCountEl = $('draw-count'), discardEl = $('discard'), dirEl = $('dir'), colorIndEl = $('color-ind'), tableMsgEl = $('table-msg');
   const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
   const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
@@ -259,16 +278,20 @@
       drawn: null,          // この手番で引いたカード（出すかパスするか選べる）
       uno: Array(n).fill(false),
       scores: G && G.n === n ? G.scores : Array(n).fill(0),
-      log: '',
+      pending: 0,           // ドロー2で重ねられた引く枚数（ドロー2で返せる）
+      logs: [],
       winner: null,
       gained: 0
     };
-    G.log = `${seats[G.turn].name}から始めます`;
+    addLog(`${seats[G.turn].name}から始めます`);
     afterChange();
   }
 
   const top = () => G.discard[G.discard.length - 1];
-  const playable = card => card.c === 'W' || card.c === G.color || card.v === top().v;
+  // ドロー2を受けている間は、ドロー2でしか返せない
+  const playable = card => G.pending > 0 ? card.v === 'D2' : (card.c === 'W' || card.c === G.color || card.v === top().v);
+  function addLog(text) { G.logs.push(text); if (G.logs.length > 6) G.logs.shift(); }
+  const who = p => seats[p].cpu ? seats[p].name : (mode === 'online' ? seats[p].name : 'あなた');
   const nextOf = (p, k = 1) => ((p + G.dir * k) % G.n + G.n) % G.n;
 
   function drawCards(p, k) {
@@ -301,16 +324,17 @@
     if (G.drawn && G.drawn.id !== cardId) return false; // 引いた後は引いたカードだけ出せる
     hand.splice(hand.indexOf(card), 1);
     G.discard.push(card);
-    G.log = `${seats[p].name}：${cardName(card)}`;
+    let line = `${who(p)}が「${cardName(card)}」を出した`;
     // UNOを言わずに残り1枚にしたら2枚ペナルティ
     if (hand.length === 1 && !G.uno[p]) {
       drawCards(p, 2);
-      G.log += `　UNO言い忘れ！2枚引きます`;
+      line += `（UNOを言い忘れて2枚引いた！）`;
     }
-    if (hand.length === 0) { finish(p); return true; }
+    G.lastLine = line;
+    if (hand.length === 0) { addLog(line); finish(p); return true; }
     if (card.c === 'W') {
       if (COLORS.includes(color)) { G.color = color; applyEffect(p, card); }
-      else { G.phase = 'color'; G.drawn = null; }
+      else { G.phase = 'color'; G.drawn = null; addLog(line + '…色を選んでいます'); }
       return true;
     }
     G.color = card.c;
@@ -319,20 +343,28 @@
   }
 
   function applyEffect(p, card) {
-    if (card.c === 'W') G.log += `（${COLOR_NAME[G.color]}を指定）`;
-    if (card.v === 'S') { G.log += `　${seats[nextOf(p)].name}はスキップ`; endTurn(p, true); return; }
+    let line = G.lastLine || '';
+    if (card.c === 'W') line += `　→ 色は${COLOR_NAME[G.color]}に`;
+    if (card.v === 'S') { addLog(line + `　→ ${who(nextOf(p))}はおやすみ`); endTurn(p, true); return; }
     if (card.v === 'R') {
       G.dir *= -1;
-      if (G.n === 2) { endTurn(p, true); return; } // 2人ならスキップと同じ
+      if (G.n === 2) { addLog(line + `　→ 2人なので${who(nextOf(p))}はおやすみ`); endTurn(p, true); return; } // 2人ならスキップと同じ
+      addLog(line + `　→ 順番が${G.dir === 1 ? '時計回り' : '反時計回り'}に`); endTurn(p, false); return;
+    }
+    if (card.v === 'D2') {
+      // 引く枚数をためて次の人へ。次の人はドロー2で返すか、ためた枚数を引いて休み
+      G.pending += 2;
+      const t = nextOf(p);
+      addLog(line + `　→ ${who(t)}は+2で返すか、${G.pending}枚引く`);
       endTurn(p, false); return;
     }
-    if (card.v === 'D2' || card.v === 'W4') {
-      const k = card.v === 'D2' ? 2 : 4;
+    if (card.v === 'W4') {
       const t = nextOf(p);
-      drawCards(t, k);
-      G.log += `　${seats[t].name}は${k}枚引いてスキップ`;
+      drawCards(t, 4);
+      addLog(line + `　→ ${who(t)}は4枚引いておやすみ`);
       endTurn(p, true); return;
     }
+    addLog(line);
     endTurn(p, false);
   }
 
@@ -346,22 +378,30 @@
 
   function doDraw(p) {
     if (G.phase !== 'play' || G.turn !== p || G.drawn) return false;
+    if (G.pending > 0) {
+      // ドロー2を返せなかった：ためた枚数を引いて休み
+      const k = G.pending;
+      drawCards(p, k);
+      G.pending = 0;
+      addLog(`${who(p)}は${k}枚引いておやすみ`);
+      endTurn(p, false);
+      return true;
+    }
     const [c] = drawCards(p, 1);
-    G.log = `${seats[p].name}：1枚引いた`;
-    if (c && playable(c)) G.drawn = c; // 出せるなら出すかパスを選べる
-    else endTurn(p, false);
+    if (c && playable(c)) { G.drawn = c; addLog(`${who(p)}が山札から1枚引いた（出せるカード）`); } // 出せるなら出すかパスを選べる
+    else { addLog(`${who(p)}が山札から1枚引いた → 出せないので次の人へ`); endTurn(p, false); }
     return true;
   }
   function doPass(p) {
     if (G.phase !== 'play' || G.turn !== p || !G.drawn) return false;
-    G.log = `${seats[p].name}：パス`;
+    addLog(`${who(p)}はパス`);
     endTurn(p, false);
     return true;
   }
   function doUno(p) {
     if (G.phase !== 'play' || G.turn !== p || G.hands[p].length !== 2) return false;
     G.uno[p] = true;
-    G.log = `${seats[p].name}「UNO！」`;
+    addLog(`${who(p)}「UNO！」`);
     return true;
   }
 
@@ -370,7 +410,7 @@
     G.winner = p;
     G.gained = G.hands.reduce((s, h, i) => i === p ? s : s + h.reduce((a, c) => a + POINTS(c.v), 0), 0);
     G.scores[p] += G.gained;
-    G.log = `${seats[p].name}が上がり！`;
+    addLog(`${who(p)}が上がり！`);
   }
 
   // ---------- CPU ----------
@@ -388,6 +428,7 @@
     const hand = G.hands[p];
     let opts = (G.drawn ? [G.drawn] : hand).filter(playable);
     if (!opts.length) { if (G.drawn) doPass(p); else doDraw(p); afterChange(); return; }
+    if (G.pending > 0 && Math.random() < 0.15 && hand.length > 3) { doDraw(p); afterChange(); return; } // たまに返さずに受ける
     if (hand.length === 2 && !G.uno[p]) { doUno(p); }
     const nextCount = G.hands[nextOf(p)].length;
     const score = c => {
@@ -424,7 +465,7 @@
     V = viewFor(mySeat());
     render();
     if (!isAuthority() || !G || G.phase === 'over') return;
-    if (seats[G.turn] && seats[G.turn].cpu) { const v = version; setTimeout(() => cpuStep(v), 900); }
+    if (seats[G.turn] && seats[G.turn].cpu) { const v = version; setTimeout(() => cpuStep(v), 1300); }
   }
   function act(a) {
     if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action: a }); return; }
@@ -446,15 +487,24 @@
   function render() {
     if (!V) return;
     const me = V.me;
+    const nameOf = i => i === me ? 'あなた' : seats[i].name;
+    const nxt = ((V.turn + V.dir) % V.n + V.n) % V.n;
+    // 手番の流れ（今の人から進む向きに並べる）
+    const seq = [];
+    for (let k = 0; k < V.n; k++) seq.push(((V.turn + V.dir * k) % V.n + V.n) % V.n);
+    orderEl.innerHTML = V.phase === 'over' ? '' : '順番：' + seq.map((i, k) => `<span class="o${k === 0 ? ' cur' : ''}${i === me ? ' me' : ''}">${k === 0 ? '▶ ' : ''}${esc(nameOf(i))}</span>`).join('<span class="arrow">→</span>');
     playersEl.innerHTML = '';
     V.hands.forEach((h, i) => {
       const cnt = Array.isArray(h) ? h.length : h;
       const d = document.createElement('div');
       d.className = 'pchip' + (i === me ? ' me' : '') + (V.phase !== 'over' && V.turn === i ? ' active' : '');
-      d.innerHTML = `<div class="nm">${esc(seats[i].name)}${i === me && mode === 'online' ? '（あなた）' : ''}</div>
+      d.innerHTML = `<div class="nm">${V.phase !== 'over' && V.turn === i ? '▶ ' : ''}${esc(seats[i].name)}${i === me && mode === 'online' ? '（あなた）' : ''}${V.phase !== 'over' && i === nxt && V.n > 2 ? '<span class="next-badge">次</span>' : ''}</div>
         <div class="sub"><span>${V.scores[i]}点</span>${cnt === 1 ? '<span class="uno-badge">UNO</span>' : ''}<span class="cnt">${cnt}枚</span></div>`;
       playersEl.appendChild(d);
     });
+    logEl.innerHTML = V.logs.map(l => `<div>${esc(l)}</div>`).join('');
+    // ドロー2がたまっている枚数は場札の下に表示
+    pendingEl.textContent = '';
     const topCard = V.discard[V.discard.length - 1];
     discardEl.innerHTML = '';
     discardEl.appendChild(cardEl(topCard, true));
@@ -463,14 +513,21 @@
     pile.classList.add('pile');
     const myTurn = V.phase === 'play' && V.turn === me;
     const hand = Array.isArray(V.hands[me]) ? V.hands[me] : [];
-    const canPlay = c => c.c === 'W' || c.c === V.color || c.v === topCard.v;
+    const canPlay = c => V.pending > 0 ? c.v === 'D2' : (c.c === 'W' || c.c === V.color || c.v === topCard.v);
     const playableIds = myTurn ? (V.drawn && V.drawn !== true ? [V.drawn] : (V.drawn ? [] : hand)).filter(canPlay).map(c => c.id) : [];
     if (myTurn && !V.drawn) { pile.classList.add('glow'); pile.addEventListener('click', () => act({ type: 'draw' })); }
     drawPileEl.appendChild(pile);
     drawCountEl.textContent = `山札 ${V.deck}枚`;
+    discardEl.nextElementSibling.textContent = V.pending > 0 && V.phase !== 'over' ? `+${V.pending} たまっています` : '場';
+    discardEl.nextElementSibling.style.color = V.pending > 0 && V.phase !== 'over' ? '#ffb0b0' : '';
     dirEl.textContent = V.dir === 1 ? '↻ 時計回り' : '↺ 反時計回り';
     colorIndEl.innerHTML = `${COLOR_NAME[V.color]} <span style="background:${{ R: '#e5484d', Y: '#f2c200', G: '#2fb36d', B: '#3e7bfa' }[V.color]}"></span>`;
-    tableMsgEl.textContent = V.log || '';
+    tableMsgEl.textContent = ''; // 最新の出来事は下の履歴の一番上に表示
+    const myTurnAny = V.phase !== 'over' && V.turn === me;
+    turnBannerEl.className = myTurnAny ? (V.pending > 0 ? 'danger' : 'mine') : '';
+    turnBannerEl.textContent = V.phase === 'over' ? '' : myTurnAny
+      ? (V.pending > 0 ? `あなたの番！ +${V.pending} が来ています` : 'あなたの番です！')
+      : `${seats[V.turn].name}の番${nxt === me ? '（次はあなた）' : ''}`;
 
     handEl.innerHTML = '';
     handEl.classList.toggle('mine-turn', myTurn);
@@ -501,6 +558,11 @@
         b.addEventListener('click', () => act({ type: 'color', color: c }));
         actionsEl.appendChild(b);
       }
+    } else if (myTurn && V.pending > 0) {
+      msgEl.textContent = playableIds.length
+        ? `ドロー2（+2）を出せば次の人に返せます（合計+${V.pending + 2}）。返さないなら${V.pending}枚引いておやすみ`
+        : `返せるドロー2がありません。${V.pending}枚引いておやすみです`;
+      button(`${V.pending}枚引く`, () => act({ type: 'draw' }), 'secondary');
     } else if (myTurn) {
       if (V.drawn) {
         msgEl.textContent = '引いたカードが出せます。出すかパスを選んでください';
@@ -516,7 +578,7 @@
       showResult();
       return;
     } else {
-      msgEl.textContent = `${seats[V.turn].name}の番です` + (hand.length === 2 ? '（手札が2枚になったら、自分の番で出す前に「UNO!」）' : '');
+      msgEl.textContent = V.phase === 'color' ? `${seats[V.turn].name}が色を選んでいます…` : (hand.length === 2 ? '手札が2枚です。自分の番になったら、出す前に「UNO!」を押しましょう' : '');
     }
     if (overlay.dataset.kind === 'result') { overlay.dataset.kind = ''; hideOverlay(); }
   }
@@ -541,6 +603,7 @@
     overlay.dataset.kind = '';
     playersEl.innerHTML = ''; handEl.innerHTML = ''; actionsEl.innerHTML = ''; msgEl.textContent = '';
     discardEl.innerHTML = ''; drawPileEl.innerHTML = ''; drawCountEl.textContent = ''; dirEl.textContent = ''; colorIndEl.innerHTML = ''; tableMsgEl.textContent = '';
+    orderEl.innerHTML = ''; turnBannerEl.textContent = ''; turnBannerEl.className = ''; logEl.innerHTML = ''; pendingEl.textContent = '';
     discardEl.appendChild(cardEl({ c: 'W', v: 'W' }, true));
     drawPileEl.appendChild(cardEl(null, true));
   }
@@ -557,7 +620,8 @@
       <ul class="rules">
         <li>手札は7枚。場のカードと<b>同じ色</b>か<b>同じ数字・記号</b>のカードを1枚出します。</li>
         <li>出せないときは山札から1枚引きます。引いたカードが出せればそのまま出してもOK。</li>
-        <li><b>⊘ スキップ</b>：次の人を飛ばす／<b>⇄ リバース</b>：順番が逆回り（2人のときはスキップと同じ）／<b>+2 ドロー2</b>：次の人は2枚引いて休み。</li>
+        <li><b>⊘ スキップ</b>：次の人を飛ばす／<b>⇄ リバース</b>：順番が逆回り（2人のときはスキップと同じ）。</li>
+        <li><b>+2 ドロー2</b>：次の人は2枚引いて休み。ただし<b>ドロー2を持っていれば重ねて次の人に返せます</b>（+4、+6…と増えていき、返せなかった人がまとめて引いて休み）。</li>
         <li><b>★ ワイルド</b>：いつでも出せて、次の色を決められる／<b>+4 ワイルドドロー4</b>：色を決め、次の人は4枚引いて休み。</li>
         <li>手札が残り1枚になるカードを出す前に「UNO!」ボタンを押すこと。忘れると2枚引くペナルティ！</li>
         <li>一番に手札をなくした人の勝ち。ほかの人の残りカードが得点になります（数字はその数、記号は20点、ワイルドは50点）。</li>
@@ -584,7 +648,7 @@
     if (conn) { try { conn.close(); } catch (e) {} conn = null; }
     if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
   }
-  function randomCode(len = 4) {
+  function randomCode(len = 1) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let s = '';
     for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
@@ -602,7 +666,7 @@
       { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
       { label: '戻る', primary: false, onClick: showModeSelect }
     ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" />
-        <div class="row"><input id="code-input" maxlength="4" placeholder="コード" autocomplete="off" />
+        <div class="row"><input id="code-input" maxlength="1" placeholder="コード" autocomplete="off" />
         <button id="join-btn" class="choice">部屋に入る</button></div>`);
     $('join-btn').addEventListener('click', () => withName(joinRoom));
     $('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
@@ -620,6 +684,9 @@
     roomCode = randomCode();
     showOverlay('オンライン対戦', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
     peer = new Peer('uno-room-' + roomCode);
+    // 1文字コードは他の部屋と重なることがあるので、使用中なら別の文字で作り直す
+    peer.on('error', err => { if (err && err.type === 'unavailable-id' && (window.__roomRetry = (window.__roomRetry || 0) + 1) <= 20) setTimeout(() => hostRoom(name), 0); });
+    peer.on('open', () => { window.__roomRetry = 0; });
     peer.on('open', renderLobby);
     peer.on('connection', c => {
       c.on('data', d => onHostData(c, d));
