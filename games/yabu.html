@@ -66,6 +66,7 @@
   }
 
   #round-banner { text-align: center; font-size: 13px; color: #9aa3d6; margin-bottom: 6px; }
+  .order-line { font-size: 12px; color: #9aa3d6; margin-top: 4px; }
   #turn-indicator { text-align: center; font-size: 14px; color: #9fb4ff; min-height: 20px; margin-bottom: 10px; }
 
   #suspects-row { display: flex; gap: 14px; justify-content: center; margin: 18px 0 34px; }
@@ -356,33 +357,41 @@
     };
   }
 
-  // 容疑者は3枚のうち2枚が見える（見えない1枚が人によって違う）
-  function hiddenIndexFor(hiddenOffset, playerIdx) {
-    return (playerIdx + hiddenOffset) % 3;
+  // 容疑者は3枚のうち2枚が見える。その回の最初の人はランダムな2枚、
+  // 2人目以降は「直前の人が選んだ容疑者」以外の2枚が見える
+  function hiddenSuspectFor(deal, turnOrder, votes, turnPos) {
+    if (turnPos === 0) return deal.hiddenOffset;
+    const prev = votes[turnOrder[turnPos - 1]];
+    return typeof prev === 'number' ? prev : deal.hiddenOffset;
   }
   // 証人は隣り合う2枚が見える
   function witnessIndexesFor(witnessOffset, playerIdx, count) {
     return [(playerIdx + witnessOffset) % count, (playerIdx + witnessOffset + 1) % count];
   }
-  // 誰がどのタイルを見られるか（全員に公開する情報）
+  // 誰がどのタイルを見られるか（全員に公開する情報）。容疑者は手番が来た人から順に追加する
   function buildSeers(deal, keys) {
     const suspects = [[], [], []];
     const witnesses = deal.witnesses.map(() => []);
     keys.forEach((k, idx) => {
-      const h = hiddenIndexFor(deal.hiddenOffset, idx);
-      for (let i = 0; i < 3; i++) if (i !== h) suspects[i].push(k);
       for (const w of witnessIndexesFor(deal.witnessOffset, idx, deal.witnesses.length)) witnesses[w].push(k);
     });
     return { suspects, witnesses };
   }
-  function privateViewFor(deal, idx) {
-    const h = hiddenIndexFor(deal.hiddenOffset, idx);
-    const ws = witnessIndexesFor(deal.witnessOffset, idx, deal.witnesses.length);
-    return {
-      suspects: deal.suspects.map((s, i) => i === h ? null : s.value),
-      witnesses: deal.witnesses.map((v, i) => ws.includes(i) ? v : null)
-    };
+  function addSuspectSeer(seers, key, hidden) {
+    for (let i = 0; i < 3; i++) if (i !== hidden && !seers.suspects[i].includes(key)) seers.suspects[i].push(key);
   }
+  function witnessViewFor(deal, idx) {
+    const ws = witnessIndexesFor(deal.witnessOffset, idx, deal.witnesses.length);
+    return deal.witnesses.map((v, i) => ws.includes(i) ? v : null);
+  }
+  const suspectViewFor = (deal, hidden) => deal.suspects.map((s, i) => i === hidden ? null : s.value);
+  // ラウンドごとに最初の人を1人ずつずらし、あとは席順に回る
+  function turnOrderFor(keys, round) {
+    const start = (round - 1) % keys.length;
+    return keys.map((k, i) => keys[(start + i) % keys.length]);
+  }
+
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
   // 1のタイルは「×」として表示し、犯人にはならない
   const tileLabel = v => v === 1 ? '×' : v;
@@ -534,7 +543,8 @@
     const base = G.currentTurnKey === G.myKey
       ? 'あなたの番です。犯人だと思う容疑者を選んでください'
       : `${p.name} さんの番です…`;
-    turnIndicatorEl.textContent = `${base}（投票済み ${votedCount}/${total}）`;
+    const order = (G.turnOrder || []).map(k => { const q = playerByKey(k); return q ? (k === G.currentTurnKey ? `▶${q.name}` : q.name) : ''; }).join(' → ');
+    turnIndicatorEl.innerHTML = `${esc(base)}（投票済み ${votedCount}/${total}）${order ? `<div class="order-line">今回の順番：${esc(order)}</div>` : ''}`;
   }
 
   function renderPlayersRow() {
@@ -655,7 +665,8 @@
       { label: '閉じる', primary: true, onClick: showModeSelect }
     ], `<div class="rules-text">
       <p>人型タイルは人数によって変わります（3人：×・2〜7、4人：×・2〜8、5人：×・2〜9）。<strong>×は犯人になりません</strong>。毎ラウンドすべて伏せて配り、<strong>容疑者3枚</strong>・<strong>被害者1枚</strong>・残りを<strong>証人</strong>にします。</p>
-      <p>あなたは容疑者3人のうち<strong>2人の数字</strong>と、証人のうち<strong>2人の数字</strong>を見ることができます。被害者は誰にも見えず、答え合わせのときに公開されます。</p>
+      <p>順番はラウンドごとに最初の人が1人ずつずれ、そこから席順に回ります。</p>
+      <p>自分の番が来ると、容疑者3人のうち<strong>2人の数字</strong>が見えます。その回の最初の人はランダムな2人、2人目以降は<strong>直前の人がチップを置いた容疑者以外の2人</strong>です。証人のうち<strong>2人の数字</strong>も見えます。被害者は誰にも見えず、答え合わせのときに公開されます。</p>
       <p>誰がどのタイルを見ているかは、タイルの上の色の点で全員にわかります。見えている数字と、他の人の置き方から推理しましょう。</p>
       <p>自分の番が来たら、犯人だと思う容疑者に自分のチップを置きます。他の人がどこに置いたかも参考にしつつ、時にはハッタリで揺さぶりましょう。</p>
       <p>全員が置き終わったら数字を公開。<strong>最大の数字</strong>の人が犯人です。ただし<strong>5がいる場合は最小の数字</strong>が犯人になります（×は数えません）。</p>
@@ -726,9 +737,8 @@
     G._witnesses = deal.witnesses;
     G.seers = buildSeers(deal, G.players.map(p => p.key));
     G.votes = {};
-    const startIdx = (G.round - 1) % G.players.length;
-    L.turnOrder = [];
-    for (let k = 0; k < G.players.length; k++) L.turnOrder.push(String((startIdx + k) % G.players.length));
+    L.turnOrder = turnOrderFor(G.players.map(p => p.key), G.round);
+    G.turnOrder = L.turnOrder;
     L.turnPos = 0;
     localShowGate();
   }
@@ -751,7 +761,9 @@
     const key = G.currentTurnKey;
     G.myKey = key;
     G.phase = 'private';
-    G.myPrivate = privateViewFor(G._deal, Number(key));
+    const hidden = hiddenSuspectFor(G._deal, L.turnOrder, G.votes, L.turnPos);
+    addSuspectSeer(G.seers, key, hidden);
+    G.myPrivate = { suspects: suspectViewFor(G._deal, hidden), witnesses: witnessViewFor(G._deal, Number(key)) };
     render();
   }
 
@@ -939,15 +951,17 @@
     H.deal = deal;
     H.suspects = deal.suspects;
     H.votes = {};
-    const seers = buildSeers(deal, onlinePlayers.map(p => p.key));
-    const startIdx = (H.round - 1) % onlinePlayers.length;
-    H.turnOrder = [];
-    for (let k = 0; k < onlinePlayers.length; k++) H.turnOrder.push(onlinePlayers[(startIdx + k) % onlinePlayers.length].key);
+    H.seers = buildSeers(deal, onlinePlayers.map(p => p.key));
+    H.turnOrder = turnOrderFor(onlinePlayers.map(p => p.key), H.round);
     H.turnPos = 0;
+    // 最初の人に見える容疑者を決める（2人目以降は前の人の選択後に決まる）
+    const firstHidden = hiddenSuspectFor(deal, H.turnOrder, H.votes, 0);
+    addSuspectSeer(H.seers, H.turnOrder[0], firstHidden);
+    const seers = H.seers;
     const publicPlayers = onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, blunders: p.blunders, history: p.history }));
     onlinePlayers.forEach((p, idx) => {
-      const priv = privateViewFor(deal, idx);
-      const msg = { type: 'roundStart', round: H.round, limit: blunderLimit, myPrivate: priv, seers, players: publicPlayers, currentTurnKey: H.turnOrder[0], votes: {} };
+      const priv = { suspects: p.key === H.turnOrder[0] ? suspectViewFor(deal, firstHidden) : [null, null, null], witnesses: witnessViewFor(deal, idx) };
+      const msg = { type: 'roundStart', round: H.round, limit: blunderLimit, myPrivate: priv, seers, turnOrder: H.turnOrder, players: publicPlayers, currentTurnKey: H.turnOrder[0], votes: {} };
       if (p.key === 'host') applyRoundStart(msg);
       else if (hostConns[p.key]) hostConns[p.key].send(msg);
     });
@@ -959,6 +973,7 @@
     G.players = msg.players;
     G.myPrivate = msg.myPrivate;
     G.seers = msg.seers;
+    G.turnOrder = msg.turnOrder;
     G._victim = null;
     G._witnesses = null;
     G.phase = 'private';
@@ -979,6 +994,13 @@
     if (H.turnPos >= H.turnOrder.length) {
       hostResolveRound();
     } else {
+      // 次の人には「直前の人が選んだ容疑者」以外の2人を見せる
+      const nextKey = H.turnOrder[H.turnPos];
+      const hidden = hiddenSuspectFor(H.deal, H.turnOrder, H.votes, H.turnPos);
+      addSuspectSeer(H.seers, nextKey, hidden);
+      const view = { type: 'suspectView', suspects: suspectViewFor(H.deal, hidden) };
+      if (nextKey === 'host') applySuspectView(view);
+      else if (hostConns[nextKey]) hostConns[nextKey].send(view);
       broadcastPublicState();
     }
   }
@@ -988,14 +1010,21 @@
       type: 'publicState',
       currentTurnKey: H.turnOrder[H.turnPos],
       votes: H.votes,
+      seers: H.seers,
       players: onlinePlayers.map(p => ({ key: p.key, name: p.name, color: p.color, blunders: p.blunders, history: p.history }))
     };
     applyPublicState(msg);
     sendToAllGuests(msg);
   }
 
+  function applySuspectView(msg) {
+    if (G.myPrivate) G.myPrivate.suspects = msg.suspects;
+    render();
+  }
+
   function applyPublicState(msg) {
     G.currentTurnKey = msg.currentTurnKey;
+    if (msg.seers) G.seers = JSON.parse(JSON.stringify(msg.seers));
     // ホスト自身はホストの投票記録と同じオブジェクトを受け取るので、コピーして持つ
     // （同じものを持つと、自分の投票を画面に反映した時点で「投票済み」と判定され無視されてしまう）
     G.votes = { ...msg.votes };
@@ -1113,6 +1142,8 @@
       updateGuestLobbyUI(data.players);
     } else if (data.type === 'roundStart') {
       applyRoundStart(data);
+    } else if (data.type === 'suspectView') {
+      applySuspectView(data);
     } else if (data.type === 'publicState') {
       applyPublicState(data);
     } else if (data.type === 'reveal') {
