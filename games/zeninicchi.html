@@ -225,9 +225,8 @@
     const list = Object.values(groups).sort((x, y) => y.length - x.length);
     const active = G.answers.filter(a => a !== null).length;
     const all = list.length === 1 && active >= 2;
-    // 個人得点：自分と同じ答えの人数（自分以外）
-    const gained = players.map(() => 0);
-    list.forEach(g => { if (g.length > 1) g.forEach(i => { gained[i] = g.length - 1; }); });
+    // ポイントは全員一致したときだけ、回答した全員に1点
+    const gained = players.map((p, i) => all && G.answers[i] !== null ? 1 : 0);
     gained.forEach((v, i) => { G.points[i] += v; });
     if (all) G.success++;
     G.result = { groups: list, all, gained };
@@ -239,6 +238,8 @@
     if (G.phase !== 'reveal' || G.result.all) return false;
     G.result.all = true;
     G.success++;
+    G.result.gained = players.map((p, i) => G.answers[i] !== null ? 1 : 0);
+    G.result.gained.forEach((v, i) => { G.points[i] += v; });
     G.history[G.history.length - 1].all = true;
     return true;
   }
@@ -353,7 +354,7 @@
     showOverlay('結果発表', comment + (isAuthority() ? '' : '　ホストが次の試合を始めるのを待っています'), [
       ...(isAuthority() ? [{ label: 'もう一度', primary: true, onClick: () => { overlay.dataset.kind = ''; hideOverlay(); newMatch(); afterChange(); } }] : []),
       { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
-    ], `<div>全員一致 <span class="big">${S.success}</span> / ${S.total} 回</div><p style="font-size:12px">個人ポイント（同じ答えだった人数の合計）</p><table class="result-table">${rows}</table>`);
+    ], `<div>全員一致 <span class="big">${S.success}</span> / ${S.total} 回</div><p style="font-size:12px">ポイント（全員一致したお題1つにつき1点）</p><table class="result-table">${rows}</table>`);
   }
 
   // ---------- local ----------
@@ -390,7 +391,7 @@
         <li>全員が<b>相談せずに</b>、みんなと同じになりそうな答えをこっそり入力します。</li>
         <li>全員の答えがそろったら公開。全員の答えが同じなら「全員一致」で成功です！</li>
         <li>ひらがな・カタカナ・空白の違いは同じ答えとみなします。表記ゆれで分かれたときは「全員一致とみなす」で直せます。</li>
-        <li>決めた数のお題で何回全員一致できるかに挑戦。自分と同じ答えだった人数が個人ポイントになります。</li>
+        <li>決めた数のお題で何回全員一致できるかに挑戦。<b>全員一致したときだけ</b>、回答した全員に1ポイントが入ります。</li>
       </ul>`);
   }
   function roundsSeg() {
