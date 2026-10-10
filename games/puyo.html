@@ -62,6 +62,19 @@
   }
   .pcell { border: 1px solid rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; }
   .puyo { width: 82%; height: 82%; border-radius: 50%; box-shadow: 0 2px 3px rgba(0,0,0,0.5), inset -3px -3px 6px rgba(0,0,0,0.25), inset 3px 3px 4px rgba(255,255,255,0.3); }
+  /* 消える段階：点滅してはじける */
+  .puyo.pop { animation: puyoPop 0.42s ease-in forwards; }
+  @keyframes puyoPop {
+    0%, 30%, 60% { opacity: 1; transform: scale(1); filter: brightness(1.8); }
+    15%, 45% { opacity: 0.35; transform: scale(0.95); filter: brightness(1); }
+    100% { opacity: 0; transform: scale(1.35); filter: brightness(2.2); }
+  }
+  .chain-label {
+    position: absolute; left: 0; right: 0; top: 38%; text-align: center; pointer-events: none;
+    font-size: 26px; font-weight: 900; color: #ffe066; text-shadow: 0 0 10px rgba(255,180,0,0.9), 0 2px 0 #000;
+    opacity: 0; transform: scale(0.6); transition: opacity 0.15s, transform 0.15s;
+  }
+  .chain-label.show { opacity: 1; transform: scale(1); }
   .side-info { display: flex; flex-direction: column; gap: 8px; align-items: center; }
   .next-label { font-size: 11px; color: #7c86c2; }
   .next-box {
@@ -253,6 +266,14 @@
     }
     return { chainCount, totalScore };
   }
+  // 1回の消去（1連鎖分）の点数
+  function scoreForGroups(groups, chainCount) {
+    let totalCleared = 0; const colors = new Set(); let groupBonusSum = 0;
+    for (const g of groups) { totalCleared += g.cells.length; colors.add(g.color); groupBonusSum += groupBonusForSize(g.cells.length); }
+    const chainPower = CHAIN_POWER[Math.min(chainCount-1, CHAIN_POWER.length-1)];
+    const colorBonus = COLOR_BONUS[Math.min(colors.size-1, COLOR_BONUS.length-1)];
+    return totalCleared * 10 * Math.max(1, chainPower + colorBonus + groupBonusSum);
+  }
   function distributeGarbage(total, startCol) {
     const dist = Array(COLS).fill(0);
     const per = Math.floor(total / COLS);
@@ -347,22 +368,59 @@
     if (!bs.pair || bs.gameOver || bs.resolving) return;
     bs.pair = tryRotatePair(bs.board, bs.pair, dir);
   }
+  // 着地 → 落下 → 点滅してはじける → 落下 … を1段階ずつ見せる
+  const FALL_MS = 180, POP_MS = 430, AFTER_POP_MS = 120;
   function lockAndResolve(bs) {
     const ch = childPos(bs.pair);
     if (bs.pair.axisR >= 0) bs.board[bs.pair.axisR][bs.pair.axisC] = bs.pair.colorA;
     if (ch.r >= 0) bs.board[ch.r][ch.c] = bs.pair.colorB;
     bs.pair = null;
     bs.resolving = true;
+    bs.chain = 0;
+    bs.popping = null;
+    let totalScore = 0;
+    const token = bs.resolveToken = (bs.resolveToken || 0) + 1;
+    // 新しいゲームが始まったら古い盤面の処理は止める
+    const alive = () => bs.resolveToken === token && !bs.gameOver && (bs === bsA || bs === bsB);
     if (bs.render) bs.render();
-    setTimeout(() => {
-      const { totalScore } = resolveChains(bs.board);
+
+    const fallStep = () => {
+      if (!alive()) return;
+      const before = bs.board.map(r => r.join(',')).join('|');
+      applyGravity(bs.board);
+      const fell = before !== bs.board.map(r => r.join(',')).join('|');
+      if (bs.render) bs.render();
+      setTimeout(popStep, fell ? FALL_MS : 60);
+    };
+    const popStep = () => {
+      if (!alive()) return;
+      const groups = findPopGroups(bs.board);
+      if (!groups.length) { finish(); return; }
+      bs.chain++;
+      const ojamaSet = ojamaNeighbors(bs.board, groups);
+      const cells = new Set(ojamaSet);
+      for (const g of groups) for (const [r,c] of g.cells) cells.add(r*COLS+c);
+      bs.popping = [...cells];
+      totalScore += scoreForGroups(groups, bs.chain);
+      if (bs.render) bs.render();
+      setTimeout(() => {
+        if (!alive()) return;
+        for (const key of cells) bs.board[(key/COLS)|0][key%COLS] = EMPTY;
+        bs.popping = null;
+        if (bs.render) bs.render();
+        setTimeout(fallStep, AFTER_POP_MS);
+      }, POP_MS);
+    };
+    const finish = () => {
       bs.score += totalScore;
       const garbage = Math.floor(totalScore / 70);
       if (garbage > 0 && bs.onGarbage) bs.onGarbage(garbage);
       bs.resolving = false;
+      setTimeout(() => { if (bs.resolveToken === token) bs.chain = 0; }, 700);
       spawnPair(bs);
       if (bs.render) bs.render();
-    }, 320);
+    };
+    setTimeout(fallStep, 120);
   }
   function softDropBS(bs) {
     if (!bs.pair || bs.gameOver || bs.resolving) return;
@@ -418,6 +476,17 @@
   }
   const cellsA = buildGrid(boardAEl, ROWS, COLS, 'pcell');
   const cellsB = buildGrid(boardBEl, ROWS, COLS, 'pcell');
+  // 連鎖数の表示（盤面の上に重ねる）
+  function makeChainLabel(boardEl) {
+    const el = document.createElement('div');
+    el.className = 'chain-label';
+    boardEl.parentElement.appendChild(el);
+    return el;
+  }
+  const chainLabelA = makeChainLabel(boardAEl);
+  const chainLabelB = makeChainLabel(boardBEl);
+  cellsA.chainLabel = chainLabelA;
+  cellsB.chainLabel = chainLabelB;
   const nextCellsA = buildGrid(nextAEl, 2, 1, 'next-cell');
   const nextCellsB = buildGrid(nextBEl, 2, 1, 'next-cell');
 
@@ -428,8 +497,16 @@
       if (bs.pair.axisR >= 0) display[bs.pair.axisR][bs.pair.axisC] = bs.pair.colorA;
       if (ch.r >= 0 && ch.r < ROWS) display[ch.r][ch.c] = bs.pair.colorB;
     }
+    const popping = new Set(bs.popping || []);
     for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) {
-      cells[r*COLS+c].style.background = PUYO_COLORS[display[r][c]] || 'transparent';
+      const el = cells[r*COLS+c];
+      el.style.background = PUYO_COLORS[display[r][c]] || 'transparent';
+      const pop = popping.has(r*COLS+c);
+      if (pop !== el.classList.contains('pop')) el.classList.toggle('pop', pop);
+    }
+    if (cells.chainLabel) {
+      cells.chainLabel.textContent = bs.chain ? `${bs.chain}連鎖！` : '';
+      cells.chainLabel.classList.toggle('show', bs.chain >= 1);
     }
     if (bs.next) {
       nextCells[0].style.background = PUYO_COLORS[bs.next.a];
@@ -475,7 +552,7 @@
     if (bsB) { renderBS(bsB, cellsB, nextCellsB); updateStats(bsB, statsBEl); }
 
     if (mode === 'online' && conn && bsA) {
-      conn.send({ type:'state', board: bsA.board, pair: bsA.pair, score: bsA.score, gameOver: bsA.gameOver });
+      conn.send({ type:'state', board: bsA.board, pair: bsA.pair, score: bsA.score, gameOver: bsA.gameOver, popping: bsA.popping, chain: bsA.chain, resolving: bsA.resolving });
     }
     checkEnd();
   }
@@ -624,6 +701,9 @@
       bsB.pair = data.pair;
       bsB.score = data.score;
       bsB.gameOver = data.gameOver;
+      bsB.popping = data.popping || null;
+      bsB.chain = data.chain || 0;
+      bsB.mirrorResolving = !!data.resolving;
     } else if (data.type === 'garbage') {
       bsA.pendingGarbage += data.amount;
     } else if (data.type === 'gameover') {
