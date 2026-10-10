@@ -131,6 +131,7 @@
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 (() => {
+  // ふつう：身近な物の名前
   const WORDS = [...new Set(`
     ラーメン カレー ハンバーグ ハンバーガー ピザ パスタ サンドイッチ オムライス コロッケ グラタン ステーキ サラダ スープ ドーナツ
     ケーキ クッキー チョコレート アイスクリーム プリン ゼリー キャンディ ポテトチップス ヨーグルト チーズ バター マヨネーズ ケチャップ
@@ -150,6 +151,29 @@
     ハート スター ダイヤモンド ゴールド シルバー ピンク オレンジ グリーン ブルー トランプ パズル サイコロ ボール
     ニンジャ サムライ ピラミッド ジャングル アマゾン ハワイ アメリカ フランス イタリア エジプト ブラジル オーストラリア
   `.trim().split(/\s+/))];
+  // むずかしい：形のない言葉・言い換えにくいカタカナ語
+  const WORDS_HARD = [...new Set(`
+    アイデンティティ イノベーション コンプライアンス アルゴリズム インフラ エビデンス コンセンサス サブスクリプション シンギュラリティ セレンディピティ
+    ソリューション ダイバーシティ テクノロジー デフレーション インフレーション トレードオフ ノスタルジー パラドックス パラダイム ヒエラルキー
+    フィードバック プライバシー プロパガンダ ベンチャー ポテンシャル マニフェスト メタファー モチベーション ユートピア ライフスタイル
+    リテラシー リスク レトロ ロジック アナログ デジタル アレルギー インフルエンサー エンターテインメント オリジナリティ カリスマ
+    ギャップ クオリティ クリエイティブ コミュニケーション コンセプト サステナビリティ シミュレーション ジレンマ スキャンダル ステレオタイプ
+    ストレス スランプ セキュリティ センス タイムマシン チャレンジ トラウマ ドキュメンタリー ナルシスト ニュアンス ネットワーク ノウハウ
+    ハプニング バランス パニック ビジョン フィクション ノンフィクション プライド プレッシャー プロフェッショナル ブランド マナー マンネリ
+    ミステリー メンタル モラル ユーモア ライバル リアクション リーダーシップ リハビリ ルール レジェンド ロマンチック ワーカホリック
+    アマチュア アンケート インスピレーション エチケット エネルギー カルチャー キャリア コンプレックス サバイバル シンボル スケジュール
+    スピーチ スポンサー セレモニー タブー チームワーク テーマ デモクラシー トレンド ナビゲーション バーチャル パートナー ハーモニー
+    ファンタジー プロジェクト プログラミング ベテラン ボーナス ミッション メディア ユニフォーム リサイクル リストラ レポート ロマン
+    インタビュー エピソード オーディション カウンセラー キャンペーン クレーム ゴシップ サプライズ シナリオ ジャーナリスト スタンダード
+    ストーリー センチメンタル ターゲット ドラマチック ハッカー パフォーマンス ヴィンテージ フリーランス プレゼンテーション ポリシー
+    マーケティング メカニズム モチーフ ラッキー リズム レクリエーション ワクチン アドバイス アピール アイロニー オーラ カオス
+    ギャンブル クライマックス グルメ コスト コツ ジンクス ステータス スマート セオリー ソーシャルメディア ノルマ ハンデ ブーム
+    プロセス ペナルティ ポジティブ ネガティブ マイペース メリット デメリット リアル リスペクト ルーティン ロス ワンパターン
+    オーバーワーク キャパシティ グラデーション ゲノム コラボレーション サンプル シェア ステマ ダブルスタンダード テンション
+    ドーピング ナンセンス バイアス フェイクニュース プラシーボ マジョリティ マイノリティ リベンジ リモートワーク ワークライフバランス
+  `.trim().split(/\s+/))];
+  const POOLS = { normal: WORDS, hard: WORDS_HARD, mix: [...new Set(WORDS.concat(WORDS_HARD))] };
+  const LEVEL_LABEL = { normal: 'ふつう', hard: 'むずかしい', mix: 'ミックス' };
 
   const $ = id => document.getElementById(id);
   const phaseEl = $('phase'), timerEl = $('timer'), wordBox = $('word-box'), scoresEl = $('scores'), chatEl = $('chat');
@@ -194,6 +218,7 @@
   let G = null, V = null;
   let turnSec = 90;
   let roundsPer = 1;
+  let level = 'hard';
   let localCount = 4;
   let localNames = [];
   let clockOffset = 0;
@@ -215,7 +240,8 @@
       phase: 'ready',       // ready → turn → (次の説明役) … → over
       deadline: null,
       word: null,
-      deck: shuffle(WORDS.slice()),
+      deck: shuffle(POOLS[level].slice()),
+      level,
       scores: Array(n).fill(0),
       turnCorrect: 0,
       log: [],
@@ -226,7 +252,7 @@
   }
   function sys(text, kind = 'sys') { G.log.push({ id: ++G.seq, kind, text }); if (G.log.length > 80) G.log.shift(); }
   function nextWord() {
-    if (!G.deck.length) G.deck = shuffle(WORDS.slice());
+    if (!G.deck.length) G.deck = shuffle(POOLS[G.level || 'hard'].slice());
     G.word = G.deck.pop();
   }
   function startTurn() {
@@ -426,17 +452,20 @@
         <li>順番に「説明役」になり、制限時間内にカタカナのお題をできるだけたくさん当ててもらいます。</li>
         <li>説明では<b>カタカナ語を使ってはいけません</b>（「テレビ」→「家で番組を見る四角い箱」など）。言ってしまったらそのお題は没収です。</li>
         <li>正解したら、当てた人と説明役の両方に1点。難しいお題はパスできます。</li>
+        <li>お題の難しさは「ふつう（身近な物）」「むずかしい（形のない言葉・言い換えにくいカタカナ語）」「ミックス」から選べます。</li>
         <li>全員が説明役を終えたら、合計点が一番多い人の勝ち！</li>
         <li>オンラインでは説明も答えもチャットで行います。説明にカタカナや英字が入ると自動で没収になります。答えはひらがなでもOKです。</li>
       </ul>`);
   }
   function settingsHtml() {
     return `<div class="row" style="font-size:13px;color:#9aa3d6">1ターン <div class="seg">${[60, 90, 120].map(s => `<button data-s="${s}" class="${s === turnSec ? 'on' : ''}">${s}秒</button>`).join('')}</div></div>
-      <div class="row" style="font-size:13px;color:#9aa3d6">説明する回数 <div class="seg">${[1, 2, 3].map(r => `<button data-r="${r}" class="${r === roundsPer ? 'on' : ''}">1人${r}回</button>`).join('')}</div></div>`;
+      <div class="row" style="font-size:13px;color:#9aa3d6">説明する回数 <div class="seg">${[1, 2, 3].map(r => `<button data-r="${r}" class="${r === roundsPer ? 'on' : ''}">1人${r}回</button>`).join('')}</div></div>
+      <div class="row" style="font-size:13px;color:#9aa3d6">お題の難しさ <div class="seg">${['normal', 'hard', 'mix'].map(l => `<button data-l="${l}" class="${l === level ? 'on' : ''}">${LEVEL_LABEL[l]}（${POOLS[l].length}語）</button>`).join('')}</div></div>`;
   }
   function bindSettings(rerender) {
     overlayExtra.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => { turnSec = +b.dataset.s; rerender(); }));
     overlayExtra.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => { roundsPer = +b.dataset.r; rerender(); }));
+    overlayExtra.querySelectorAll('[data-l]').forEach(b => b.addEventListener('click', () => { level = b.dataset.l; rerender(); }));
   }
   function showLocalSetup() {
     while (localNames.length < 8) localNames.push('');
