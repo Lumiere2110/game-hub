@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>かぐや姫はカンヨークを覚えたい</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 640px; max-width: 94vw; }
+  #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 { margin: 0; font-size: 17px; line-height: 1.3; letter-spacing: 2px; font-weight: 600; color: #ffd8f0; text-shadow: 0 0 12px rgba(255,150,210,0.55); }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none; white-space: nowrap;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+  #phase { font-size: 13px; color: #9aa3d6; letter-spacing: 2px; text-align: center; }
+  #timer { font-size: 54px; font-weight: 800; color: #ffe066; text-shadow: 0 0 16px rgba(255,224,102,0.5); font-variant-numeric: tabular-nums; line-height: 1; }
+  #timer.low { color: #ff6b81; }
+  #timer:empty { display: none; }
+  #word-box { padding: 14px 30px; border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid #3a4278; text-align: center; }
+  #word-box:empty { display: none; }
+  #word-box .w { font-size: 34px; font-weight: 900; color: #ffe066; letter-spacing: 2px; }
+  #word-box small { display: block; font-size: 12px; color: #9aa3d6; }
+  #word-box .r { font-size: 13px; color: #b9c2f0; letter-spacing: 2px; }
+  #word-box .m { font-size: 14px; color: #dfe4ff; margin-top: 6px; }
+  #word-box .ng { margin-top: 8px; font-size: 13px; color: #ff9aa8; }
+  #word-box .ng span { display: inline-block; margin: 2px 3px; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,107,129,0.5); }
+  #kaguya { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #ffd8f0; padding: 6px 14px; border-radius: 999px; background: rgba(255,150,210,0.08); border: 1px solid rgba(255,150,210,0.35); }
+  #kaguya:empty { display: none; }
+  #kaguya b { font-size: 20px; color: #ffe066; }
+  .learned { text-align: left; font-size: 13px; line-height: 1.6; max-width: 480px; max-height: 260px; overflow-y: auto; width: 100%; }
+  .learned div { padding: 4px 8px; border-bottom: 1px solid #2a3160; }
+  .learned b { color: #ffe066; }
+  .rank { font-size: 18px; color: #ffd8f0; font-weight: 700; }
+  #scores { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .pl { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid #2a3160; }
+  .pl.exp { border-color: #ffe066; color: #ffe066; }
+  .pl b { color: #8fe3b0; margin-left: 4px; }
+  #chat {
+    width: 100%; max-height: 300px; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+    padding: 10px; border-radius: 12px; background: rgba(0,0,0,0.25); border: 1px solid #2a3160;
+  }
+  #chat:empty { display: none; }
+  .line { font-size: 14px; line-height: 1.4; }
+  .line .who { font-size: 11px; color: #9aa3d6; margin-right: 6px; }
+  .line.hint .text { color: #ffe9b0; }
+  .line.sys { color: #8fe3b0; font-size: 12px; }
+  .line.foul { color: #ff7a8a; font-size: 12px; }
+  #input-row { display: none; gap: 8px; width: 100%; }
+  #input-row input {
+    flex: 1; min-width: 0; font-size: 15px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff;
+  }
+  #input-row input:focus { outline: none; border-color: #6ea8ff; }
+  #msg { font-size: 13px; color: #b9c2f0; text-align: center; min-height: 18px; line-height: 1.6; }
+  #actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4); color: #fff; border: none; padding: 10px 22px; font-size: 14px;
+    border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5); transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice.ok { background: linear-gradient(180deg, #3fd08a, #1f9a5e); box-shadow: 0 4px 14px rgba(60,200,120,0.4); }
+  button.choice.ng { background: linear-gradient(180deg, #ff6b6b, #c22f35); box-shadow: 0 4px 14px rgba(255,80,80,0.4); }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  #overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 14px; background: rgba(5,7,15,0.95); text-align: center; padding: 64px 16px 20px; z-index: 50; overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; max-width: 520px; line-height: 1.6; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 480px; margin: 0; padding-left: 20px; }
+  .seg { display: flex; border: 1px solid #3a4278; border-radius: 999px; overflow: hidden; }
+  .seg button { background: transparent; border: none; color: #9aa3d6; font-size: 13px; padding: 6px 12px; cursor: pointer; }
+  .seg button.on { background: #4a5cf0; color: #fff; }
+  .names { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #overlay input {
+    font-size: 16px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center; width: 150px;
+  }
+  #overlay input:focus { outline: none; border-color: #6ea8ff; }
+  #code-input { font-size: 22px !important; letter-spacing: 6px; text-transform: uppercase; }
+  #room-code {
+    font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4); padding: 4px 22px; border-radius: 12px;
+  }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .member-list { font-size: 14px; color: #dfe4ff; line-height: 1.8; }
+  .result-table { border-collapse: collapse; font-size: 14px; color: #dfe4ff; }
+  .result-table td { padding: 4px 12px; border-bottom: 1px solid #2a3160; text-align: left; }
+  @media (max-width: 480px) { h1 { font-size: 14px; letter-spacing: 1px; } #topbar-right { gap: 6px; } #back-btn, #hub-link { padding: 6px 10px; } #timer { font-size: 44px; } #word-box .w { font-size: 30px; } .names { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>かぐや姫は<br><span style="white-space:nowrap">カンヨークを覚えたい</span></h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+    <div id="phase"></div>
+    <div id="timer"></div>
+    <div id="word-box"></div>
+    <div id="kaguya"></div>
+    <div id="scores"></div>
+    <div id="chat"></div>
+    <div id="input-row"><input id="chat-input" maxlength="60" autocomplete="off"><button id="send-btn" class="choice">送信</button></div>
+    <div id="msg"></div>
+    <div id="actions"></div>
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">かぐや姫はカンヨークを覚えたい</h2>
+    <p id="overlay-text"></p>
+    <div id="overlay-extra"></div>
+    <div id="overlay-buttons"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  // お題：慣用句|よみ|意味|使ってはいけない言葉
+  const parse = t => t.trim().split('\n').map(l => { const [w, r, m, ng] = l.trim().split('|'); return { w, r, m, ng: ng.split(',') }; });
+  const IDIOMS = parse(`
+    息が合う|いきがあう|気持ちや調子がぴったりそろう|息,合う
+    耳が早い|みみがはやい|うわさや情報を知るのが早い|耳,早い
+    我を忘れる|われをわすれる|何かに夢中になって自分を見失う|我,忘れる
+    世話を焼く|せわをやく|すすんで人の面倒を見る|世話,焼く
+    顔が広い|かおがひろい|知り合いがたくさんいる|顔,広い
+    口が堅い|くちがかたい|秘密をむやみに人に話さない|口,堅い
+    口が軽い|くちがかるい|言ってはいけないことをすぐしゃべる|口,軽い
+    手を焼く|てをやく|扱いに困ってもてあます|手,焼く
+    骨が折れる|ほねがおれる|とても苦労する|骨,折れる
+    腹が立つ|はらがたつ|怒りを感じる|腹,立つ
+    鼻が高い|はながたかい|得意で誇らしい気持ちになる|鼻,高い
+    目がない|めがない|大好きでたまらない|目
+    足を洗う|あしをあらう|よくない仕事や生活をやめる|足,洗う
+    首を長くする|くびをながくする|今か今かと待ちこがれる|首,長い
+    猫の手も借りたい|ねこのてもかりたい|とても忙しい|猫,手,借りる
+    猫をかぶる|ねこをかぶる|本当の性格を隠しておとなしくする|猫
+    油を売る|あぶらをうる|仕事中にむだ話などでなまける|油,売る
+    道草を食う|みちくさをくう|寄り道をして時間をつぶす|道草,食う
+    さじを投げる|さじをなげる|見込みがないとあきらめる|さじ,投げる
+    水に流す|みずにながす|過去のもめごとをなかったことにする|水,流す
+    頭が上がらない|あたまがあがらない|恩や弱みがあって対等にふるまえない|頭,上がる
+    肩を持つ|かたをもつ|一方の味方をする|肩,持つ
+    胸がいっぱいになる|むねがいっぱいになる|感動で心が満たされる|胸
+    歯が立たない|はがたたない|相手が強すぎてかなわない|歯,立つ
+    舌を巻く|したをまく|すごさに驚き感心する|舌,巻く
+    根に持つ|ねにもつ|うらみをいつまでも忘れない|根,持つ
+    気が置けない|きがおけない|遠慮しなくてよい親しい間柄だ|気,置く
+    手が出ない|てがでない|高すぎたり難しすぎたりしてどうにもならない|手,出る
+    目を丸くする|めをまるくする|驚いて目を大きく開く|目,丸い
+    耳が痛い|みみがいたい|自分の弱点を言われて聞くのがつらい|耳,痛い
+    腕が上がる|うでがあがる|技術が上達する|腕,上がる
+    図に乗る|ずにのる|調子に乗ってつけあがる|図,乗る
+    馬が合う|うまがあう|気が合う|馬,合う
+    雀の涙|すずめのなみだ|ほんのわずかな量|雀,涙
+    猫の額|ねこのひたい|とても狭い場所|猫,額
+    犬猿の仲|けんえんのなか|とても仲が悪い|犬,猿,仲
+    棚に上げる|たなにあげる|自分の都合の悪いことには触れない|棚,上げる
+    お茶をにごす|おちゃをにごす|いいかげんにその場をごまかす|茶
+    釘を刺す|くぎをさす|あとで問題にならないよう念を押す|釘,刺す
+    白羽の矢が立つ|しらはのやがたつ|大勢の中から選ばれる|白羽,矢,立つ
+    一目置く|いちもくおく|相手が優れていると認めて敬う|一目,置く
+    腰が低い|こしがひくい|えらぶらず謙虚だ|腰,低い
+    虫がいい|むしがいい|自分の都合ばかり考える|虫
+    虫の居所が悪い|むしのいどころがわるい|機嫌が悪い|虫,居所,悪い
+    目からうろこが落ちる|めからうろこがおちる|あることがきっかけで急に物事がよくわかる|目,うろこ,落ちる
+    二の足を踏む|にのあしをふむ|思い切れずにためらう|二,足,踏む
+    揚げ足を取る|あげあしをとる|人の言いまちがいをとらえて責める|揚げ,足,取る
+    足が棒になる|あしがぼうになる|歩きすぎて足がとても疲れる|足,棒
+    口車に乗る|くちぐるまにのる|うまい話にだまされる|口車,乗る
+    手に汗を握る|てにあせをにぎる|はらはらしながら見守る|手,汗,握る
+    顔に泥を塗る|かおにどろをぬる|恥をかかせる|顔,泥,塗る
+    羽を伸ばす|はねをのばす|気がねなくのびのびする|羽,伸ばす
+    腹をかかえる|はらをかかえる|大笑いする|腹
+    尻に火がつく|しりにひがつく|物事がさしせまってあわてる|尻,火
+    寝耳に水|ねみみにみず|突然の出来事に驚く|寝,耳,水
+    朝飯前|あさめしまえ|とても簡単なこと|朝飯,前
+    目と鼻の先|めとはなのさき|すぐ近く|目,鼻,先
+    歯に衣着せぬ|はにきぬきせぬ|思ったことを遠慮なくはっきり言う|歯,衣,着る
+    板につく|いたにつく|仕事や役がすっかりなじむ|板
+    太鼓判を押す|たいこばんをおす|まちがいないと保証する|太鼓判,押す
+  `);
+  const IDIOMS_HARD = parse(`
+    二枚舌を使う|にまいじたをつかう|前と違うことを平気で言ってうそをつく|二枚舌,使う
+    青菜に塩|あおなにしお|元気をなくしてしょんぼりする|青菜,塩
+    立て板に水|たていたにみず|すらすらとよどみなく話す|立て板,水
+    鶴の一声|つるのひとこえ|有力者の一言で物事が決まる|鶴,一声
+    木で鼻をくくる|きではなをくくる|そっけなく冷たい態度をとる|木,鼻
+    眉につばをつける|まゆにつばをつける|だまされないよう用心する|眉,つば
+    襟を正す|えりをただす|気持ちを引きしめる|襟,正す
+    お株を奪う|おかぶをうばう|人の得意なことを別の人がもっとうまくやる|株,奪う
+    煮え湯を飲まされる|にえゆをのまされる|信頼していた人に裏切られる|煮え湯,飲む
+    鳴かず飛ばず|なかずとばず|長い間めだった活躍をしない|鳴く,飛ぶ
+    後ろ髪を引かれる|うしろがみをひかれる|心残りで思い切れない|後ろ髪,引く
+    琴線に触れる|きんせんにふれる|心の奥を動かされ感動する|琴線,触れる
+    濡れ衣を着せられる|ぬれぎぬをきせられる|無実の罪をかぶせられる|濡れ衣,着る
+    一矢を報いる|いっしをむくいる|やられっぱなしにならず少しでも反撃する|一矢,報いる
+    喉から手が出る|のどからてがでる|ほしくてたまらない|喉,手,出る
+    腑に落ちない|ふにおちない|納得できない|腑,落ちる
+    堂に入る|どうにいる|すっかり身について見事だ|堂,入る
+    さばを読む|さばをよむ|数をごまかす|さば,読む
+    しのぎを削る|しのぎをけずる|激しく争う|しのぎ,削る
+    高をくくる|たかをくくる|大したことはないと甘く見る|高,くくる
+    枚挙にいとまがない|まいきょにいとまがない|数えきれないほどたくさんある|枚挙,いとま
+    水を差す|みずをさす|うまくいっているのをじゃまする|水,差す
+    筆が立つ|ふでがたつ|文章を書くのがうまい|筆,立つ
+    二の舞を演じる|にのまいをえんじる|人と同じ失敗をくり返す|二の舞,演じる
+    横車を押す|よこぐるまをおす|筋の通らないことを無理に押し通す|横車,押す
+    けんもほろろ|けんもほろろ|頼みごとを冷たく断るようす|ほろろ
+    手塩にかける|てしおにかける|自分で大切に世話して育てる|手塩
+    二つ返事|ふたつへんじ|すぐに気持ちよく引き受ける|二つ,返事
+    身を粉にする|みをこにする|苦労をいとわず一生懸命に働く|身,粉
+    歯牙にもかけない|しがにもかけない|まったく問題にしない|歯牙
+    爪に火をともす|つめにひをともす|とても節約する、けちである|爪,火
+    怪我の功名|けがのこうみょう|失敗が思いがけずよい結果になる|怪我,功名
+    目くじらを立てる|めくじらをたてる|小さなことをとがめる|目くじら,立てる
+    鬼の首を取ったよう|おにのくびをとったよう|大手柄を立てたように得意になる|鬼,首,取る
+    蛇足|だそく|よけいなつけ足し|蛇,足
+    藪から棒|やぶからぼう|突然で思いがけない|藪,棒
+    泣きっ面に蜂|なきっつらにはち|悪いことに悪いことが重なる|泣き,面,蜂
+    漁夫の利|ぎょふのり|争っているすきに第三者が得をする|漁夫,利
+    背水の陣|はいすいのじん|後がない状態で全力で取り組む|背水,陣
+    五十歩百歩|ごじっぽひゃっぽ|少しの違いはあっても大差ない|五十,百,歩
+    他山の石|たざんのいし|他人の失敗を自分の参考にする|他山,石
+    帯に短したすきに長し|おびにみじかしたすきにながし|中途半端で役に立たない|帯,短い,長い,たすき
+    弘法も筆の誤り|こうぼうもふでのあやまり|名人でも失敗することがある|弘法,筆,誤り
+    灯台下暗し|とうだいもとくらし|身近なことはかえって気づきにくい|灯台,下,暗い
+    情けは人のためならず|なさけはひとのためならず|人に親切にすれば巡り巡って自分によいことがある|情け,人
+    枯れ木も山のにぎわい|かれきもやまのにぎわい|つまらないものでも無いよりはまし|枯れ木,山
+    渡りに船|わたりにふね|ちょうどよいときに助けが現れる|渡り,船
+    青天のへきれき|せいてんのへきれき|突然起こる思いがけない大事件|青天,へきれき
+    焼け石に水|やけいしにみず|わずかな助けでは効き目がない|焼け石,水
+    喉元過ぎれば熱さを忘れる|のどもとすぎればあつさをわすれる|苦しいことも過ぎると忘れてしまう|喉元,熱さ,忘れる
+    濡れ手で粟|ぬれてであわ|苦労せずに大もうけする|濡れ手,粟
+    寄らば大樹の陰|よらばたいじゅのかげ|頼るなら力のある人がよい|大樹,陰
+    能ある鷹は爪を隠す|のうあるたかはつめをかくす|実力のある人はそれをひけらかさない|能,鷹,爪,隠す
+    待てば海路の日和あり|まてばかいろのひよりあり|あせらず待てばよい機会が来る|待つ,海路,日和
+    急がば回れ|いそがばまわれ|急ぐときこそ確実な方法をとる方がよい|急ぐ,回る
+    石橋をたたいて渡る|いしばしをたたいてわたる|とても用心深く行動する|石橋,渡る
+    紺屋の白袴|こうやのしろばかま|人のことで忙しく自分のことに手が回らない|紺屋,白袴
+    医者の不養生|いしゃのふようじょう|人には言うのに自分では実行しない|医者,不養生
+    二兎を追う者は一兎をも得ず|にとをおうものはいっとをもえず|欲張ると両方とも失敗する|二兎,一兎,追う,得る
+    雨降って地固まる|あめふってじかたまる|もめごとの後はかえって物事がよくなる|雨,降る,地,固まる
+  `);
+  const POOLS = { normal: IDIOMS, hard: IDIOMS_HARD, mix: IDIOMS.concat(IDIOMS_HARD) };
+  const LEVEL_LABEL = { normal: 'ふつう', hard: 'むずかしい（ことわざ入り）', mix: 'ミックス' };
+
+  const $ = id => document.getElementById(id);
+  const phaseEl = $('phase'), timerEl = $('timer'), wordBox = $('word-box'), scoresEl = $('scores'), kaguyaEl = $('kaguya'), chatEl = $('chat');
+  const inputRow = $('input-row'), chatInput = $('chat-input'), msgEl = $('msg'), actionsEl = $('actions');
+  const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
+  const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const fmt = sec => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  // ひらがな→カタカナにそろえ、空白や「・」を除いて比較
+  const norm = s => String(s || '').trim().replace(/[\s・･]+/g, '').replace(/[ぁ-ゖ]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60)).toLowerCase();
+  // 使ってはいけない言葉：送りがなを除いた部分（「忘れる」→「忘」）が説明に含まれたら反則
+  const ngStem = w => w.replace(/[ぁ-ゖ]+$/, '') || w;
+  const usedNg = (text, card) => card.ng.find(w => text.includes(ngStem(w))) || (norm(text).includes(norm(card.w)) || norm(text).includes(norm(card.r)) ? card.w : null);
+  const isAnswer = (text, card) => [card.w, card.r].some(x => norm(text).replace(/[。、！!？?]/g, '') === norm(x));
+  function loadName() { try { return localStorage.getItem('cardgame-name') || ''; } catch (e) { return ''; } }
+  function saveName(n) { try { localStorage.setItem('cardgame-name', n); } catch (e) {} }
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary') + (b.cls ? ' ' + b.cls : '');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+
+  // ---------- state ----------
+  let mode = null;            // 'local' | 'online'
+  let isHost = false;
+  let myId = 'local';
+  let players = [];
+  let G = null, V = null;
+  let turnSec = 60;
+  let roundsPer = 1;
+  let level = 'mix';
+  let localCount = 4;
+  let localNames = [];
+  let clockOffset = 0;
+  let tickTimer = null;
+  let peer = null, conn = null, roomCode = null;
+  const guests = new Map();
+  const mySeat = () => players.findIndex(p => p.id === myId);
+  const now = () => Date.now() + clockOffset;
+  const isAuthority = () => mode === 'local' || isHost;
+
+  // ---------- engine (ローカル/ホスト) ----------
+  function newGame() {
+    const n = players.length;
+    G = {
+      n,
+      order: Array.from({ length: n * roundsPer }, (_, i) => i % n),
+      turnIdx: 0,
+      explainer: 0,
+      phase: 'ready',       // ready → turn → (次の説明役) … → over
+      deadline: null,
+      word: null,
+      deck: shuffle(POOLS[level].slice()),
+      level,
+      scores: Array(n).fill(0),
+      total: 0,
+      learned: [],
+      turnCorrect: 0,
+      log: [],
+      seq: 0,
+      lastTurn: null
+    };
+    G.explainer = G.order[0];
+  }
+  function sys(text, kind = 'sys') { G.log.push({ id: ++G.seq, kind, text }); if (G.log.length > 80) G.log.shift(); }
+  function nextWord() {
+    if (!G.deck.length) G.deck = shuffle(POOLS[G.level || 'mix'].slice());
+    G.word = G.deck.pop();
+  }
+  function startTurn() {
+    if (G.phase !== 'ready') return false;
+    G.phase = 'turn';
+    G.turnCorrect = 0;
+    G.log = [];
+    G.deadline = Date.now() + turnSec * 1000;
+    nextWord();
+    sys(`${players[G.explainer].name}さんの説明スタート！`);
+    return true;
+  }
+  function endTurn() {
+    G.lastTurn = { explainer: G.explainer, correct: G.turnCorrect, word: G.word };
+    G.word = null;
+    G.deadline = null;
+    G.turnIdx++;
+    if (G.turnIdx >= G.order.length) { G.phase = 'over'; return; }
+    G.explainer = G.order[G.turnIdx];
+    G.phase = 'ready';
+  }
+  // みんなで協力：正解するたびに、かぐや姫が慣用句を1つ覚える
+  function correct(guesser) {
+    if (G.phase !== 'turn') return false;
+    if (guesser != null && (guesser === G.explainer || !(guesser >= 0 && guesser < G.n))) return false;
+    G.scores[G.explainer]++;
+    G.total++;
+    G.turnCorrect++;
+    G.learned.push({ w: G.word.w, m: G.word.m });
+    sys(`${guesser != null ? players[guesser].name + 'さんが' : ''}正解！かぐや姫は「${G.word.w}」を覚えた！（${G.word.m}）`);
+    nextWord();
+    return true;
+  }
+  function pass() {
+    if (G.phase !== 'turn') return false;
+    sys(`パス：「${G.word.w}」（${G.word.m}）`);
+    nextWord();
+    return true;
+  }
+  function foul(ng) {
+    if (G.phase !== 'turn') return false;
+    sys(`使っちゃダメな言葉${ng ? `「${ng}」` : ''}を使ってしまった！お題「${G.word.w}」は没収`, 'foul');
+    nextWord();
+    return true;
+  }
+
+  // ---------- views ----------
+  function viewFor(seat) {
+    if (!G) return null;
+    return { ...G, deck: null, word: seat === G.explainer ? G.word : null, me: seat, hostNow: Date.now() };
+  }
+  function afterChange() {
+    if (isHost) for (const [id, c] of guests) { try { c.send({ type: 'sync', players, view: viewFor(players.findIndex(p => p.id === id)) }); } catch (e) {} }
+    V = mode === 'online' ? viewFor(mySeat()) : null;
+    render();
+  }
+  function startTicker() {
+    clearInterval(tickTimer);
+    tickTimer = setInterval(() => {
+      if (isAuthority() && G && G.phase === 'turn' && Date.now() >= G.deadline) { sys(`時間切れ！最後のお題は「${G.word.w}」でした`); endTurn(); afterChange(); }
+      renderTimer();
+    }, 250);
+  }
+  function act(a) {
+    if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action: a }); return; }
+    if (applyAction(mode === 'online' ? mySeat() : -1, a)) afterChange();
+  }
+  function applyAction(seat, a) {
+    if (!G) return false;
+    const local = mode === 'local';
+    const isExp = local || seat === G.explainer;
+    if (a.type === 'start') return isExp && startTurn();
+    if (a.type === 'pass') return isExp && pass();
+    if (a.type === 'correct' && local) return correct(null);
+    if (a.type === 'foul' && local) return foul('');
+    if (a.type === 'post' && !local && seat >= 0 && G.phase === 'turn') {
+      const text = String(a.text || '').trim().slice(0, 60);
+      if (!text) return false;
+      if (seat === G.explainer) {
+        const ng = usedNg(text, G.word);
+        if (ng) return foul(ng);
+        G.log.push({ id: ++G.seq, kind: 'hint', by: seat, text });
+        return true;
+      }
+      if (isAnswer(text, G.word)) return correct(seat);
+      G.log.push({ id: ++G.seq, kind: 'guess', by: seat, text });
+      return true;
+    }
+    return false;
+  }
+
+  // ---------- render ----------
+  function renderTimer() {
+    const S = mode === 'online' ? V : G;
+    if (!S || S.phase !== 'turn' || !S.deadline) { timerEl.textContent = ''; return; }
+    const left = Math.max(0, Math.ceil((S.deadline - now()) / 1000));
+    timerEl.textContent = fmt(left);
+    timerEl.classList.toggle('low', left <= 10);
+  }
+  function render() {
+    const S = mode === 'online' ? V : G;
+    if (!S) return;
+    const me = mode === 'online' ? S.me : -1;
+    const expName = players[S.explainer] ? players[S.explainer].name : '';
+    const amExp = mode === 'local' || me === S.explainer;
+    phaseEl.textContent = S.phase === 'over' ? '結果' : `${S.turnIdx + 1} / ${S.order.length} ターン　説明役：${expName}`;
+    renderTimer();
+    wordBox.innerHTML = S.phase === 'turn' && amExp && S.word ? `<small>お題（かぐや姫に意味を伝えよう！）</small><div class="w">${esc(S.word.w)}</div><div class="r">${esc(S.word.r)}</div>
+      <div class="m">意味：${esc(S.word.m)}</div><div class="ng">使っちゃダメ：${S.word.ng.map(w => `<span>${esc(w)}</span>`).join('')}</div>` : '';
+    kaguyaEl.innerHTML = `🎋 かぐや姫が覚えたカンヨーク <b>${S.total}</b>`;
+    scoresEl.innerHTML = players.map((p, i) => `<span class="pl${i === S.explainer && S.phase !== 'over' ? ' exp' : ''}">${i === S.explainer && S.phase !== 'over' ? '🎤' : ''}${esc(p.name)}${i === me ? '（あなた）' : ''}<b>${S.scores[i]}</b></span>`).join('');
+    chatEl.innerHTML = S.log.map(l => l.kind === 'sys' || l.kind === 'foul'
+      ? `<div class="line ${l.kind}">${esc(l.text)}</div>`
+      : `<div class="line ${l.kind}"><span class="who">${esc(players[l.by].name)}${l.kind === 'hint' ? '（説明）' : ''}</span><span class="text">${esc(l.text)}</span></div>`).join('');
+    chatEl.scrollTop = chatEl.scrollHeight;
+    inputRow.style.display = mode === 'online' && S.phase === 'turn' ? 'flex' : 'none';
+    chatInput.placeholder = amExp ? '慣用句に入っている言葉を使わずに説明' : '慣用句を入力（ひらがなでもOK）';
+
+    actionsEl.innerHTML = '';
+    const button = (text, onClick, cls) => {
+      const b = document.createElement('button');
+      b.className = 'choice ' + (cls || '');
+      b.textContent = text;
+      b.addEventListener('click', onClick);
+      actionsEl.appendChild(b);
+    };
+    msgEl.textContent = '';
+    if (S.phase === 'ready') {
+      const lt = S.lastTurn ? `${players[S.lastTurn.explainer].name}さんのターンで ${S.lastTurn.correct}個 覚えた！　` : '';
+      if (mode === 'local') {
+        msgEl.textContent = lt;
+        if (!overlay.classList.contains('show')) localGate();
+      } else if (amExp) {
+        msgEl.textContent = lt + 'あなたが説明役です。準備ができたらスタート！';
+        button('スタート', () => act({ type: 'start' }));
+      } else {
+        msgEl.textContent = lt + `${expName}さんが説明を始めるのを待っています`;
+      }
+    } else if (S.phase === 'turn') {
+      if (mode === 'local') {
+        msgEl.textContent = '慣用句に入っている言葉を使わずに意味を説明！ほかの人は口頭で答えてください';
+        button('正解！', () => act({ type: 'correct' }), 'ok');
+        button('パス', () => act({ type: 'pass' }), 'secondary');
+        button('ダメな言葉を言っちゃった', () => act({ type: 'foul' }), 'ng');
+      } else if (amExp) {
+        msgEl.textContent = 'チャットで説明してください（使っちゃダメな言葉を書くと自動で没収）';
+        button('パス', () => act({ type: 'pass' }), 'secondary');
+      } else {
+        msgEl.textContent = `${expName}さんの説明から慣用句を当てよう（ひらがなで答えてもOK）`;
+      }
+    } else if (S.phase === 'over') {
+      showResult(S);
+    }
+    if (S.phase !== 'over' && overlay.dataset.kind === 'result') { overlay.dataset.kind = ''; hideOverlay(); }
+  }
+  function rankFor(total, turns) {
+    const avg = total / Math.max(1, turns);
+    if (avg >= 6) return '🌕 慣用句マスター！月に帰っても自慢できるかぐや姫';
+    if (avg >= 4) return '🌸 都の貴族とも会話できる、りっぱなかぐや姫';
+    if (avg >= 2) return '🎍 まだまだお勉強中のかぐや姫';
+    return '🎋 竹の中に帰りたくなったかぐや姫…';
+  }
+  function showResult(S) {
+    const order = players.map((p, i) => i).sort((a, b) => S.scores[b] - S.scores[a]);
+    const rows = order.map(i => `<tr><td>${esc(players[i].name)}</td><td>${S.scores[i]}個 伝えた</td></tr>`).join('');
+    const learned = S.learned.map(l => `<div><b>${esc(l.w)}</b>：${esc(l.m)}</div>`).join('') || '<div>ひとつも覚えられなかった…</div>';
+    const canAgain = isAuthority();
+    overlay.dataset.kind = 'result';
+    showOverlay(`かぐや姫が覚えたカンヨーク：${S.total}個`, canAgain ? '' : 'ホストが次のゲームを始めるのを待っています', [
+      ...(canAgain ? [{ label: 'もう一度', primary: true, onClick: () => { overlay.dataset.kind = ''; hideOverlay(); newGame(); afterChange(); } }] : []),
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ], `<div class="rank">${rankFor(S.total, S.order.length)}</div><table class="result-table">${rows}</table><div class="learned">${learned}</div>`);
+  }
+
+  // ---------- local ----------
+  function localGate() {
+    const name = players[G.explainer].name;
+    showOverlay('つぎの説明役', `端末を「${name}」さんに渡してください。お題は説明役だけが見ます`, [
+      { label: 'スタート', primary: true, onClick: () => { hideOverlay(); act({ type: 'start' }); } }
+    ], G.lastTurn ? `<p>${esc(players[G.lastTurn.explainer].name)}さんのターン：${G.lastTurn.correct}個 覚えた</p>` : '');
+  }
+
+  // ---------- menus ----------
+  function resetAll() {
+    cleanupPeer();
+    clearInterval(tickTimer); tickTimer = null;
+    mode = null; isHost = false; myId = 'local'; players = []; G = null; V = null; clockOffset = 0;
+    overlay.dataset.kind = '';
+    phaseEl.textContent = ''; timerEl.textContent = ''; wordBox.innerHTML = ''; kaguyaEl.innerHTML = ''; scoresEl.innerHTML = ''; chatEl.innerHTML = '';
+    inputRow.style.display = 'none'; msgEl.textContent = ''; actionsEl.innerHTML = '';
+  }
+  function showModeSelect() {
+    resetAll();
+    showOverlay('かぐや姫はカンヨークを覚えたい', '竹から生まれたかぐや姫に、慣用句の意味を教えてあげよう！慣用句に入っている言葉は使っちゃダメ。みんなで協力する説明ゲームです（2〜8人）', [
+      { label: '1台で遊ぶ（集まって）', primary: true, onClick: showLocalSetup },
+      { label: 'オンライン対戦（各自の端末）', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules }
+    ]);
+  }
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>竹から生まれたかぐや姫は、まだ<b>慣用句（カンヨーク）</b>を知りません。みんなで協力して教えてあげましょう。</li>
+        <li>順番に「説明役」になり、制限時間内にお題の慣用句をできるだけたくさん当ててもらいます。説明役には慣用句の意味も表示されます。</li>
+        <li>説明では<b>慣用句に入っている言葉を使ってはいけません</b>（「耳が早い」なら「耳」「早い」は禁止）。ひらがなで言い換えてもダメです。言ってしまったらそのお題は没収です。</li>
+        <li>当てられたら、かぐや姫がその慣用句を1つ覚えます。難しいお題はパスできます。</li>
+        <li>全員が説明役を終えたら終了。覚えた数でかぐや姫の成長が決まります！最後に覚えた慣用句と意味の一覧が見られます。</li>
+        <li>お題は「ふつう（よく使う慣用句60個）」「むずかしい（少し難しい慣用句・ことわざ60個）」「ミックス」から選べます。</li>
+        <li>オンラインでは説明も答えもチャットで行います。使っちゃダメな言葉（漢字）が説明に入ると自動で没収になります。答えはひらがなでもOKです。</li>
+      </ul>`);
+  }
+  function settingsHtml() {
+    return `<div class="row" style="font-size:13px;color:#9aa3d6">1ターン <div class="seg">${[60, 90, 120].map(s => `<button data-s="${s}" class="${s === turnSec ? 'on' : ''}">${s}秒</button>`).join('')}</div></div>
+      <div class="row" style="font-size:13px;color:#9aa3d6">説明する回数 <div class="seg">${[1, 2, 3].map(r => `<button data-r="${r}" class="${r === roundsPer ? 'on' : ''}">1人${r}回</button>`).join('')}</div></div>
+      <div class="row" style="font-size:13px;color:#9aa3d6">お題の難しさ <div class="seg">${['normal', 'hard', 'mix'].map(l => `<button data-l="${l}" class="${l === level ? 'on' : ''}">${LEVEL_LABEL[l]}（${POOLS[l].length}個）</button>`).join('')}</div></div>`;
+  }
+  function bindSettings(rerender) {
+    overlayExtra.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => { turnSec = +b.dataset.s; rerender(); }));
+    overlayExtra.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => { roundsPer = +b.dataset.r; rerender(); }));
+    overlayExtra.querySelectorAll('[data-l]').forEach(b => b.addEventListener('click', () => { level = b.dataset.l; rerender(); }));
+  }
+  function showLocalSetup() {
+    while (localNames.length < 8) localNames.push('');
+    const inputs = Array.from({ length: localCount }, (_, i) => `<input data-i="${i}" maxlength="8" placeholder="プレイヤー${i + 1}" value="${esc(localNames[i])}">`).join('');
+    showOverlay('1台で遊ぶ', '人数と名前を決めてください', [
+      { label: 'ゲーム開始', primary: true, onClick: () => {
+        mode = 'local'; myId = 'local';
+        players = Array.from({ length: localCount }, (_, i) => ({ id: 'p' + i, name: (localNames[i] || '').trim() || `プレイヤー${i + 1}` }));
+        hideOverlay();
+        startTicker();
+        newGame();
+        render();
+      } },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<div class="seg">${[2, 3, 4, 5, 6, 7, 8].map(n => `<button data-n="${n}" class="${n === localCount ? 'on' : ''}">${n}人</button>`).join('')}</div>
+        <div class="names">${inputs}</div>${settingsHtml()}`);
+    overlayExtra.querySelectorAll('[data-n]').forEach(b => b.addEventListener('click', () => { localCount = +b.dataset.n; showLocalSetup(); }));
+    overlayExtra.querySelectorAll('[data-i]').forEach(inp => inp.addEventListener('input', () => { localNames[+inp.dataset.i] = inp.value; }));
+    bindSettings(showLocalSetup);
+  }
+
+  // ---------- online (PeerJS, ホストが進行) ----------
+  function cleanupPeer() {
+    for (const c of guests.values()) { try { c.close(); } catch (e) {} }
+    guests.clear();
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 1) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン対戦', '各自の端末で参加し、チャットで説明・回答します（2〜8人）。まず名前を入力してください', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" style="width:200px" />
+        <div class="row"><input id="code-input" maxlength="1" placeholder="コード" autocomplete="off" />
+        <button id="join-btn" class="choice">部屋に入る</button></div>`);
+    $('join-btn').addEventListener('click', () => withName(joinRoom));
+    $('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
+  }
+  function withName(fn) {
+    const name = ($('name-input').value || '').trim();
+    if (!name) { $('name-input').focus(); $('name-input').placeholder = '名前を入力してください'; return; }
+    saveName(name);
+    fn(name, ($('code-input').value || '').trim().toUpperCase());
+  }
+  function hostRoom(name) {
+    cleanupPeer();
+    mode = 'online'; isHost = true; myId = 'host';
+    players = [{ id: 'host', name }];
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('kaguya-room-' + roomCode);
+    // 1文字コードは他の部屋と重なることがあるので、使用中なら別の文字で作り直す
+    peer.on('error', err => { if (err && err.type === 'unavailable-id' && (window.__roomRetry = (window.__roomRetry || 0) + 1) <= 20) setTimeout(() => hostRoom(name), 0); });
+    peer.on('open', () => { window.__roomRetry = 0; });
+    peer.on('open', renderLobby);
+    peer.on('connection', c => {
+      c.on('data', d => onHostData(c, d));
+      c.on('close', () => onGuestLeft(c.peer));
+      c.on('error', () => onGuestLeft(c.peer));
+    });
+    peer.on('error', () => { if (!G) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+  function renderLobby() {
+    if (G) return;
+    for (const c of guests.values()) { try { c.send({ type: 'lobby', names: players.map(p => p.name) }); } catch (e) {} }
+    showOverlay('部屋を作りました', 'コードを伝えて参加してもらいましょう（2人以上で開始できます）', [
+      { label: 'ゲーム開始', primary: true, disabled: players.length < 2, onClick: () => { hideOverlay(); startTicker(); newGame(); afterChange(); } },
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ], `<div id="room-code">${roomCode}</div><div class="member-list">${players.map(p => esc(p.name)).join('<br>')}</div>${settingsHtml()}`);
+    bindSettings(renderLobby);
+  }
+  function onHostData(c, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'hello') {
+      if (G || players.length >= 8) { c.send({ type: 'full' }); return; }
+      guests.set(c.peer, c);
+      players.push({ id: c.peer, name: String(data.name || '').trim().slice(0, 8) || 'ゲスト' });
+      renderLobby();
+    } else if (data.type === 'act' && G) {
+      const seat = players.findIndex(p => p.id === c.peer);
+      if (seat >= 0 && applyAction(seat, data.action || {})) afterChange();
+    }
+  }
+  function onGuestLeft(id) {
+    if (!guests.has(id)) return;
+    guests.delete(id);
+    const i = players.findIndex(p => p.id === id);
+    if (i < 0) return;
+    if (!G) { players.splice(i, 1); renderLobby(); return; }
+    players[i] = { id: 'left-' + id, name: players[i].name + '(退出)' };
+    // 退出した人の説明ターンは飛ばす
+    G.order = G.order.filter((x, k) => k <= G.turnIdx || x !== i);
+    if (G.explainer === i) { if (G.phase === 'turn') sys('説明役が退出したのでターン終了'); endTurn(); }
+    afterChange();
+  }
+  function joinRoom(name, code) {
+    if (!code) { $('code-input').focus(); return; }
+    cleanupPeer();
+    mode = 'online'; isHost = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', id => {
+      myId = id;
+      conn = peer.connect('kaguya-room-' + code, { reliable: true });
+      conn.on('open', () => conn.send({ type: 'hello', name }));
+      conn.on('data', onGuestData);
+      conn.on('close', onHostLost);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+    });
+    peer.on('error', () => { if (!V) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+  function onGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'lobby') {
+      showOverlay('参加しました', 'ホストの開始を待っています', [
+        { label: '退出する', primary: false, onClick: showModeSelect }
+      ], `<div class="member-list">${data.names.map(esc).join('<br>')}</div>`);
+    } else if (data.type === 'sync') {
+      players = data.players;
+      clockOffset = data.view.hostNow - Date.now();
+      if (!V || (V.phase === 'over' && data.view.phase !== 'over')) { overlay.dataset.kind = ''; hideOverlay(); }
+      V = data.view;
+      if (!tickTimer) startTicker();
+      render();
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋は満員か、すでにゲームが始まっています。');
+      cleanupPeer();
+    }
+  }
+  function onHostLost() {
+    if (mode !== 'online' || isHost) return;
+    clearInterval(tickTimer); tickTimer = null;
+    showOverlay('ホストとの接続が切れました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  function sendChat() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    chatInput.value = '';
+    act({ type: 'post', text });
+  }
+  $('send-btn').addEventListener('click', sendChat);
+  chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) sendChat(); });
+  $('back-btn').addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+  showModeSelect();
+})();
+</script>
+</body>
+</html>
