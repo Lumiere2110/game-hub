@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>∇演算子ゲーム</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1b2140 0%, #0a0c1a 70%);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #eef0ff;
+    overflow-x: hidden;
+    padding: 16px 0;
+  }
+  #wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 680px; max-width: 96vw; }
+  #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  h1 { margin: 0; font-size: 22px; letter-spacing: 2px; font-weight: 600; color: #9fe3ff; text-shadow: 0 0 12px rgba(100,200,255,0.6); }
+  #back-btn, #hub-link {
+    background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none; white-space: nowrap;
+  }
+  #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
+  #topbar-right { display: flex; gap: 8px; }
+  .side { width: 100%; padding: 8px; border-radius: 14px; border: 1px solid #2a3160; background: rgba(255,255,255,0.03); }
+  .side.active { border-color: #ffe066; box-shadow: 0 0 14px rgba(255,224,102,0.18); }
+  .side.pick { border-color: #6ee7a8; box-shadow: 0 0 14px rgba(110,231,168,0.35); cursor: pointer; }
+  .side-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #9aa3d6; margin: 0 4px 6px; }
+  .side-head b { color: #eef0ff; font-size: 13px; }
+  .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .fslot {
+    min-height: 64px; border-radius: 12px; display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 6px 4px; font-family: "Times New Roman", "Cambria Math", serif; font-size: 19px; line-height: 1.3;
+    background: #f4ecd8; color: #1d1a2e; border: 2px solid #f4ecd8; word-break: break-word; position: relative;
+  }
+  .fslot.long { font-size: 14px; }
+  .fslot.xlong { font-size: 11px; }
+  .fslot.empty { background: transparent; border: 2px dashed #3a4278; color: #4a5180; font-family: inherit; font-size: 12px; }
+  .fslot.can { border-color: #6ee7a8; box-shadow: 0 0 12px rgba(110,231,168,0.6); cursor: pointer; }
+  .fslot.sel { border-color: #ff9f43; box-shadow: 0 0 14px rgba(255,159,67,0.8); }
+  .fslot.gone { animation: gone 0.7s ease; }
+  .fslot.changed { animation: pop 0.5s ease; }
+  @keyframes pop { 0% { transform: scale(0.85); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+  @keyframes gone { 0% { background: #ff6b81; } 100% { background: transparent; } }
+  sup { font-size: 0.65em; }
+  #info { font-size: 13px; color: #b9c2f0; text-align: center; min-height: 20px; line-height: 1.6; }
+  #info b { color: #ffe066; }
+  #info .err { color: #ff8a9a; }
+  #hand { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; width: 100%; }
+  .card {
+    width: 82px; min-height: 92px; border-radius: 10px; padding: 6px 4px; cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px; border: 2px solid transparent; transition: transform 0.12s ease; user-select: none;
+  }
+  .card .sym { font-family: "Times New Roman", "Cambria Math", serif; font-size: 21px; font-weight: 600; line-height: 1.2; text-align: center; }
+  .card .kind { font-size: 10px; opacity: 0.8; }
+  .card.basis { background: linear-gradient(180deg, #fff1c1, #f2c94c); color: #3a2a00; }
+  .card.deriv { background: linear-gradient(180deg, #bfe3ff, #5aa9f0); color: #08223d; }
+  .card.alg { background: linear-gradient(180deg, #c9f7d8, #4cc985); color: #06301a; }
+  .card.limit { background: linear-gradient(180deg, #e6d4ff, #a173f0); color: #22074a; }
+  .card.sel { border-color: #ff9f43; transform: translateY(-6px); box-shadow: 0 6px 16px rgba(255,159,67,0.6); }
+  .card.can { border-color: #6ee7a8; box-shadow: 0 0 12px rgba(110,231,168,0.7); }
+  .card.dead { opacity: 0.45; }
+  .card.back { background: repeating-linear-gradient(45deg, #2b3366, #2b3366 6px, #222953 6px, #222953 12px); width: 22px; min-height: 32px; cursor: default; padding: 0; }
+  #opp-hand { display: flex; gap: 3px; justify-content: center; }
+  #actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  #log { width: 100%; max-height: 120px; overflow-y: auto; font-size: 12px; color: #9aa3d6; line-height: 1.6; padding: 6px 10px; border-radius: 10px; background: rgba(0,0,0,0.25); border: 1px solid #2a3160; }
+  #log:empty { display: none; }
+  #log .hit { color: #ff9aa8; }
+  #log .m { font-family: "Times New Roman", serif; color: #eef0ff; }
+  #deck { font-size: 12px; color: #9aa3d6; }
+
+  button.choice {
+    background: linear-gradient(180deg, #5a6bff, #3444c4); color: #fff; border: none; padding: 9px 20px; font-size: 14px;
+    border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5); transition: transform 0.1s ease;
+  }
+  button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
+  button.choice:active { transform: scale(0.95); }
+  button.choice:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  #overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 14px; background: rgba(5,7,15,0.95); text-align: center; padding: 64px 16px 20px; z-index: 50; overflow-y: auto;
+  }
+  #overlay.show { display: flex; }
+  #overlay > :first-child { margin-top: auto; }
+  #overlay > :last-child { margin-bottom: auto; }
+  #overlay h2 { margin: 0; font-size: 24px; color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.6); }
+  #overlay p { margin: 0; font-size: 14px; color: #b9c2f0; max-width: 520px; line-height: 1.6; }
+  #overlay-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #overlay-extra { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  #overlay-extra:empty { display: none; }
+  .rules { text-align: left; font-size: 13px; line-height: 1.7; color: #c9d0f5; max-width: 520px; margin: 0; padding-left: 20px; }
+  .rules b { color: #ffe066; }
+  .cardlist { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; text-align: left; font-size: 12px; color: #c9d0f5; max-width: 520px; }
+  .cardlist .s { font-family: "Times New Roman", serif; font-size: 15px; color: #ffe066; white-space: nowrap; }
+  #overlay input {
+    font-size: 16px; padding: 9px 12px; border-radius: 10px; border: 1px solid #3a4278;
+    background: rgba(255,255,255,0.06); color: #eef0ff; text-align: center; width: 150px;
+  }
+  #overlay input:focus { outline: none; border-color: #6ea8ff; }
+  #code-input { font-size: 22px !important; letter-spacing: 6px; text-transform: uppercase; }
+  #room-code {
+    font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #ffe066;
+    background: rgba(255,224,102,0.08); border: 1px solid rgba(255,224,102,0.4); padding: 4px 22px; border-radius: 12px;
+  }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .member-list { font-size: 14px; color: #dfe4ff; line-height: 1.8; }
+  @media (max-width: 480px) {
+    h1 { font-size: 18px; }
+    .fslot { font-size: 16px; min-height: 56px; }
+    .fslot.long { font-size: 12px; }
+    .fslot.xlong { font-size: 10px; }
+    .card { width: calc((100% - 18px) / 4); min-height: 80px; }
+    .card .sym { font-size: 18px; }
+    .card.back { width: 16px; min-height: 24px; }
+  }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topbar">
+      <h1>∇演算子ゲーム</h1>
+      <div id="topbar-right">
+        <button id="back-btn">モード選択</button>
+        <a id="hub-link" href="../index.html">← ハブへ</a>
+      </div>
+    </div>
+    <div id="opp-hand"></div>
+    <div id="opp-side" class="side"></div>
+    <div id="info"></div>
+    <div id="my-side" class="side"></div>
+    <div id="hand"></div>
+    <div id="actions"></div>
+    <div id="deck"></div>
+    <div id="log"></div>
+  </div>
+  <div id="overlay">
+    <h2 id="overlay-title">∇演算子ゲーム</h2>
+    <p id="overlay-text"></p>
+    <div id="overlay-extra"></div>
+    <div id="overlay-buttons"></div>
+  </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  // =====================================================================
+  //  数式エンジン：関数は「項」の和。項 = 係数c × x^p × K（K = 1, eˣ, sin x, cos x, log x）
+  // =====================================================================
+  const EPS = 1e-9;
+  class MathErr extends Error {}
+  const fail = msg => { throw new MathErr(msg); };
+  const T = (c, p, k) => ({ c, p, k });
+  const near = (a, b) => Math.abs(a - b) < 1e-9;
+  const isNatInt = p => p > -EPS && near(p, Math.round(p));
+  function simplify(f) {
+    const out = [];
+    for (const t of f) {
+      const same = out.find(u => u.k === t.k && near(u.p, t.p));
+      if (same) same.c += t.c; else out.push({ ...t });
+    }
+    const KO = { e: 0, sin: 1, cos: 2, log: 3, one: 4 };
+    return out.filter(t => Math.abs(t.c) > 1e-9).map(t => ({ c: t.c, p: near(t.p, Math.round(t.p)) ? Math.round(t.p) : t.p, k: t.k }))
+      .sort((a, b) => KO[a.k] - KO[b.k] || b.p - a.p);
+  }
+  const BASIS = { '1': [T(1, 0, 'one')], x: [T(1, 1, 'one')], x2: [T(1, 2, 'one')], sin: [T(1, 0, 'sin')], cos: [T(1, 0, 'cos')], e: [T(1, 0, 'e')], '0': [] };
+
+  function deriv(f) {
+    const r = [];
+    for (const { c, p, k } of f) {
+      if (k === 'one') { if (!near(p, 0)) r.push(T(c * p, p - 1, 'one')); }
+      else if (k === 'e') { r.push(T(c, p, 'e')); if (!near(p, 0)) r.push(T(c * p, p - 1, 'e')); }
+      else if (k === 'sin') { r.push(T(c, p, 'cos')); if (!near(p, 0)) r.push(T(c * p, p - 1, 'sin')); }
+      else if (k === 'cos') { r.push(T(-c, p, 'sin')); if (!near(p, 0)) r.push(T(c * p, p - 1, 'cos')); }
+      else if (k === 'log') { r.push(T(c, p - 1, 'one')); if (!near(p, 0)) r.push(T(c * p, p - 1, 'log')); }
+    }
+    return simplify(r);
+  }
+  function integT({ c, p, k }) {
+    if (k === 'one') return near(p, -1) ? [T(c, 0, 'log')] : [T(c / (p + 1), p + 1, 'one')];
+    if (k === 'log') {
+      if (near(p, -1)) fail('∫(log x)/x は (log x)² になり、このゲームでは扱えません');
+      return [T(c / (p + 1), p + 1, 'log'), T(-c / ((p + 1) * (p + 1)), p + 1, 'one')];
+    }
+    if (!isNatInt(p)) fail('この積分は初等関数で表せません');
+    p = Math.round(p);
+    if (k === 'e') return p === 0 ? [T(c, 0, 'e')] : [T(c, p, 'e'), ...integT(T(-c * p, p - 1, 'e'))];
+    if (k === 'sin') return p === 0 ? [T(-c, 0, 'cos')] : [T(-c, p, 'cos'), ...integT(T(c * p, p - 1, 'cos'))];
+    if (k === 'cos') return p === 0 ? [T(c, 0, 'sin')] : [T(c, p, 'sin'), ...integT(T(-c * p, p - 1, 'sin'))];
+  }
+  const integ = f => simplify(f.flatMap(integT));
+  function mulT(a, b) {
+    if (a.k === 'one') return T(a.c * b.c, a.p + b.p, b.k);
+    if (b.k === 'one') return T(a.c * b.c, a.p + b.p, a.k);
+    fail('その掛け算の結果（eˣ·sin x など）はこのゲームでは扱えません');
+  }
+  const mul = (f, g) => simplify(f.flatMap(a => g.map(b => mulT(a, b))));
+  function div(f, g) {
+    if (!g.length) fail('0 で割ることはできません');
+    if (g.length !== 1) fail('割る数は項が1つの関数にしてください');
+    const b = g[0];
+    return simplify(f.map(a => {
+      if (b.k === 'one') return T(a.c / b.c, a.p - b.p, a.k);
+      if (b.k === a.k) return T(a.c / b.c, a.p - b.p, 'one');
+      fail('その割り算の結果はこのゲームでは扱えません');
+    }));
+  }
+  function sqrtF(f) {
+    if (f.length !== 1 || f[0].k !== 'one') fail('√ は x の累乗（1, x, x² など）にだけ使えます');
+    if (f[0].c < 0) fail('負の数の √ は実数になりません');
+    return simplify([T(Math.sqrt(f[0].c), f[0].p / 2, 'one')]);
+  }
+  function invF(f) {
+    if (f.length !== 1) fail('逆関数は項が1つの関数にだけ使えます');
+    const { p, k } = f[0];
+    if (k === 'one') { if (near(p, 0)) fail('定数関数には逆関数がありません'); return [T(1, 1 / p, 'one')]; }
+    if (k === 'e' && near(p, 0)) return [T(1, 0, 'log')];
+    if (k === 'log' && near(p, 0)) return [T(1, 0, 'e')];
+    fail('この関数の逆関数はこのゲームでは扱えません');
+  }
+  function logF(f) {
+    if (f.length !== 1) fail('log は項が1つの関数にだけ使えます');
+    const { c, p, k } = f[0];
+    if (c <= 0) fail('負の値の log は実数になりません');
+    if (k === 'sin' || k === 'cos' || k === 'log') fail('その log はこのゲームでは扱えません');
+    const r = [T(Math.log(c), 0, 'one')];
+    if (!near(p, 0)) r.push(T(p, 0, 'log'));
+    if (k === 'e') r.push(T(1, 1, 'one'));
+    return simplify(r);
+  }
+  function evalF(f, x) {
+    let s = 0;
+    for (const { c, p, k } of f) {
+      const K = k === 'one' ? 1 : k === 'e' ? Math.exp(x) : k === 'sin' ? Math.sin(x) : k === 'cos' ? Math.cos(x) : Math.log(x);
+      s += c * Math.pow(x, p) * K;
+    }
+    return s;
+  }
+  const cmpRank = (a, b) => { for (let i = 0; i < a.length; i++) if (!near(a[i], b[i])) return a[i] - b[i]; return 0; };
+  // 極限：{ r: 'zero' | 'const' | 'inf' }、扱えないときは例外
+  function limitF(f, kind) {
+    if (!f.length) return { r: 'zero' };
+    const infs = []; let C = 0; const osc = [];
+    for (const t of f) {
+      const { c, p, k } = t;
+      if (kind === '0') {
+        let q = p, lg = k === 'log';
+        if (k === 'sin') q = p + 1;
+        if (lg) { if (q > EPS) continue; infs.push([-q, 1]); continue; }
+        if (q > EPS) continue;
+        if (near(q, 0)) { C += c; continue; }
+        infs.push([-q, 0]);
+      } else if (kind === '-inf') {
+        if (k === 'log' || !near(p, Math.round(p))) fail('x→−∞ は定義域の外です（log x や √x は x<0 で定義されません）');
+        if (k === 'e') continue;
+        if (k === 'one') { if (p > EPS) infs.push([0, p, 0]); else if (near(p, 0)) C += c; continue; }
+        if (p > EPS) infs.push([0, p, 0]); else if (near(p, 0)) osc.push(t);
+      } else {
+        if (k === 'e') { infs.push([1, p, 0]); continue; }
+        if (k === 'log') { if (p > -EPS) infs.push([0, p, 1]); continue; }
+        if (k === 'one') { if (p > EPS) infs.push([0, p, 0]); else if (near(p, 0)) C += c; continue; }
+        if (p > EPS) infs.push([0, p, 0]); else if (near(p, 0)) osc.push(t);
+      }
+    }
+    if (infs.length) {
+      if (kind !== '0') return { r: 'inf' };
+      // x→0 で同じ強さの発散が打ち消し合うかもしれないときは数値で確かめる
+      infs.sort((a, b) => cmpRank(b, a));
+      if (infs.length < 2 || cmpRank(infs[0], infs[1]) !== 0) return { r: 'inf' };
+      const v3 = Math.abs(evalF(f, 1e-3)), v5 = Math.abs(evalF(f, 1e-5));
+      if (v5 > 1e3 || v5 > 4 * v3 + 1) return { r: 'inf' };
+      const v = evalF(f, 1e-7);
+      return Math.abs(v) < 1e-5 ? { r: 'zero' } : { r: 'const', v: Math.round(v * 1e6) / 1e6 };
+    }
+    if (osc.length) {
+      if (kind === '+inf' || kind === '-inf') fail('sin・cos が振動するので極限がありません（liminf・limsup なら使えます）');
+      let lo = Infinity, hi = -Infinity;
+      for (let i = 0; i < 20000; i++) { const x = 1e4 + i * 0.01; const v = evalF(osc, x); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+      C += kind === 'liminf' ? lo : hi;
+      C = Math.round(C * 1e4) / 1e4;
+    }
+    return Math.abs(C) < 1e-6 ? { r: 'zero' } : { r: 'const', v: C };
+  }
+  const sameShape = (f, g) => f.length === g.length && f.length > 0 && (() => {
+    const ratio = g[0].c / f[0].c;
+    return f.every((t, i) => t.k === g[i].k && near(t.p, g[i].p) && Math.abs(g[i].c - t.c * ratio) < 1e-6 * Math.max(1, Math.abs(g[i].c)));
+  })();
+
+  // ---------- 表示 ----------
+  function fmtNum(v) {
+    const a = Math.abs(v);
+    for (let d = 1; d <= 128; d++) { const n = Math.round(a * d); if (n && Math.abs(a * d - n) < 1e-9 * d) return d === 1 ? String(n) : `${n}/${d}`; }
+    return a < 0.01 || a > 1e5 ? a.toExponential(1) : String(Math.round(a * 1000) / 1000);
+  }
+  function fmtTerm(t) {
+    const { c, p, k } = t;
+    const kh = k === 'e' ? 'e<sup>x</sup>' : k === 'sin' ? 'sin x' : k === 'cos' ? 'cos x' : k === 'log' ? 'log x' : '';
+    let xh = '';
+    if (near(p, 1)) xh = 'x';
+    else if (near(p, 0.5)) xh = '√x';
+    else if (!near(p, 0)) xh = `x<sup>${p < 0 ? '−' : ''}${fmtNum(p)}</sup>`;
+    const body = [xh, kh].filter(Boolean).join(' ');
+    const mag = fmtNum(c);
+    return { neg: c < 0, html: body ? (mag === '1' ? body : `${mag}${body}`) : mag };
+  }
+  function fmt(f) {
+    if (!f || !f.length) return '0';
+    return f.map((t, i) => { const { neg, html } = fmtTerm(t); return i === 0 ? (neg ? '−' : '') + html : (neg ? ' − ' : ' + ') + html; }).join('');
+  }
+
+  // ---------- カード ----------
+  const CARDS = {
+    '0': { sym: '0', cls: 'basis', kind: '関数', desc: '× で掛けると相手の関数を 0 にできる。場には置けない', n: 2 },
+    '1': { sym: '1', cls: 'basis', kind: '関数', desc: '自分の場の空きに置ける', n: 2 },
+    x: { sym: 'x', cls: 'basis', kind: '関数', desc: '自分の場の空きに置ける', n: 5 },
+    x2: { sym: 'x<sup>2</sup>', cls: 'basis', kind: '関数', desc: '自分の場の空きに置ける', n: 1 },
+    sin: { sym: 'sin x', cls: 'basis', kind: '関数', desc: '自分の場の空きに置ける', n: 4 },
+    cos: { sym: 'cos x', cls: 'basis', kind: '関数', desc: '自分の場の空きに置ける', n: 4 },
+    e: { sym: 'e<sup>x</sup>', cls: 'basis', kind: '関数', desc: '自分の場の空きに置ける', n: 4 },
+    d: { sym: 'd/dx', cls: 'deriv', kind: '微分', desc: '関数1つを微分する', n: 8 },
+    int: { sym: '∫dx', cls: 'deriv', kind: '積分', desc: '関数1つを積分する（積分定数は 0）', n: 8 },
+    nabla: { sym: '∇', cls: 'deriv', kind: 'ナブラ', desc: 'どちらかの場の関数すべてを微分する', n: 10 },
+    lap: { sym: 'Δ', cls: 'deriv', kind: 'ラプラシアン', desc: 'どちらかの場の関数すべてを2回微分する', n: 2 },
+    mul: { sym: '×', cls: 'alg', kind: '掛け算', desc: '場の関数に、手札の関数カード（0, 1, x など）を掛ける。2枚使う', n: 5 },
+    div: { sym: '÷', cls: 'alg', kind: '割り算', desc: '場の関数を、手札の関数カードで割る。2枚使う', n: 5 },
+    sqrt: { sym: '√', cls: 'alg', kind: 'ルート', desc: '関数1つの平方根をとる', n: 5 },
+    inv: { sym: 'f<sup>−1</sup>', cls: 'alg', kind: '逆関数', desc: '関数1つを逆関数にする', n: 5 },
+    log: { sym: 'log', cls: 'alg', kind: '対数', desc: '関数1つの log をとる', n: 5 },
+    'lim+': { sym: 'lim<br><small>x→+∞</small>', cls: 'limit', kind: '極限', desc: 'x→+∞ の極限をとる。発散・0 なら消える', n: 2 },
+    'lim-': { sym: 'lim<br><small>x→−∞</small>', cls: 'limit', kind: '極限', desc: 'x→−∞ の極限をとる', n: 2 },
+    lim0: { sym: 'lim<br><small>x→0</small>', cls: 'limit', kind: '極限', desc: 'x→0 の極限をとる', n: 2 },
+    liminf: { sym: 'liminf<br><small>x→∞</small>', cls: 'limit', kind: '下極限', desc: 'x→∞ の下極限（sin・cos にも使える）', n: 1 },
+    limsup: { sym: 'limsup<br><small>x→∞</small>', cls: 'limit', kind: '上極限', desc: 'x→∞ の上極限（sin・cos にも使える）', n: 1 }
+  };
+  const isBasisCard = c => CARDS[c].cls === 'basis';
+  const SINGLE = ['d', 'int', 'sqrt', 'inv', 'log', 'lim+', 'lim-', 'lim0', 'liminf', 'limsup'];
+  const SIDE_OPS = ['nabla', 'lap'];
+  const MULTI = ['mul', 'div'];
+  const LIMKIND = { 'lim+': '+inf', 'lim-': '-inf', lim0: '0', liminf: 'liminf', limsup: 'limsup' };
+  const HAND = 7;
+
+  // =====================================================================
+  //  ゲーム進行（ローカル / ホスト / CPU）
+  // =====================================================================
+  let mode = null;            // 'local' | 'cpu' | 'online'
+  let isHost = false, myId = 'local';
+  let players = [];
+  let G = null, V = null;
+  let peer = null, conn = null, roomCode = null;
+  const guests = new Map();
+  let ui = { card: null, target: null };   // 選択中のカードと対象
+  let prevField = null;
+  let cpuTimer = null;
+  const mySeat = () => mode === 'online' ? players.findIndex(p => p.id === myId) : mode === 'cpu' ? 0 : (G ? G.turn : 0);
+  const isAuthority = () => mode !== 'online' || isHost;
+
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function newGame() {
+    const deck = [];
+    for (const [id, c] of Object.entries(CARDS)) for (let i = 0; i < c.n; i++) deck.push(id);
+    shuffle(deck);
+    G = {
+      field: [0, 1].map(() => [BASIS['1'], BASIS.x, BASIS.x2].map(f => f.map(t => ({ ...t })))),
+      hands: [deck.splice(0, HAND), deck.splice(0, HAND)],
+      deck, turn: Math.floor(Math.random() * 2), phase: 'play', winner: null, log: [], seq: 0, last: null
+    };
+    addLog(`${san(G.turn)}の先攻でスタート！`);
+  }
+  function addLog(text, cls = '') { G.log.push({ id: ++G.seq, text, cls }); if (G.log.length > 60) G.log.shift(); }
+  const count = (S, side) => S.field[side].filter(Boolean).length;
+  const nameOf = side => players[side] ? players[side].name : '';
+  const san = side => nameOf(side) === 'あなた' ? 'あなた' : nameOf(side) + 'さん';
+
+  // 手を実行する（state を直接書き換える）。成功なら {msgs}、失敗なら例外
+  function execMove(S, seat, m) {
+    const hand = S.hands[seat];
+    const card = hand[m.card];
+    if (card == null) fail('カードがありません');
+    const msgs = [];
+    const eliminate = (side, slot, why) => { S.field[side][slot] = null; msgs.push({ t: `${nameOf(side)}の関数が${why}で消滅！`, hit: true }); };
+    const setF = (side, slot, f, label) => {
+      const before = fmt(S.field[side][slot]);
+      if (!f.length) { eliminate(side, slot, '0 になったの'); msgs.unshift({ t: `${label}：${before} → 0` }); return; }
+      S.field[side][slot] = f;
+      msgs.push({ t: `${label}：${before} → ${fmt(f)}` });
+    };
+    const getF = (side, slot) => { const f = S.field[side] && S.field[side][slot]; if (!f) fail('そこには関数がありません'); return f; };
+    const label = CARDS[card].sym.replace(/<br>|<small>|<\/small>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (m.type === 'discard') {
+      msgs.push({ t: `カードを1枚捨てた` });
+    } else if (m.type === 'place') {
+      if (!isBasisCard(card) || card === '0') fail('そのカードは場に置けません');
+      if (S.field[seat][m.slot] !== null) fail('空いているマスに置いてください');
+      S.field[seat][m.slot] = BASIS[card].map(t => ({ ...t }));
+      msgs.push({ t: `${fmt(BASIS[card])} を場に置いた` });
+    } else if (SINGLE.includes(card)) {
+      if (m.type !== 'apply') fail('対象の関数を選んでください');
+      const f = getF(m.side, m.slot);
+      if (card === 'd') setF(m.side, m.slot, deriv(f), 'd/dx');
+      else if (card === 'int') setF(m.side, m.slot, integ(f), '∫dx');
+      else if (card === 'sqrt') setF(m.side, m.slot, sqrtF(f), '√');
+      else if (card === 'inv') setF(m.side, m.slot, invF(f), '逆関数');
+      else if (card === 'log') setF(m.side, m.slot, logF(f), 'log');
+      else {
+        const r = limitF(f, LIMKIND[card]);
+        if (r.r === 'inf') { msgs.push({ t: `${label}：${fmt(f)} → 発散` }); eliminate(m.side, m.slot, '発散'); }
+        else if (r.r === 'zero') setF(m.side, m.slot, [], label);
+        else setF(m.side, m.slot, [T(r.v, 0, 'one')], label);
+      }
+    } else if (SIDE_OPS.includes(card)) {
+      if (m.type !== 'side') fail('どちらかの場を選んでください');
+      if (!S.field[m.side].some(Boolean)) fail('その場には関数がありません');
+      S.field[m.side].forEach((f, i) => { if (f) setF(m.side, i, card === 'lap' ? deriv(deriv(f)) : deriv(f), card === 'lap' ? 'Δ' : '∇'); });
+    } else if (MULTI.includes(card)) {
+      if (m.type !== 'multi') fail('対象と、掛ける（割る）ものを選んでください');
+      const f = getF(m.side, m.slot);
+      let g;
+      if (!m.op || m.op.hand == null) fail('掛ける（割る）関数は手札の関数カードから選んでください');
+      if (m.op.hand === m.card) fail('同じカードは使えません');
+      const oc = hand[m.op.hand];
+      if (oc == null || !isBasisCard(oc)) fail('手札の関数カードを選んでください');
+      g = BASIS[oc];
+      const r = card === 'mul' ? mul(f, g) : div(f, g);
+      const lbl = `${fmt(f)} ${card === 'mul' ? '×' : '÷'} ${fmt(g)}`;
+      if (!r.length) { msgs.unshift({ t: `${lbl} = 0` }); eliminate(m.side, m.slot, '0 になったの'); }
+      else { S.field[m.side][m.slot] = r; msgs.unshift({ t: `${lbl} = ${fmt(r)}` }); }
+      if (m.op.hand != null) hand.splice(Math.max(m.op.hand, m.card), 1), hand.splice(Math.min(m.op.hand, m.card), 1);
+    } else fail('そのカードはここでは使えません');
+    if (!(MULTI.includes(card) && m.op.hand != null)) hand.splice(m.card, 1);
+    // 線形従属：同じ側に定数倍の関係にある関数があれば後ろの方が消える
+    for (const side of [0, 1]) {
+      const fs = S.field[side];
+      for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++)
+        if (fs[i] && fs[j] && sameShape(fs[i], fs[j])) { msgs.push({ t: `${nameOf(side)}の ${fmt(fs[j])} は ${fmt(fs[i])} と線形従属なので消滅！`, hit: true }); fs[j] = null; }
+    }
+    return msgs;
+  }
+  function tryMove(S, seat, m) {
+    const C = JSON.parse(JSON.stringify(S));
+    try { const msgs = execMove(C, seat, m); return { ok: true, S: C, msgs }; }
+    catch (e) { if (e instanceof MathErr) return { ok: false, err: e.message }; throw e; }
+  }
+  function doMove(seat, m) {
+    if (!G || G.phase !== 'play' || seat !== G.turn) return { ok: false, err: 'あなたの番ではありません' };
+    const r = tryMove(G, seat, m);
+    if (!r.ok) return r;
+    const log = G.log, seq = G.seq;
+    G = r.S; G.log = log; G.seq = seq;
+    addLog(`▶ ${nameOf(seat)}`);
+    for (const x of r.msgs) addLog(x.t, x.hit ? 'hit' : '');
+    // 補充して勝敗判定
+    while (G.hands[seat].length < HAND && G.deck.length) G.hands[seat].push(G.deck.pop());
+    const c0 = count(G, 0), c1 = count(G, 1);
+    if (!c0 || !c1) { G.phase = 'over'; G.winner = !c0 && !c1 ? -1 : (!c0 ? 1 : 0); G.reason = 'すべての関数が消えた'; }
+    else if (!G.deck.length) { G.phase = 'over'; G.winner = c0 === c1 ? -1 : (c0 > c1 ? 0 : 1); G.reason = `山札切れ（${c0} 対 ${c1}）`; }
+    else G.turn = 1 - G.turn;
+    G.last = seat;
+    return { ok: true };
+  }
+
+  // ---------- CPU：すべての手を試して、場の関数の差が一番よくなる手を選ぶ ----------
+  function allMoves(S, seat) {
+    const ms = [];
+    const hand = S.hands[seat];
+    const slotsAll = []; for (const side of [0, 1]) for (let i = 0; i < 3; i++) if (S.field[side][i]) slotsAll.push({ side, slot: i });
+    hand.forEach((c, i) => {
+      if (isBasisCard(c) && c !== '0') for (let s = 0; s < 3; s++) if (!S.field[seat][s]) ms.push({ type: 'place', card: i, slot: s });
+      if (SINGLE.includes(c)) for (const t of slotsAll) ms.push({ type: 'apply', card: i, ...t });
+      if (SIDE_OPS.includes(c)) for (const side of [0, 1]) ms.push({ type: 'side', card: i, side });
+      if (MULTI.includes(c)) for (const t of slotsAll) {
+        hand.forEach((oc, j) => { if (j !== i && isBasisCard(oc)) ms.push({ type: 'multi', card: i, ...t, op: { hand: j } }); });
+      }
+    });
+    return ms;
+  }
+  const fragile = f => f && f.length === 1 && f[0].k === 'one' && near(f[0].p, 0) ? 1 : 0;
+  function scoreState(S, seat) {
+    const me = count(S, seat), op = count(S, 1 - seat);
+    if (!op) return 1000;
+    if (!me) return -1000;
+    return (me - op) * 10 - S.field[seat].reduce((a, f) => a + fragile(f), 0) * 2 + S.field[1 - seat].reduce((a, f) => a + fragile(f), 0);
+  }
+  function cpuPick(seat) {
+    const base = scoreState(G, seat);
+    let best = null, bestScore = -Infinity;
+    for (const m of allMoves(G, seat)) {
+      const r = tryMove(G, seat, m);
+      if (!r.ok) continue;
+      const noop = JSON.stringify(r.S.field) === JSON.stringify(G.field);
+      const s = scoreState(r.S, seat) + Math.random() * 0.5 - (noop ? 1 : 0);
+      if (s > bestScore) { bestScore = s; best = m; }
+    }
+    if (!best || bestScore < base - 0.01) {
+      // よい手がなければ、一番役に立たなそうなカードを捨てる
+      const h = G.hands[seat];
+      const pri = c => ['lap', 'lim-', 'sqrt', 'inv', 'log', 'div', 'int'].indexOf(c);
+      let idx = 0, bp = -2; h.forEach((c, i) => { const p = pri(c); if (p > bp) { bp = p; idx = i; } });
+      return { type: 'discard', card: idx };
+    }
+    return best;
+  }
+  function scheduleCpu() {
+    clearTimeout(cpuTimer);
+    if (mode !== 'cpu' || !G || G.phase !== 'play' || G.turn !== 1) return;
+    cpuTimer = setTimeout(() => { if (mode === 'cpu' && G && G.phase === 'play' && G.turn === 1) { doMove(1, cpuPick(1)); afterChange(); } }, 900);
+  }
+
+  // ---------- 同期 ----------
+  function viewFor(seat) {
+    if (!G) return null;
+    return { ...G, deck: null, deckCount: G.deck.length, hands: null, hand: G.hands[seat] ? G.hands[seat].slice() : [], oppCount: G.hands[1 - seat] ? G.hands[1 - seat].length : 0, me: seat };
+  }
+  function afterChange() {
+    if (isHost) for (const [id, c] of guests) { try { c.send({ type: 'sync', players, view: viewFor(players.findIndex(p => p.id === id)) }); } catch (e) {} }
+    V = viewFor(mySeat());
+    ui = { card: null, target: null };
+    render();
+    scheduleCpu();
+  }
+  function send(m) {
+    if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action: m }); ui = { card: null, target: null }; render(); return; }
+    const r = doMove(mySeat(), m);
+    if (!r.ok) { flash(r.err); return; }
+    if (mode === 'local' && G.phase === 'play') { afterChange(); localGate(); return; }
+    afterChange();
+  }
+
+  // =====================================================================
+  //  描画
+  // =====================================================================
+  const $ = id => document.getElementById(id);
+  const infoEl = $('info'), handEl = $('hand'), actionsEl = $('actions'), logEl = $('log'), deckEl = $('deck');
+  const oppSide = $('opp-side'), mySide = $('my-side'), oppHand = $('opp-hand');
+  const overlay = $('overlay'), overlayTitle = $('overlay-title'), overlayText = $('overlay-text');
+  const overlayExtra = $('overlay-extra'), overlayButtons = $('overlay-buttons');
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  let flashMsg = '';
+  function flash(msg) { flashMsg = msg; render(); }
+
+  // 選択中のカードで、どの対象が有効かを試算する
+  function candidates() {
+    const S = V; if (!S || ui.card == null || S.phase !== 'play' || S.turn !== S.me) return null;
+    const card = S.hand[ui.card];
+    const fake = { field: S.field, hands: [[], []] }; fake.hands[S.me] = S.hand.slice();
+    const ok = m => tryMove(fake, S.me, m).ok;
+    const res = { slots: new Set(), sides: new Set(), hand: new Set() };
+    if (isBasisCard(card)) { for (let s = 0; s < 3; s++) if (!S.field[S.me][s] && card !== '0') res.slots.add(`${S.me}-${s}`); }
+    else if (SINGLE.includes(card)) { for (const side of [0, 1]) for (let s = 0; s < 3; s++) if (S.field[side][s] && ok({ type: 'apply', card: ui.card, side, slot: s })) res.slots.add(`${side}-${s}`); }
+    else if (SIDE_OPS.includes(card)) { for (const side of [0, 1]) if (ok({ type: 'side', card: ui.card, side })) res.sides.add(side); }
+    else if (MULTI.includes(card)) {
+      if (!ui.target) { for (const side of [0, 1]) for (let s = 0; s < 3; s++) if (S.field[side][s]) res.slots.add(`${side}-${s}`); }
+      else {
+        const t = ui.target;
+        S.hand.forEach((c, j) => { if (j !== ui.card && isBasisCard(c) && ok({ type: 'multi', card: ui.card, ...t, op: { hand: j } })) res.hand.add(j); });
+      }
+    }
+    return res;
+  }
+  function sideHtml(side, S, cand, title) {
+    const fs = S.field[side];
+    const slots = fs.map((f, i) => {
+      const key = `${side}-${i}`;
+      const cls = ['fslot'];
+      if (!f) cls.push('empty');
+      if (cand && cand.slots.has(key)) cls.push('can');
+      if (ui.target && ui.target.side === side && ui.target.slot === i) cls.push('sel');
+      const before = prevField && prevField[side][i];
+      if (prevField && f && JSON.stringify(before) !== JSON.stringify(f)) cls.push('changed');
+      if (prevField && !f && before) cls.push('gone');
+      const len = f ? fmt(f).replace(/<[^>]+>/g, '').length : 0;
+      if (len > 26) cls.push('xlong'); else if (len > 12) cls.push('long');
+      return `<div class="${cls.join(' ')}" data-slot="${key}">${f ? fmt(f) : '空き'}</div>`;
+    }).join('');
+    return `<div class="side-head"><b>${esc(title)}</b><span>関数 ${count(S, side)} / 3</span></div><div class="slots">${slots}</div>`;
+  }
+  function render() {
+    const S = V;
+    if (!S) return;
+    const me = S.me, opp = 1 - me;
+    const cand = candidates();
+    const myTurn = S.phase === 'play' && S.turn === me;
+    oppSide.className = 'side' + (S.phase === 'play' && S.turn === opp ? ' active' : '') + (cand && cand.sides.has(opp) ? ' pick' : '');
+    mySide.className = 'side' + (myTurn ? ' active' : '') + (cand && cand.sides.has(me) ? ' pick' : '');
+    oppSide.innerHTML = sideHtml(opp, S, cand, `${nameOf(opp)}${mode === 'local' ? '' : '（相手）'}の場`);
+    mySide.innerHTML = sideHtml(me, S, cand, mode === 'cpu' ? 'あなたの場' : `${nameOf(me)}（${mode === 'local' ? '手番' : 'あなた'}）の場`);
+    oppHand.innerHTML = Array.from({ length: S.oppCount }, () => '<div class="card back"></div>').join('');
+    handEl.innerHTML = S.hand.map((c, i) => {
+      const d = CARDS[c];
+      const cls = ['card', d.cls];
+      if (ui.card === i) cls.push('sel');
+      if (cand && cand.hand.has(i)) cls.push('can');
+      return `<div class="${cls.join(' ')}" data-card="${i}" title="${esc(d.desc)}"><div class="sym">${d.sym}</div><div class="kind">${d.kind}</div></div>`;
+    }).join('');
+    deckEl.textContent = `山札 ${S.deckCount} 枚`;
+    logEl.innerHTML = S.log.map(l => `<div class="${l.cls}">${l.text}</div>`).join('');
+    logEl.scrollTop = logEl.scrollHeight;
+    // 案内
+    let info = '';
+    if (S.phase === 'over') info = '';
+    else if (!myTurn) info = `${esc(san(S.turn))}の番です${mode === 'cpu' ? '（考え中…）' : ''}`;
+    else if (ui.card == null) info = '<b>あなたの番</b>：使うカードを選んでください（カードを長押し／ホバーで説明）';
+    else {
+      const c = S.hand[ui.card], d = CARDS[c];
+      if (isBasisCard(c)) info = c === '0' ? '0 は × で使うカードです（× を選んでから使います）' : '自分の場の<b>空き</b>を選んでください';
+      else if (SINGLE.includes(c)) info = `${d.kind}：対象の関数を選んでください（光っている関数に使えます）`;
+      else if (SIDE_OPS.includes(c)) info = `${d.kind}：どちらの場に使うか選んでください`;
+      else info = ui.target ? `${d.kind}：${c === 'mul' ? '掛ける' : '割る'}関数カードを手札から選んでください` : `${d.kind}：まず${c === 'mul' ? '掛けられる' : '割られる'}関数を選んでください`;
+      if (cand && !cand.slots.size && !cand.sides.size && !cand.hand.size && !(MULTI.includes(c) && !ui.target)) info += '<br><span class="err">このカードを使える対象がありません</span>';
+    }
+    if (flashMsg) { info += `<br><span class="err">${esc(flashMsg)}</span>`; flashMsg = ''; }
+    infoEl.innerHTML = info;
+    // ボタン
+    actionsEl.innerHTML = '';
+    const button = (t, f, sec) => { const b = document.createElement('button'); b.className = 'choice' + (sec ? ' secondary' : ''); b.textContent = t; b.addEventListener('click', f); actionsEl.appendChild(b); };
+    if (myTurn && ui.card != null) {
+      const c = S.hand[ui.card];
+      if (SIDE_OPS.includes(c)) for (const side of [opp, me]) if (cand.sides.has(side)) button(side === me ? '自分の場に使う' : '相手の場に使う', () => send({ type: 'side', card: ui.card, side }));
+      button('このカードを捨てる', () => send({ type: 'discard', card: ui.card }), true);
+      button('選択をやめる', () => { ui = { card: null, target: null }; render(); }, true);
+    }
+    if (S.phase === 'over') { button('結果を見る', () => showResult(S)); }
+    prevField = JSON.parse(JSON.stringify(S.field));
+    // クリック
+    handEl.querySelectorAll('[data-card]').forEach(el => el.addEventListener('click', () => onCard(+el.dataset.card)));
+    document.querySelectorAll('[data-slot]').forEach(el => el.addEventListener('click', () => onSlot(el.dataset.slot)));
+    oppSide.onclick = e => { if (!e.target.closest('[data-slot]')) onSide(opp); };
+    mySide.onclick = e => { if (!e.target.closest('[data-slot]')) onSide(me); };
+    if (S.phase === 'over' && overlay.dataset.kind !== 'peek' && !overlay.classList.contains('show')) showResult(S);
+  }
+  function onCard(i) {
+    const S = V; if (!S || S.phase !== 'play' || S.turn !== S.me) return;
+    if (ui.card != null && ui.target && MULTI.includes(S.hand[ui.card])) {
+      const cand = candidates();
+      if (cand.hand.has(i)) { send({ type: 'multi', card: ui.card, ...ui.target, op: { hand: i } }); return; }
+    }
+    ui = ui.card === i ? { card: null, target: null } : { card: i, target: null };
+    render();
+  }
+  function onSlot(key) {
+    const S = V; if (!S || ui.card == null) return;
+    const [side, slot] = key.split('-').map(Number);
+    const c = S.hand[ui.card];
+    const cand = candidates();
+    if (SIDE_OPS.includes(c)) { if (cand.sides.has(side)) send({ type: 'side', card: ui.card, side }); return; }
+    if (!cand.slots.has(key)) {
+      if (SINGLE.includes(c) && S.field[side][slot]) {
+        const fake = { field: S.field, hands: [[], []] }; fake.hands[S.me] = S.hand.slice();
+        const r = tryMove(fake, S.me, { type: 'apply', card: ui.card, side, slot });
+        if (!r.ok) flash(r.err);
+      }
+      return;
+    }
+    if (isBasisCard(c)) send({ type: 'place', card: ui.card, slot });
+    else if (SINGLE.includes(c)) send({ type: 'apply', card: ui.card, side, slot });
+    else if (MULTI.includes(c)) {
+      ui.target = { side, slot }; render();
+    }
+  }
+  function onSide(side) {
+    const S = V; if (!S || ui.card == null) return;
+    const cand = candidates();
+    if (cand && cand.sides.has(side)) send({ type: 'side', card: ui.card, side });
+  }
+
+  // ---------- オーバーレイ ----------
+  function showOverlay(title, text, buttons, extraHtml) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayText.style.display = text ? '' : 'none';
+    overlayExtra.innerHTML = extraHtml || '';
+    overlayButtons.innerHTML = '';
+    for (const b of buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'choice' + (b.primary ? '' : ' secondary');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', b.onClick);
+      overlayButtons.appendChild(btn);
+    }
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); overlay.dataset.kind = ''; }
+  function showResult(S) {
+    const w = S.winner;
+    let title = w === -1 ? '引き分け！' : `${nameOf(w)}さんの勝ち！`;
+    if (mode !== 'local' && w !== -1) title = w === S.me ? 'あなたの勝ち！' : 'あなたの負け…';
+    overlay.dataset.kind = 'result';
+    showOverlay(title, `${S.reason}　${nameOf(0)} ${count(S, 0)} 個 / ${nameOf(1)} ${count(S, 1)} 個`, [
+      ...(isAuthority() ? [{ label: 'もう一度', primary: true, onClick: () => { hideOverlay(); prevField = null; newGame(); afterChange(); if (mode === 'local') localGate(); } }] : []),
+      { label: '盤面を見る', primary: false, onClick: () => { overlay.classList.remove('show'); overlay.dataset.kind = 'peek'; } },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function localGate() {
+    if (mode !== 'local' || !G || G.phase !== 'play') return;
+    showOverlay(`${nameOf(G.turn)}さんの番`, '端末を渡してください。手札は手番の人だけが見ます', [
+      { label: '手札を見る', primary: true, onClick: hideOverlay }
+    ], G.log.length ? `<div style="font-size:13px;color:#9aa3d6;max-width:420px;line-height:1.6">${G.log.slice(-4).map(l => l.text).join('<br>')}</div>` : '');
+  }
+
+  // ---------- メニュー ----------
+  function resetAll() {
+    cleanupPeer();
+    clearTimeout(cpuTimer);
+    mode = null; isHost = false; myId = 'local'; players = []; G = null; V = null; prevField = null; ui = { card: null, target: null };
+    overlay.dataset.kind = '';
+    oppSide.innerHTML = ''; mySide.innerHTML = ''; oppHand.innerHTML = ''; handEl.innerHTML = ''; actionsEl.innerHTML = ''; logEl.innerHTML = ''; deckEl.textContent = ''; infoEl.innerHTML = '';
+    oppSide.className = mySide.className = 'side';
+  }
+  function showModeSelect() {
+    resetAll();
+    showOverlay('∇演算子ゲーム', '微分・積分・極限などの演算カードで、相手の場の関数を 0 にしたり発散させたりして消していく2人対戦カードゲーム', [
+      { label: 'CPU と対戦', primary: true, onClick: () => startOffline('cpu') },
+      { label: '2人で遊ぶ（1台）', primary: true, onClick: () => startOffline('local') },
+      { label: 'オンライン対戦', primary: true, onClick: showOnlineMenu },
+      { label: '遊び方', primary: false, onClick: showRules },
+      { label: 'カード一覧', primary: false, onClick: showCards }
+    ]);
+  }
+  function startOffline(m) {
+    mode = m; myId = 'local';
+    players = m === 'cpu' ? [{ id: 'local', name: 'あなた' }, { id: 'cpu', name: 'CPU' }] : [{ id: 'p0', name: 'プレイヤー1' }, { id: 'p1', name: 'プレイヤー2' }];
+    hideOverlay();
+    newGame();
+    afterChange();
+    if (m === 'local') localGate();
+  }
+  function showRules() {
+    showOverlay('遊び方', '', [{ label: 'カード一覧', primary: false, onClick: showCards }, { label: '戻る', primary: true, onClick: showModeSelect }], `
+      <ul class="rules">
+        <li>2人対戦。はじめはおたがいの場に <b>1・x・x²</b> の3つの関数が並び、手札は7枚です。</li>
+        <li>自分の番には手札を<b>1枚</b>使います。演算カードは自分・相手どちらの関数にも使えます。関数カードは自分の場の空きに置けます。使ったら山札から7枚まで補充します。</li>
+        <li>関数は次のときに<b>消滅</b>します：
+          <br>・<b>0 になる</b>（例：1 を微分、x を ×0）
+          <br>・<b>発散する</b>（例：x を lim x→+∞）
+          <br>・<b>線形従属</b>になる（同じ側に定数倍の関係の関数が2つ並ぶと、片方が消える。例：x を微分すると 1 になり、すでにある 1 とかぶって消える）</li>
+        <li>× と ÷ は、場の関数に<b>手札の関数カード</b>を掛けたり割ったりします（カードを2枚使います）。0 を掛ければ一発で消せます。割り算で 1 にして、すでにある 1 と線形従属にするのも有効です。</li>
+        <li>実数で計算できない演算（負の数の √、x→−∞ での log x など）や、このゲームで扱えない式になる演算はできません。使えない手は選べないようになっています。</li>
+        <li>相手の場の関数を<b>すべて消したら勝ち</b>。山札がなくなったら、場に残った関数が多い方の勝ちです。</li>
+        <li>使い道のないカードは、手番を使って1枚捨てることもできます。</li>
+        <li>※ 東大生考案のカードゲーム「ナブラ演算子ゲーム」をもとにした簡易版です。積分定数は 0、x→0 は右側からの極限として計算します。</li>
+      </ul>`);
+  }
+  function showCards() {
+    const rows = Object.values(CARDS).map(c => `<div class="s">${c.sym.replace(/<br>/g, ' ')}</div><div>${c.kind}（${c.n}枚）：${c.desc}</div>`).join('');
+    showOverlay('カード一覧', `全${Object.values(CARDS).reduce((a, c) => a + c.n, 0)}枚`, [{ label: '戻る', primary: true, onClick: showModeSelect }], `<div class="cardlist">${rows}</div>`);
+  }
+
+  // ---------- オンライン ----------
+  function loadName() { try { return localStorage.getItem('cardgame-name') || ''; } catch (e) { return ''; } }
+  function saveName(n) { try { localStorage.setItem('cardgame-name', n); } catch (e) {} }
+  function cleanupPeer() {
+    for (const c of guests.values()) { try { c.close(); } catch (e) {} }
+    guests.clear();
+    if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+  }
+  function randomCode(len = 1) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function errorOverlay(text) {
+    showOverlay('接続エラー', text, [
+      { label: 'もう一度', primary: true, onClick: showOnlineMenu },
+      { label: 'モード選択に戻る', primary: false, onClick: showModeSelect }
+    ]);
+  }
+  function showOnlineMenu() {
+    cleanupPeer();
+    showOverlay('オンライン対戦', '2人で各自の端末から遊びます。まず名前を入力してください', [
+      { label: '部屋を作る（ホスト）', primary: true, onClick: () => withName(hostRoom) },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<input id="name-input" maxlength="8" placeholder="なまえ" autocomplete="off" value="${esc(loadName())}" style="width:200px" />
+        <div class="row"><input id="code-input" maxlength="1" placeholder="コード" autocomplete="off" />
+        <button id="join-btn" class="choice">部屋に入る</button></div>`);
+    $('join-btn').addEventListener('click', () => withName(joinRoom));
+    $('code-input').addEventListener('keydown', e => { if (e.key === 'Enter') withName(joinRoom); });
+  }
+  function withName(fn) {
+    const name = ($('name-input').value || '').trim();
+    if (!name) { $('name-input').focus(); $('name-input').placeholder = '名前を入力してください'; return; }
+    saveName(name);
+    fn(name, ($('code-input').value || '').trim().toUpperCase());
+  }
+  function hostRoom(name) {
+    cleanupPeer();
+    mode = 'online'; isHost = true; myId = 'host';
+    players = [{ id: 'host', name }];
+    roomCode = randomCode();
+    showOverlay('オンライン対戦', '部屋を準備しています…', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer('nabla-room-' + roomCode);
+    // 1文字コードは他の部屋と重なることがあるので、使用中なら別の文字で作り直す
+    peer.on('error', err => { if (err && err.type === 'unavailable-id' && (window.__roomRetry = (window.__roomRetry || 0) + 1) <= 20) setTimeout(() => hostRoom(name), 0); });
+    peer.on('open', () => { window.__roomRetry = 0; });
+    peer.on('open', renderLobby);
+    peer.on('connection', c => {
+      c.on('data', d => onHostData(c, d));
+      c.on('close', () => onGuestLeft(c.peer));
+      c.on('error', () => onGuestLeft(c.peer));
+    });
+    peer.on('error', () => { if (!G) errorOverlay('部屋を作成できませんでした。もう一度お試しください。'); });
+  }
+  function renderLobby() {
+    if (G) return;
+    for (const c of guests.values()) { try { c.send({ type: 'lobby', names: players.map(p => p.name) }); } catch (e) {} }
+    showOverlay('部屋を作りました', 'コードを相手に伝えてください', [
+      { label: 'ゲーム開始', primary: true, disabled: players.length < 2, onClick: () => { hideOverlay(); newGame(); afterChange(); } },
+      { label: 'キャンセル', primary: false, onClick: showModeSelect }
+    ], `<div id="room-code">${roomCode}</div><div class="member-list">${players.map(p => esc(p.name)).join('<br>')}</div>`);
+  }
+  function onHostData(c, data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'hello') {
+      if (G || players.length >= 2) { c.send({ type: 'full' }); return; }
+      guests.set(c.peer, c);
+      players.push({ id: c.peer, name: String(data.name || '').trim().slice(0, 8) || 'ゲスト' });
+      renderLobby();
+    } else if (data.type === 'act' && G) {
+      const seat = players.findIndex(p => p.id === c.peer);
+      const r = seat >= 0 ? doMove(seat, data.action || {}) : { ok: false };
+      if (r.ok) afterChange();
+      else { try { c.send({ type: 'error', text: r.err || '' }); } catch (e) {} }
+    }
+  }
+  function onGuestLeft(id) {
+    if (!guests.has(id)) return;
+    guests.delete(id);
+    const i = players.findIndex(p => p.id === id);
+    if (i < 0) return;
+    if (!G) { players.splice(i, 1); renderLobby(); return; }
+    if (G.phase === 'play') { G.phase = 'over'; G.winner = 1 - i; G.reason = `${players[i].name}さんが退出しました`; }
+    afterChange();
+  }
+  function joinRoom(name, code) {
+    if (!code) { $('code-input').focus(); return; }
+    cleanupPeer();
+    mode = 'online'; isHost = false;
+    showOverlay('接続中…', 'ホストの部屋に接続しています', [{ label: 'キャンセル', primary: false, onClick: showModeSelect }]);
+    peer = new Peer();
+    peer.on('open', id => {
+      myId = id;
+      conn = peer.connect('nabla-room-' + code, { reliable: true });
+      conn.on('open', () => conn.send({ type: 'hello', name }));
+      conn.on('data', onGuestData);
+      conn.on('close', onHostLost);
+      conn.on('error', () => errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'));
+    });
+    peer.on('error', () => { if (!V) errorOverlay('コードが正しいか、ホストが待機しているか確認してください。'); });
+  }
+  function onGuestData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'lobby') {
+      showOverlay('参加しました', 'ホストの開始を待っています', [
+        { label: '退出する', primary: false, onClick: showModeSelect }
+      ], `<div class="member-list">${data.names.map(esc).join('<br>')}</div>`);
+    } else if (data.type === 'sync') {
+      players = data.players;
+      const prev = V;
+      V = data.view;
+      if (!prev || (prev.phase === 'over' && V.phase !== 'over')) { hideOverlay(); prevField = null; }
+      ui = { card: null, target: null };
+      render();
+    } else if (data.type === 'error') {
+      flash(data.text || 'その手は使えません');
+    } else if (data.type === 'full') {
+      errorOverlay('この部屋は満員か、すでにゲームが始まっています。');
+      cleanupPeer();
+    }
+  }
+  function onHostLost() {
+    if (mode !== 'online' || isHost) return;
+    showOverlay('ホストとの接続が切れました', '通信が切れてしまいました', [
+      { label: 'モード選択に戻る', primary: true, onClick: showModeSelect }
+    ]);
+  }
+
+  $('back-btn').addEventListener('click', showModeSelect);
+  window.addEventListener('beforeunload', cleanupPeer);
+  window.__nabla = { deriv, integ, mul, div, sqrtF, invF, logF, limitF, fmt, BASIS, T };
+  showModeSelect();
+})();
+</script>
