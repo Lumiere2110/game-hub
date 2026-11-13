@@ -329,7 +329,7 @@
     cos: { sym: 'cos x', cls: 'basis', kind: '関数', desc: '自分の場の空きに置ける', n: 4 },
     e: { sym: 'e<sup>x</sup>', cls: 'basis', kind: '関数', desc: '自分の場の空きに置ける', n: 4 },
     d: { sym: 'd/dx', cls: 'deriv', kind: '微分', desc: '関数1つを微分する', n: 8 },
-    int: { sym: '∫dx', cls: 'deriv', kind: '積分', desc: '関数1つを積分する（積分定数は 0）', n: 8 },
+    int: { sym: '∫dx', cls: 'deriv', kind: '積分', desc: '関数1つを積分する（積分定数は 0）。1ターンに2回まで続けて使える', n: 8 },
     nabla: { sym: '∇', cls: 'deriv', kind: 'ナブラ', desc: 'どちらかの場の関数すべてを微分する', n: 10 },
     lap: { sym: 'Δ', cls: 'deriv', kind: 'ラプラシアン', desc: 'どちらかの場の関数すべてを2回微分する', n: 2 },
     mul: { sym: '×', cls: 'alg', kind: '掛け算', desc: '場の関数に、手札の関数カード（0, 1, x など）を掛ける。2枚使う', n: 5 },
@@ -373,7 +373,7 @@
     G = {
       field: [0, 1].map(() => [BASIS['1'], BASIS.x, BASIS.x2].map(f => f.map(t => ({ ...t })))),
       hands: [deck.splice(0, HAND), deck.splice(0, HAND)],
-      deck, turn: Math.floor(Math.random() * 2), phase: 'play', winner: null, log: [], seq: 0, last: null
+      deck, turn: Math.floor(Math.random() * 2), phase: 'play', winner: null, log: [], seq: 0, last: null, intUsed: 0
     };
     addLog(`${san(G.turn)}の先攻でスタート！`);
   }
@@ -393,6 +393,7 @@
   function execMove(S, seat, m) {
     const hand = S.hands[seat];
     const card = hand[m.card];
+    if (m.type === 'end') return [{ t: 'ターンを終えた' }];
     if (card == null) fail('カードがありません');
     const msgs = [];
     const eliminate = (side, slot, why) => { S.field[side][slot] = null; msgs.push({ t: `${nameOf(side)}の関数が${why}で消滅！`, hit: true }); };
@@ -460,6 +461,10 @@
   }
   function doMove(seat, m) {
     if (!G || G.phase !== 'play' || seat !== G.turn) return { ok: false, err: 'あなたの番ではありません' };
+    // 積分は1ターンに2回まで続けて使える：1回目の積分ではターンが終わらない
+    const isInt = m.type === 'apply' && G.hands[seat][m.card] === 'int';
+    if (G.intUsed && !isInt && m.type !== 'end') return { ok: false, err: '積分のあとは、もう1回積分するか「ターンを終える」を押してください' };
+    if (m.type === 'end' && !G.intUsed) return { ok: false, err: 'カードを使ってください' };
     const r = tryMove(G, seat, m);
     if (!r.ok) return r;
     const log = G.log, seq = G.seq;
@@ -471,7 +476,8 @@
     const c0 = count(G, 0), c1 = count(G, 1);
     if (!c0 || !c1) { G.phase = 'over'; G.winner = !c0 && !c1 ? -1 : (!c0 ? 1 : 0); G.reason = 'すべての関数が消えた'; }
     else if (!G.deck.length) { G.phase = 'over'; G.winner = c0 === c1 ? -1 : (c0 > c1 ? 0 : 1); G.reason = `山札切れ（${c0} 対 ${c1}）`; }
-    else G.turn = 1 - G.turn;
+    else if (isInt && !G.intUsed) { G.intUsed = 1; addLog('積分1回目：もう1回積分できます'); }
+    else { G.intUsed = 0; G.turn = 1 - G.turn; }
     G.last = seat;
     return { ok: true };
   }
@@ -482,6 +488,12 @@
     const hand = S.hands[seat];
     const slotsAll = []; for (const side of [0, 1]) S.field[side].forEach((f, i) => { if (f) slotsAll.push({ side, slot: i }); });
     const free = placeSlots(S, seat)[0];
+    if (S.intUsed) {
+      // 積分1回目のあと：もう1回積分するか、ターンを終えるだけ
+      ms.push({ type: 'end' });
+      hand.forEach((c, i) => { if (c === 'int') for (const t of slotsAll) ms.push({ type: 'apply', card: i, ...t }); });
+      return ms;
+    }
     hand.forEach((c, i) => {
       if (isBasisCard(c) && c !== '0') ms.push({ type: 'place', card: i, slot: free });
       if (SINGLE.includes(c)) for (const t of slotsAll) ms.push({ type: 'apply', card: i, ...t });
@@ -539,12 +551,27 @@
       const quick = ({ r }) => scoreState(r.S, seat) - threat(r.S, seat) * 4 + threat(r.S, 1 - seat) * 4;
       const top = legal.map(x => ({ ...x, q: quick(x) })).sort((a, b) => b.q - a.q).slice(0, 8);
       let b3 = null, b3s = -Infinity;
+      const qs = S => scoreState(S, seat) - threat(S, seat) * 4 + threat(S, 1 - seat) * 4;
       for (const x of top) {
+        // 1回目の積分なら、続けて打てる2回目の積分（またはターン終了）のうち一番よい形まで進めて考える
+        let after = x.r.S;
+        if (!G.intUsed && x.m.type === 'apply' && G.hands[seat][x.m.card] === 'int') {
+          let bq = qs(after);
+          after.hands[seat].forEach((c, i) => {
+            if (c !== 'int') return;
+            after.field.forEach((fs, side) => fs.forEach((f, slot) => {
+              if (!f) return;
+              const r2 = tryMove(x.r.S, seat, { type: 'apply', card: i, side, slot });
+              if (r2.ok) { const q = qs(r2.S); if (q > bq) { bq = q; after = r2.S; } }
+            }));
+          });
+        }
         let sum = 0;
-        if (Math.abs(scoreState(x.r.S, seat)) >= 1000) sum = scoreState(x.r.S, seat) * 3;
-        else for (let k = 0; k < 3; k++) {
-          const S2 = JSON.parse(JSON.stringify(x.r.S));
+        if (Math.abs(scoreState(after, seat)) >= 1000) sum = scoreState(after, seat) * 3;
+        else for (let k = 0; k < 6; k++) {
+          const S2 = JSON.parse(JSON.stringify(after));
           S2.hands[1 - seat] = shuffle(pool.slice()).slice(0, HAND);
+          S2.intUsed = 0;
           let worst = scoreState(S2, seat);
           for (const om of allMoves(S2, 1 - seat)) {
             const rr = tryMove(S2, 1 - seat, om);
@@ -552,11 +579,12 @@
           }
           sum += worst;
         }
-        const s = sum / 3 + x.q * 0.1 + Math.random() * 0.3;
+        const s = sum / 6 + x.q * 0.5 + Math.random() * 0.3;
         if (s > b3s) { b3s = s; b3 = x.m; }
       }
       best = b3;
     }
+    if (G.intUsed && (!best || (cpuLevel !== 3 && bestScore < base - 0.01))) return { type: 'end' };
     if (!best || (cpuLevel !== 3 && bestScore < base - 0.01)) {
       // よい手がなければ、一番役に立たなそうなカードを捨てる
       const h = G.hands[seat];
@@ -586,9 +614,10 @@
   }
   function send(m) {
     if (mode === 'online' && !isHost) { if (conn) conn.send({ type: 'act', action: m }); ui = { card: null, target: null }; render(); return; }
+    const turnBefore = G ? G.turn : null;
     const r = doMove(mySeat(), m);
     if (!r.ok) { flash(r.err); return; }
-    if (mode === 'local' && G.phase === 'play') { afterChange(); localGate(); return; }
+    if (mode === 'local' && G.phase === 'play') { afterChange(); if (G.turn !== turnBefore) localGate(); return; }
     afterChange();
   }
 
@@ -611,6 +640,7 @@
     const fake = { field: S.field, hands: [[], []] }; fake.hands[S.me] = S.hand.slice();
     const ok = m => tryMove(fake, S.me, m).ok;
     const res = { slots: new Set(), sides: new Set(), hand: new Set() };
+    if (S.intUsed && card !== 'int') return res;
     if (isBasisCard(card)) { if (card !== '0') for (const s of placeSlots(S, S.me)) res.slots.add(`${S.me}-${s}`); }
     else if (SINGLE.includes(card)) { for (const side of [0, 1]) S.field[side].forEach((f, s) => { if (f && ok({ type: 'apply', card: ui.card, side, slot: s })) res.slots.add(`${side}-${s}`); }); }
     else if (SIDE_OPS.includes(card)) { for (const side of [0, 1]) if (ok({ type: 'side', card: ui.card, side })) res.sides.add(side); }
@@ -671,6 +701,8 @@
     let info = '';
     if (S.phase === 'over') info = '';
     else if (!myTurn) info = `${esc(san(S.turn))}の番です${mode === 'cpu' ? '（考え中…）' : ''}`;
+    else if (S.intUsed && ui.card == null) info = '<b>あなたの番</b>：もう1回<b>積分</b>できます。積分しないなら「ターンを終える」を押してください';
+    else if (S.intUsed && S.hand[ui.card] !== 'int') info = '<span class="err">積分のあとは、もう1回積分（∫dx）するか「ターンを終える」しかできません</span>';
     else if (ui.card == null) info = '<b>あなたの番</b>：使うカードを選んでください（カードを長押し／ホバーで説明）';
     else {
       const c = S.hand[ui.card], d = CARDS[c];
@@ -688,9 +720,10 @@
     if (myTurn && ui.card != null) {
       const c = S.hand[ui.card];
       if (SIDE_OPS.includes(c)) for (const side of [opp, me]) if (cand.sides.has(side)) button(side === me ? '自分の場に使う' : '相手の場に使う', () => send({ type: 'side', card: ui.card, side }));
-      button('このカードを捨てる', () => send({ type: 'discard', card: ui.card }), true);
+      if (!S.intUsed) button('このカードを捨てる', () => send({ type: 'discard', card: ui.card }), true);
       button('選択をやめる', () => { ui = { card: null, target: null }; render(); }, true);
     }
+    if (myTurn && S.intUsed) button('ターンを終える', () => send({ type: 'end' }));
     if (S.phase === 'over') { button('結果を見る', () => showResult(S)); }
     prevField = JSON.parse(JSON.stringify(S.field));
     // クリック
@@ -822,6 +855,7 @@
         <li>× と ÷ は、場の関数に<b>手札の関数カード</b>を掛けたり割ったりします（カードを2枚使います）。0 を掛ければ一発で消せます。割り算で 1 にして、すでにある 1 と線形従属にするのも有効です。</li>
         <li>実数で計算できない演算（負の数の √、x→−∞ での log x など）や、このゲームで扱えない式になる演算はできません。使えない手は選べないようになっています。</li>
         <li>相手の場の関数を<b>すべて消したら勝ち</b>。山札がなくなったら、場に残った関数が多い方の勝ちです。</li>
+        <li><b>積分（∫dx）は1ターンに2回まで</b>使えます。1回目の積分のあとは、もう1回積分するか、「ターンを終える」を押します（積分以外のカードは使えません）。</li>
         <li>使い道のないカードは、手番を使って1枚捨てることもできます。</li>
         <li>※ 東大生考案のカードゲーム「ナブラ演算子ゲーム」をもとにした簡易版です。積分定数は 0、x→0 は右側からの極限として計算します。</li>
       </ul>`);
