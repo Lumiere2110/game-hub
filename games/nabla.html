@@ -19,29 +19,30 @@
     overflow-x: hidden;
     padding: 16px 0;
   }
-  #wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 680px; max-width: 96vw; }
+  #wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; width: 1040px; max-width: 96vw; }
   #topbar { position: relative; z-index: 60; display: flex; justify-content: space-between; align-items: center; width: 100%; }
-  h1 { margin: 0; font-size: 22px; letter-spacing: 2px; font-weight: 600; color: #9fe3ff; text-shadow: 0 0 12px rgba(100,200,255,0.6); }
+  h1 { margin: 0; font-size: 28px; letter-spacing: 2px; font-weight: 600; color: #9fe3ff; text-shadow: 0 0 12px rgba(100,200,255,0.6); }
   #back-btn, #hub-link {
     background: transparent; border: 1px solid #3a4278; color: #b9c2f0;
-    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; text-decoration: none; white-space: nowrap;
+    padding: 8px 16px; border-radius: 999px; font-size: 14px; cursor: pointer; text-decoration: none; white-space: nowrap;
   }
   #back-btn:hover, #hub-link:hover { border-color: #6ea8ff; color: #eef0ff; }
   #topbar-right { display: flex; gap: 8px; }
-  .side { width: 100%; padding: 8px; border-radius: 14px; border: 1px solid #2a3160; background: rgba(255,255,255,0.03); }
+  .side { width: 100%; padding: 12px; border-radius: 16px; border: 1px solid #2a3160; background: rgba(255,255,255,0.03); }
   .side.active { border-color: #ffe066; box-shadow: 0 0 14px rgba(255,224,102,0.18); }
   .side.pick { border-color: #6ee7a8; box-shadow: 0 0 14px rgba(110,231,168,0.35); cursor: pointer; }
-  .side-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #9aa3d6; margin: 0 4px 6px; }
-  .side-head b { color: #eef0ff; font-size: 13px; }
-  .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .side-head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: #9aa3d6; margin: 0 4px 8px; }
+  .side-head b { color: #eef0ff; font-size: 16px; }
+  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
   .fslot {
-    min-height: 64px; border-radius: 12px; display: flex; align-items: center; justify-content: center; text-align: center;
-    padding: 6px 4px; font-family: "Times New Roman", "Cambria Math", serif; font-size: 19px; line-height: 1.3;
+    min-height: 96px; border-radius: 14px; display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 8px 6px; font-family: "Times New Roman", "Cambria Math", serif; font-size: 27px; line-height: 1.3;
     background: #f4ecd8; color: #1d1a2e; border: 2px solid #f4ecd8; word-break: break-word; position: relative;
   }
-  .fslot.long { font-size: 14px; }
-  .fslot.xlong { font-size: 11px; }
-  .fslot.empty { background: transparent; border: 2px dashed #3a4278; color: #4a5180; font-family: inherit; font-size: 12px; }
+  .fslot.long { font-size: 19px; }
+  .fslot.xlong { font-size: 14px; }
+  .fslot.empty { background: transparent; border: 2px dashed #3a4278; color: #4a5180; font-family: inherit; font-size: 15px; }
+  .fslot.add { color: #6a74b0; }
   .fslot.can { border-color: #6ee7a8; box-shadow: 0 0 12px rgba(110,231,168,0.6); cursor: pointer; }
   .fslot.sel { border-color: #ff9f43; box-shadow: 0 0 14px rgba(255,159,67,0.8); }
   .fslot.gone { animation: gone 0.7s ease; }
@@ -49,16 +50,16 @@
   @keyframes pop { 0% { transform: scale(0.85); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
   @keyframes gone { 0% { background: #ff6b81; } 100% { background: transparent; } }
   sup { font-size: 0.65em; }
-  #info { font-size: 13px; color: #b9c2f0; text-align: center; min-height: 20px; line-height: 1.6; }
+  #info { font-size: 16px; color: #b9c2f0; text-align: center; min-height: 24px; line-height: 1.6; }
   #info b { color: #ffe066; }
   #info .err { color: #ff8a9a; }
-  #hand { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; width: 100%; }
+  #hand { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; }
   .card {
-    width: 82px; min-height: 92px; border-radius: 10px; padding: 6px 4px; cursor: pointer; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 4px; border: 2px solid transparent; transition: transform 0.12s ease; user-select: none;
+    width: 116px; min-height: 132px; border-radius: 12px; padding: 8px 6px; cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 6px; border: 2px solid transparent; transition: transform 0.12s ease; user-select: none;
   }
-  .card .sym { font-family: "Times New Roman", "Cambria Math", serif; font-size: 21px; font-weight: 600; line-height: 1.2; text-align: center; }
-  .card .kind { font-size: 10px; opacity: 0.8; }
+  .card .sym { font-family: "Times New Roman", "Cambria Math", serif; font-size: 29px; font-weight: 600; line-height: 1.2; text-align: center; }
+  .card .kind { font-size: 13px; opacity: 0.8; }
   .card.basis { background: linear-gradient(180deg, #fff1c1, #f2c94c); color: #3a2a00; }
   .card.deriv { background: linear-gradient(180deg, #bfe3ff, #5aa9f0); color: #08223d; }
   .card.alg { background: linear-gradient(180deg, #c9f7d8, #4cc985); color: #06301a; }
@@ -66,17 +67,17 @@
   .card.sel { border-color: #ff9f43; transform: translateY(-6px); box-shadow: 0 6px 16px rgba(255,159,67,0.6); }
   .card.can { border-color: #6ee7a8; box-shadow: 0 0 12px rgba(110,231,168,0.7); }
   .card.dead { opacity: 0.45; }
-  .card.back { background: repeating-linear-gradient(45deg, #2b3366, #2b3366 6px, #222953 6px, #222953 12px); width: 22px; min-height: 32px; cursor: default; padding: 0; }
-  #opp-hand { display: flex; gap: 3px; justify-content: center; }
-  #actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-  #log { width: 100%; max-height: 120px; overflow-y: auto; font-size: 12px; color: #9aa3d6; line-height: 1.6; padding: 6px 10px; border-radius: 10px; background: rgba(0,0,0,0.25); border: 1px solid #2a3160; }
+  .card.back { background: repeating-linear-gradient(45deg, #2b3366, #2b3366 6px, #222953 6px, #222953 12px); width: 30px; min-height: 44px; cursor: default; padding: 0; }
+  #opp-hand { display: flex; gap: 4px; justify-content: center; }
+  #actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #log { width: 100%; max-height: 180px; overflow-y: auto; font-size: 14px; color: #9aa3d6; line-height: 1.6; padding: 8px 12px; border-radius: 12px; background: rgba(0,0,0,0.25); border: 1px solid #2a3160; }
   #log:empty { display: none; }
   #log .hit { color: #ff9aa8; }
   #log .m { font-family: "Times New Roman", serif; color: #eef0ff; }
-  #deck { font-size: 12px; color: #9aa3d6; }
+  #deck { font-size: 14px; color: #9aa3d6; }
 
   button.choice {
-    background: linear-gradient(180deg, #5a6bff, #3444c4); color: #fff; border: none; padding: 9px 20px; font-size: 14px;
+    background: linear-gradient(180deg, #5a6bff, #3444c4); color: #fff; border: none; padding: 11px 24px; font-size: 16px;
     border-radius: 999px; cursor: pointer; box-shadow: 0 4px 14px rgba(60,80,255,0.5); transition: transform 0.1s ease;
   }
   button.choice.secondary { background: transparent; border: 1px solid #6ea8ff; box-shadow: none; }
@@ -113,9 +114,13 @@
   .member-list { font-size: 14px; color: #dfe4ff; line-height: 1.8; }
   @media (max-width: 480px) {
     h1 { font-size: 18px; }
+    .slots { grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .fslot { font-size: 16px; min-height: 56px; }
     .fslot.long { font-size: 12px; }
     .fslot.xlong { font-size: 10px; }
+    .fslot.empty { font-size: 12px; }
+    .card .kind { font-size: 10px; }
+    #hand { gap: 6px; }
     .card { width: calc((100% - 18px) / 4); min-height: 80px; }
     .card .sym { font-size: 18px; }
     .card.back { width: 16px; min-height: 24px; }
@@ -374,6 +379,13 @@
   }
   function addLog(text, cls = '') { G.log.push({ id: ++G.seq, text, cls }); if (G.log.length > 60) G.log.shift(); }
   const count = (S, side) => S.field[side].filter(Boolean).length;
+  // 関数を置ける場所：空きマス。空きがなければ新しいマスを1つ増やして置ける（場の関数の数に上限はない）
+  function placeSlots(S, seat) {
+    const fs = S.field[seat], r = [];
+    fs.forEach((f, i) => { if (!f) r.push(i); });
+    if (!r.length) r.push(fs.length);
+    return r;
+  }
   const nameOf = side => players[side] ? players[side].name : '';
   const san = side => nameOf(side) === 'あなた' ? 'あなた' : nameOf(side) + 'さん';
 
@@ -396,7 +408,7 @@
       msgs.push({ t: `カードを1枚捨てた` });
     } else if (m.type === 'place') {
       if (!isBasisCard(card) || card === '0') fail('そのカードは場に置けません');
-      if (S.field[seat][m.slot] !== null) fail('空いているマスに置いてください');
+      if (!placeSlots(S, seat).includes(m.slot)) fail('空いているマスに置いてください');
       S.field[seat][m.slot] = BASIS[card].map(t => ({ ...t }));
       msgs.push({ t: `${fmt(BASIS[card])} を場に置いた` });
     } else if (SINGLE.includes(card)) {
@@ -432,11 +444,11 @@
       else { S.field[m.side][m.slot] = r; msgs.unshift({ t: `${lbl} = ${fmt(r)}` }); }
       if (m.op.hand != null) hand.splice(Math.max(m.op.hand, m.card), 1), hand.splice(Math.min(m.op.hand, m.card), 1);
     } else fail('そのカードはここでは使えません');
-    if (!(MULTI.includes(card) && m.op.hand != null)) hand.splice(m.card, 1);
+    if (m.type !== 'multi') hand.splice(m.card, 1);
     // 線形従属：同じ側に定数倍の関係にある関数があれば後ろの方が消える
     for (const side of [0, 1]) {
       const fs = S.field[side];
-      for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++)
+      for (let i = 0; i < fs.length; i++) for (let j = i + 1; j < fs.length; j++)
         if (fs[i] && fs[j] && sameShape(fs[i], fs[j])) { msgs.push({ t: `${nameOf(side)}の ${fmt(fs[j])} は ${fmt(fs[i])} と線形従属なので消滅！`, hit: true }); fs[j] = null; }
     }
     return msgs;
@@ -468,9 +480,10 @@
   function allMoves(S, seat) {
     const ms = [];
     const hand = S.hands[seat];
-    const slotsAll = []; for (const side of [0, 1]) for (let i = 0; i < 3; i++) if (S.field[side][i]) slotsAll.push({ side, slot: i });
+    const slotsAll = []; for (const side of [0, 1]) S.field[side].forEach((f, i) => { if (f) slotsAll.push({ side, slot: i }); });
+    const free = placeSlots(S, seat)[0];
     hand.forEach((c, i) => {
-      if (isBasisCard(c) && c !== '0') for (let s = 0; s < 3; s++) if (!S.field[seat][s]) ms.push({ type: 'place', card: i, slot: s });
+      if (isBasisCard(c) && c !== '0') ms.push({ type: 'place', card: i, slot: free });
       if (SINGLE.includes(c)) for (const t of slotsAll) ms.push({ type: 'apply', card: i, ...t });
       if (SIDE_OPS.includes(c)) for (const side of [0, 1]) ms.push({ type: 'side', card: i, side });
       if (MULTI.includes(c)) for (const t of slotsAll) {
@@ -486,17 +499,65 @@
     if (!me) return -1000;
     return (me - op) * 10 - S.field[seat].reduce((a, f) => a + fragile(f), 0) * 2 + S.field[1 - seat].reduce((a, f) => a + fragile(f), 0);
   }
+  // レベル3用：相手が次の番に、よくあるカード1枚でこちらの関数をいくつ消せるか（候補をしぼるのに使う）
+  const THREAT_CARDS = ['d', 'nabla', 'lap', 'int', 'lim+', 'lim0', 'lim-', 'mul'];
+  function threat(S, side) {
+    const atk = 1 - side, before = count(S, side);
+    let worst = 0, mulWorst = 0;
+    for (const c of THREAT_CARDS) {
+      let w = 0;
+      const F = { field: S.field, hands: [[], []] };
+      F.hands[atk] = c === 'mul' ? ['mul', '0'] : [c];
+      const ms = c === 'nabla' || c === 'lap' ? [{ type: 'side', card: 0, side }]
+        : S.field[side].map((f, slot) => f ? (c === 'mul' ? { type: 'multi', card: 0, side, slot, op: { hand: 1 } } : { type: 'apply', card: 0, side, slot }) : null).filter(Boolean);
+      for (const m of ms) {
+        const r = tryMove(F, atk, m);
+        if (r.ok) w = Math.max(w, before - count(r.S, side));
+      }
+      if (c === 'mul') mulWorst = w; else worst = Math.max(worst, w);
+    }
+    // × 0 は 0 も持っていないと使えないので、半分に割り引く
+    return Math.max(worst, mulWorst * 0.5);
+  }
+  let cpuLevel = 2;
   function cpuPick(seat) {
     const base = scoreState(G, seat);
+    const legal = [];
+    for (const m of allMoves(G, seat)) { const r = tryMove(G, seat, m); if (r.ok) legal.push({ m, r }); }
+    // レベル1：半分くらいの確率で、使える手から適当に選ぶ
+    if (cpuLevel === 1 && legal.length && Math.random() < 0.5) return legal[Math.floor(Math.random() * legal.length)].m;
     let best = null, bestScore = -Infinity;
-    for (const m of allMoves(G, seat)) {
-      const r = tryMove(G, seat, m);
-      if (!r.ok) continue;
+    for (const { m, r } of legal) {
       const noop = JSON.stringify(r.S.field) === JSON.stringify(G.field);
-      const s = scoreState(r.S, seat) + Math.random() * 0.5 - (noop ? 1 : 0);
+      let s = scoreState(r.S, seat) + Math.random() * (cpuLevel === 1 ? 6 : 0.5) - (noop ? 1 : 0);
       if (s > bestScore) { bestScore = s; best = m; }
     }
-    if (!best || bestScore < base - 0.01) {
+    if (cpuLevel === 3 && legal.length) {
+      // 2手先読み：候補の上位について、相手の手札を「見えていないカード」から何通りか予想し、
+      // 相手が一番よい返し手を打ったあとの形で比べる（相手の本当の手札は見ない）
+      const pool = G.deck.concat(G.hands[1 - seat]);
+      const quick = ({ r }) => scoreState(r.S, seat) - threat(r.S, seat) * 4 + threat(r.S, 1 - seat) * 4;
+      const top = legal.map(x => ({ ...x, q: quick(x) })).sort((a, b) => b.q - a.q).slice(0, 8);
+      let b3 = null, b3s = -Infinity;
+      for (const x of top) {
+        let sum = 0;
+        if (Math.abs(scoreState(x.r.S, seat)) >= 1000) sum = scoreState(x.r.S, seat) * 3;
+        else for (let k = 0; k < 3; k++) {
+          const S2 = JSON.parse(JSON.stringify(x.r.S));
+          S2.hands[1 - seat] = shuffle(pool.slice()).slice(0, HAND);
+          let worst = scoreState(S2, seat);
+          for (const om of allMoves(S2, 1 - seat)) {
+            const rr = tryMove(S2, 1 - seat, om);
+            if (rr.ok) worst = Math.min(worst, scoreState(rr.S, seat));
+          }
+          sum += worst;
+        }
+        const s = sum / 3 + x.q * 0.1 + Math.random() * 0.3;
+        if (s > b3s) { b3s = s; b3 = x.m; }
+      }
+      best = b3;
+    }
+    if (!best || (cpuLevel !== 3 && bestScore < base - 0.01)) {
       // よい手がなければ、一番役に立たなそうなカードを捨てる
       const h = G.hands[seat];
       const pri = c => ['lap', 'lim-', 'sqrt', 'inv', 'log', 'div', 'int'].indexOf(c);
@@ -550,11 +611,11 @@
     const fake = { field: S.field, hands: [[], []] }; fake.hands[S.me] = S.hand.slice();
     const ok = m => tryMove(fake, S.me, m).ok;
     const res = { slots: new Set(), sides: new Set(), hand: new Set() };
-    if (isBasisCard(card)) { for (let s = 0; s < 3; s++) if (!S.field[S.me][s] && card !== '0') res.slots.add(`${S.me}-${s}`); }
-    else if (SINGLE.includes(card)) { for (const side of [0, 1]) for (let s = 0; s < 3; s++) if (S.field[side][s] && ok({ type: 'apply', card: ui.card, side, slot: s })) res.slots.add(`${side}-${s}`); }
+    if (isBasisCard(card)) { if (card !== '0') for (const s of placeSlots(S, S.me)) res.slots.add(`${S.me}-${s}`); }
+    else if (SINGLE.includes(card)) { for (const side of [0, 1]) S.field[side].forEach((f, s) => { if (f && ok({ type: 'apply', card: ui.card, side, slot: s })) res.slots.add(`${side}-${s}`); }); }
     else if (SIDE_OPS.includes(card)) { for (const side of [0, 1]) if (ok({ type: 'side', card: ui.card, side })) res.sides.add(side); }
     else if (MULTI.includes(card)) {
-      if (!ui.target) { for (const side of [0, 1]) for (let s = 0; s < 3; s++) if (S.field[side][s]) res.slots.add(`${side}-${s}`); }
+      if (!ui.target) { for (const side of [0, 1]) S.field[side].forEach((f, s) => { if (f) res.slots.add(`${side}-${s}`); }); }
       else {
         const t = ui.target;
         S.hand.forEach((c, j) => { if (j !== ui.card && isBasisCard(c) && ok({ type: 'multi', card: ui.card, ...t, op: { hand: j } })) res.hand.add(j); });
@@ -577,7 +638,13 @@
       if (len > 26) cls.push('xlong'); else if (len > 12) cls.push('long');
       return `<div class="${cls.join(' ')}" data-slot="${key}">${f ? fmt(f) : '空き'}</div>`;
     }).join('');
-    return `<div class="side-head"><b>${esc(title)}</b><span>関数 ${count(S, side)} / 3</span></div><div class="slots">${slots}</div>`;
+    // 空きがないときは、自分の場に「新しいマス」を出す（ここに関数カードを置くと関数が増える）
+    let add = '';
+    if (side === S.me && !fs.some(f => !f)) {
+      const key = `${side}-${fs.length}`;
+      add = `<div class="fslot empty add${cand && cand.slots.has(key) ? ' can' : ''}" data-slot="${key}">＋ 新しいマス</div>`;
+    }
+    return `<div class="side-head"><b>${esc(title)}</b><span>関数 ${count(S, side)} 個</span></div><div class="slots">${slots}${add}</div>`;
   }
   function render() {
     const S = V;
@@ -716,16 +783,28 @@
   function showModeSelect() {
     resetAll();
     showOverlay('∇演算子ゲーム', '微分・積分・極限などの演算カードで、相手の場の関数を 0 にしたり発散させたりして消していく2人対戦カードゲーム', [
-      { label: 'CPU と対戦', primary: true, onClick: () => startOffline('cpu') },
+      { label: 'CPU と対戦', primary: true, onClick: showLevelSelect },
       { label: '2人で遊ぶ（1台）', primary: true, onClick: () => startOffline('local') },
       { label: 'オンライン対戦', primary: true, onClick: showOnlineMenu },
       { label: '遊び方', primary: false, onClick: showRules },
       { label: 'カード一覧', primary: false, onClick: showCards }
     ]);
   }
+  function showLevelSelect() {
+    showOverlay('CPU のレベル', 'CPU の強さを選んでください', [
+      { label: 'レベル1（やさしい）', primary: true, onClick: () => { cpuLevel = 1; startOffline('cpu'); } },
+      { label: 'レベル2（ふつう）', primary: true, onClick: () => { cpuLevel = 2; startOffline('cpu'); } },
+      { label: 'レベル3（つよい）', primary: true, onClick: () => { cpuLevel = 3; startOffline('cpu'); } },
+      { label: '戻る', primary: false, onClick: showModeSelect }
+    ], `<ul class="rules">
+        <li><b>レベル1</b>：ときどき適当な手を打ちます。</li>
+        <li><b>レベル2</b>：その場で一番よい手を選びます。</li>
+        <li><b>レベル3</b>：次の番に相手から消されやすい形を避けて、先を読んで打ちます。</li>
+      </ul>`);
+  }
   function startOffline(m) {
     mode = m; myId = 'local';
-    players = m === 'cpu' ? [{ id: 'local', name: 'あなた' }, { id: 'cpu', name: 'CPU' }] : [{ id: 'p0', name: 'プレイヤー1' }, { id: 'p1', name: 'プレイヤー2' }];
+    players = m === 'cpu' ? [{ id: 'local', name: 'あなた' }, { id: 'cpu', name: `CPU Lv.${cpuLevel}` }] : [{ id: 'p0', name: 'プレイヤー1' }, { id: 'p1', name: 'プレイヤー2' }];
     hideOverlay();
     newGame();
     afterChange();
@@ -735,7 +814,7 @@
     showOverlay('遊び方', '', [{ label: 'カード一覧', primary: false, onClick: showCards }, { label: '戻る', primary: true, onClick: showModeSelect }], `
       <ul class="rules">
         <li>2人対戦。はじめはおたがいの場に <b>1・x・x²</b> の3つの関数が並び、手札は7枚です。</li>
-        <li>自分の番には手札を<b>1枚</b>使います。演算カードは自分・相手どちらの関数にも使えます。関数カードは自分の場の空きに置けます。使ったら山札から7枚まで補充します。</li>
+        <li>自分の番には手札を<b>1枚</b>使います。演算カードは自分・相手どちらの関数にも使えます。関数カードは自分の場の空きに置けます。空きがないときは「＋ 新しいマス」に置いて、場の関数を<b>4つ以上</b>に増やせます。使ったら山札から7枚まで補充します。</li>
         <li>関数は次のときに<b>消滅</b>します：
           <br>・<b>0 になる</b>（例：1 を微分、x を ×0）
           <br>・<b>発散する</b>（例：x を lim x→+∞）
