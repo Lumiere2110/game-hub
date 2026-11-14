@@ -330,8 +330,8 @@
     e: { sym: 'e<sup>x</sup>', cls: 'basis', kind: '関数', desc: '自分の場の空きに置ける', n: 4 },
     d: { sym: 'd/dx', cls: 'deriv', kind: '微分', desc: '関数1つを微分する', n: 8 },
     int: { sym: '∫dx', cls: 'deriv', kind: '積分', desc: '関数1つを積分する（積分定数は 0）。1ターンに2回まで続けて使える', n: 8 },
-    nabla: { sym: '∇', cls: 'deriv', kind: 'ナブラ', desc: 'どちらかの場の関数すべてを微分する', n: 10 },
-    lap: { sym: 'Δ', cls: 'deriv', kind: 'ラプラシアン', desc: 'どちらかの場の関数すべてを2回微分する', n: 2 },
+    nabla: { sym: '∇', cls: 'deriv', kind: 'ナブラ', desc: 'どちらかの場の関数すべてを微分する（最初のターンは使えない）', n: 10 },
+    lap: { sym: 'Δ', cls: 'deriv', kind: 'ラプラシアン', desc: 'どちらかの場の関数すべてを2回微分する（最初のターンは使えない）', n: 2 },
     mul: { sym: '×', cls: 'alg', kind: '掛け算', desc: '場の関数に、手札の関数カード（0, 1, x など）を掛ける。2枚使う', n: 5 },
     div: { sym: '÷', cls: 'alg', kind: '割り算', desc: '場の関数を、手札の関数カードで割る。2枚使う', n: 5 },
     sqrt: { sym: '√', cls: 'alg', kind: 'ルート', desc: '関数1つの平方根をとる', n: 5 },
@@ -373,7 +373,7 @@
     G = {
       field: [0, 1].map(() => [BASIS['1'], BASIS.x, BASIS.x2].map(f => f.map(t => ({ ...t })))),
       hands: [deck.splice(0, HAND), deck.splice(0, HAND)],
-      deck, turn: Math.floor(Math.random() * 2), phase: 'play', winner: null, log: [], seq: 0, last: null, intUsed: 0
+      deck, turn: Math.floor(Math.random() * 2), phase: 'play', winner: null, log: [], seq: 0, last: null, intUsed: 0, played: [0, 0]
     };
     addLog(`${san(G.turn)}の先攻でスタート！`);
   }
@@ -428,6 +428,7 @@
       }
     } else if (SIDE_OPS.includes(card)) {
       if (m.type !== 'side') fail('どちらかの場を選んでください');
+      if (S.played && !S.played[seat]) fail('∇ と Δ は最初のターンには使えません');
       if (!S.field[m.side].some(Boolean)) fail('その場には関数がありません');
       S.field[m.side].forEach((f, i) => { if (f) setF(m.side, i, card === 'lap' ? deriv(deriv(f)) : deriv(f), card === 'lap' ? 'Δ' : '∇'); });
     } else if (MULTI.includes(card)) {
@@ -477,7 +478,7 @@
     if (!c0 || !c1) { G.phase = 'over'; G.winner = !c0 && !c1 ? -1 : (!c0 ? 1 : 0); G.reason = 'すべての関数が消えた'; }
     else if (!G.deck.length) { G.phase = 'over'; G.winner = c0 === c1 ? -1 : (c0 > c1 ? 0 : 1); G.reason = `山札切れ（${c0} 対 ${c1}）`; }
     else if (isInt && !G.intUsed) { G.intUsed = 1; addLog('積分1回目：もう1回積分できます'); }
-    else { G.intUsed = 0; G.turn = 1 - G.turn; }
+    else { G.intUsed = 0; G.turn = 1 - G.turn; G.played[seat]++; }
     G.last = seat;
     return { ok: true };
   }
@@ -637,7 +638,7 @@
   function candidates() {
     const S = V; if (!S || ui.card == null || S.phase !== 'play' || S.turn !== S.me) return null;
     const card = S.hand[ui.card];
-    const fake = { field: S.field, hands: [[], []] }; fake.hands[S.me] = S.hand.slice();
+    const fake = { field: S.field, hands: [[], []], played: S.played }; fake.hands[S.me] = S.hand.slice();
     const ok = m => tryMove(fake, S.me, m).ok;
     const res = { slots: new Set(), sides: new Set(), hand: new Set() };
     if (S.intUsed && card !== 'int') return res;
@@ -708,9 +709,9 @@
       const c = S.hand[ui.card], d = CARDS[c];
       if (isBasisCard(c)) info = c === '0' ? '0 は × で使うカードです（× を選んでから使います）' : '自分の場の<b>空き</b>を選んでください';
       else if (SINGLE.includes(c)) info = `${d.kind}：対象の関数を選んでください（光っている関数に使えます）`;
-      else if (SIDE_OPS.includes(c)) info = `${d.kind}：どちらの場に使うか選んでください`;
+      else if (SIDE_OPS.includes(c)) info = S.played && !S.played[me] ? `${d.kind}は最初のターンには使えません` : `${d.kind}：どちらの場に使うか選んでください`;
       else info = ui.target ? `${d.kind}：${c === 'mul' ? '掛ける' : '割る'}関数カードを手札から選んでください` : `${d.kind}：まず${c === 'mul' ? '掛けられる' : '割られる'}関数を選んでください`;
-      if (cand && !cand.slots.size && !cand.sides.size && !cand.hand.size && !(MULTI.includes(c) && !ui.target)) info += '<br><span class="err">このカードを使える対象がありません</span>';
+      if (cand && !cand.slots.size && !cand.sides.size && !cand.hand.size && !(MULTI.includes(c) && !ui.target) && !(SIDE_OPS.includes(c) && S.played && !S.played[me])) info += '<br><span class="err">このカードを使える対象がありません</span>';
     }
     if (flashMsg) { info += `<br><span class="err">${esc(flashMsg)}</span>`; flashMsg = ''; }
     infoEl.innerHTML = info;
@@ -750,7 +751,7 @@
     if (SIDE_OPS.includes(c)) { if (cand.sides.has(side)) send({ type: 'side', card: ui.card, side }); return; }
     if (!cand.slots.has(key)) {
       if (SINGLE.includes(c) && S.field[side][slot]) {
-        const fake = { field: S.field, hands: [[], []] }; fake.hands[S.me] = S.hand.slice();
+        const fake = { field: S.field, hands: [[], []], played: S.played }; fake.hands[S.me] = S.hand.slice();
         const r = tryMove(fake, S.me, { type: 'apply', card: ui.card, side, slot });
         if (!r.ok) flash(r.err);
       }
@@ -856,6 +857,7 @@
         <li>実数で計算できない演算（負の数の √、x→−∞ での log x など）や、このゲームで扱えない式になる演算はできません。使えない手は選べないようになっています。</li>
         <li>相手の場の関数を<b>すべて消したら勝ち</b>。山札がなくなったら、場に残った関数が多い方の勝ちです。</li>
         <li><b>積分（∫dx）は1ターンに2回まで</b>使えます。1回目の積分のあとは、もう1回積分するか、「ターンを終える」を押します（積分以外のカードは使えません）。</li>
+        <li><b>∇ と Δ（ラプラシアン）は、それぞれの最初のターンには使えません</b>（2ターン目から使えます）。</li>
         <li>使い道のないカードは、手番を使って1枚捨てることもできます。</li>
         <li>※ 東大生考案のカードゲーム「ナブラ演算子ゲーム」をもとにした簡易版です。積分定数は 0、x→0 は右側からの極限として計算します。</li>
       </ul>`);
